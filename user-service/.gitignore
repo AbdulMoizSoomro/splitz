@@ -1,0 +1,72 @@
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# Package Files #
+*.jar
+*.war
+*.ear
+
+# Spring Boot Actuator exposed ports
+management.server.port
+
+# STS (Spring Tool Suite)
+.apt_generated
+.factorypath
+.settings
+org.eclipse.jdt.core.prefs
+org.eclipse.m2e.core.prefs
+.springBeans
+
+# IntelliJ IDEA
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+
+# NetBeans
+/nbproject/private/
+/nbproject/build-impl.xml
+/nbproject/jaxws-build.xml
+/nbproject/ws-build.xml
+/nbproject/private/private.xml
+
+# VS Code
+.vscode/
+
+# Maven
+user-service/target/
+pom.xml.tag
+pom.xml.backup
+pom.xml.versionsbackup
+dependency-reduced-pom.xml
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+
+# Gradle
+.gradle
+build/
+settings.gradle.kts
+settings.gradle
+gradle-app.setting
+gradle-build.setting
+gradlew
+gradlew.bat
+/build
+
+# Embedded database data files
+*.h2.db
+
+# Tomcat
+work/
+temp/
+logs/
+
+# OS Specific files (e.g., .DS_Store on macOS)
+.DS_Store
+Thumbs.db
+
+resources/application.properties
