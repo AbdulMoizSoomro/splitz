@@ -1,0 +1,53 @@
+# Ignore target folders with build output
+**/target/
+
+# Ignore Maven wrapper files generated at runtime
+.mvn/wrapper/maven-wrapper.jar
+
+# Ignore IDE files (IntelliJ IDEA)
+.idea/
+*.iml
+*.iws
+out/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Compiled class files
+*.class
+
+# Generated sources
+**/generated-sources/
+**/generated-test-sources/
+
+# Maven specific
+dependency-reduced-pom.xml
+release.properties
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+.buildNumber
+
+# Eclipse files (if used)
+.project
+.classpath
+.settings/
+
+# Spring Boot specific
+spring-boot.log
+
+# Environment files (optional, if you want to keep secrets outside git)
+.env
+.env.local
+.env.*.local
+
+# Others you might want to ignore
+*.war
+*.ear
+
+**/application.properties
