@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -26,14 +27,12 @@ public class User implements UserDetails {
     private String lastName;
     private String password;
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "users_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
+    @JoinTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles = new HashSet<>();
 
-    protected User() {}
+    public User() {
+    }
+
     public User(String firstName, String username, String password, Set<Role> roles) {
         this.firstName = firstName;
         this.username = username;
@@ -45,6 +44,7 @@ public class User implements UserDetails {
             this.roles.add(new Role("ROLE_USER"));
         }
     }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
@@ -52,10 +52,12 @@ public class User implements UserDetails {
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
     }
+
     @Override
     public String getPassword() {
         return this.password;
     }
+
     @Override
     public String getUsername() {
         return this.username;

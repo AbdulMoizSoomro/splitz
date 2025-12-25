@@ -4,6 +4,9 @@
 # Ignore Maven wrapper files generated at runtime
 .mvn/wrapper/maven-wrapper.jar
 
+# Ignore IDE files (VS Code)
+.vscode/**
+
 # Ignore IDE files (IntelliJ IDEA)
 .idea/
 *.iml

@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-
 import java.util.List;
 import java.util.Optional;
 
@@ -20,22 +19,21 @@ public class RoleController {
     private RoleService roleService;
 
     @GetMapping("/{id}")
-    public Optional<Role> getById(@PathVariable Long id){
+    public Optional<Role> getById(@PathVariable Long id) {
         return roleService.getRoleById(id);
     }
 
     @GetMapping("/{name}")
-    public Optional<Role> getByName(@PathVariable String name){
+    public Optional<Role> getByName(@PathVariable String name) {
         return roleService.getRoleByName(name);
     }
 
-    @GetMapping("getAllR")
-    public  ResponseEntity<List<Role>> getAllRoles(){
-        try{
+    @GetMapping("/getAllRoles")
+    public ResponseEntity<List<Role>> getAllRoles() {
+        try {
             List<Role> roles = roleService.getAllRoles();
             return new ResponseEntity<List<Role>>(roles, HttpStatus.OK);
-        }
-        catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             return new ResponseEntity<List<Role>>(HttpStatus.CONFLICT);
         }
     }
