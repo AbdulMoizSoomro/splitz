@@ -1,0 +1,190 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.splitz</groupId>
+    <artifactId>splitz</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>user-service</module>
+        <module>expense-service</module>
+        <!-- add other services here -->
+    </modules>
+
+    <!-- ============================================ -->
+    <!-- VERSION MANAGEMENT PROPERTIES               -->
+    <!-- ============================================ -->
+    <properties>
+        <!-- Java Configuration -->
+        <java.version>21</java.version>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+
+        <!-- Spring Boot Version - update here to upgrade all Boot dependencies -->
+        <spring-boot.version>3.2.0</spring-boot.version>
+
+        <!-- Third-party Library Versions (not managed by Spring Boot BOM) -->
+        <lombok.version>1.18.38</lombok.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <postgresql.version>42.7.1</postgresql.version>
+        <h2.version>2.2.224</h2.version>
+
+        <!-- Maven Plugin Versions -->
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
+        <maven-enforcer-plugin.version>3.4.1</maven-enforcer-plugin.version>
+        <maven-release-plugin.version>3.0.1</maven-release-plugin.version>
+    </properties>
+
+    <!-- ============================================ -->
+    <!-- DEPENDENCY MANAGEMENT                       -->
+    <!-- ============================================ -->
+    <!-- Centralizes versions for all dependencies.  -->
+    <!-- Child modules declare dependencies WITHOUT  -->
+    <!-- version tags; Maven resolves from here.     -->
+    <!-- ============================================ -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot Bill of Materials (BOM) - manages all Spring Boot dependency versions -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Third-party dependencies NOT managed by Spring Boot BOM -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>${h2.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- ============================================ -->
+    <!-- BUILD CONFIGURATION                         -->
+    <!-- ============================================ -->
+    <build>
+        <!-- PLUGIN MANAGEMENT: Centralizes plugin versions and configuration -->
+        <!-- Child modules inherit these settings without re-declaring versions -->
+        <pluginManagement>
+            <plugins>
+                <!-- Spring Boot Maven Plugin -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                </plugin>
+
+                <!-- Maven Compiler Plugin -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven-compiler-plugin.version}</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <release>${maven.compiler.release}</release>
+                    </configuration>
+                </plugin>
+
+                <!-- Maven Surefire Plugin (Unit Tests) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
+                </plugin>
+
+                <!-- Maven Enforcer Plugin (Dependency Management Rules) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                </plugin>
+
+                <!-- Maven Release Plugin (Version Bumping) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>${maven-release-plugin.version}</version>
+                    <configuration>
+                        <autoVersionSubmodules>true</autoVersionSubmodules>
+                        <tagNameFormat>v@{project.version}</tagNameFormat>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <!-- PLUGINS: Actually run enforcer in all child modules -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-versions</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- Require Maven 3.8.0 or later -->
+                                <requireMavenVersion>
+                                    <version>[3.8.0,)</version>
+                                    <message>Maven 3.8.0 or later is required</message>
+                                </requireMavenVersion>
+
+                                <!-- Require Java matching project.properties -->
+                                <requireJavaVersion>
+                                    <version>[${java.version},)</version>
+                                    <message>Java ${java.version} or later is required</message>
+                                </requireJavaVersion>
+
+                                <!-- All dependencies must have managed versions (fail on unmanaged) -->
+                                <dependencyConvergence>
+                                    <message>Dependency version conflict detected. All dependencies
+                                        must converge to managed versions.</message>
+                                </dependencyConvergence>
+
+                                <!-- Ban dynamic versions (e.g., 1.0-SNAPSHOT, LATEST) in production -->
+                                <banDynamicVersions>
+                                    <allowSnapshots>true</allowSnapshots>
+                                </banDynamicVersions>
+
+                                <!-- Require upper bound deps (prevents downgrading via transitive
+                                deps) -->
+                                <requireUpperBoundDeps />
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
