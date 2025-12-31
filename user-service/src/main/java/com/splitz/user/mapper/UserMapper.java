@@ -1,10 +1,10 @@
 package com.splitz.user.mapper;
 
+import org.mapstruct.Mapper;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.model.User;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
@@ -49,7 +49,7 @@ public interface UserMapper {
         user.setLastName(userDTO.getLastName());
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         user.setEnabled(true);
-        user.setVerified(false);
+        user.setVerified(true); // For MVP - in production, require email verification
 
         return user;
     }

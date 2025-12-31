@@ -1,12 +1,11 @@
 package com.splitz.user.config;
 
-import com.splitz.user.security.JwtRequestFilter;
-import com.splitz.user.service.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -14,7 +13,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.splitz.user.security.JwtRequestFilter;
+import com.splitz.user.service.UserService;
+
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
     private final UserService userService;
     private final JwtRequestFilter jwtRequestFilter;
@@ -45,12 +48,11 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((auths) -> auths
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/authenticate").permitAll()
+                        // Public endpoints
+                        .requestMatchers("/actuator/**", "/authenticate").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/users").permitAll()
-                        .requestMatchers("/roles/**").hasRole("ADMIN")
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/editor/**").hasAnyRole("USER", "ADMIN")
+                        // All other endpoints require authentication
+                        // Authorization is handled by @PreAuthorize on controller methods
                         .anyRequest().authenticated())
                 .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);

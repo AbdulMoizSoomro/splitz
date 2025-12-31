@@ -1,14 +1,24 @@
 package com.splitz.user.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.splitz.user.dto.UserDTO;
-import com.splitz.user.exception.UserAlreadyExistsException;
-import com.splitz.user.model.Role;
-import com.splitz.user.model.User;
-import com.splitz.user.service.UserService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,26 +29,23 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.splitz.user.dto.UserDTO;
+import com.splitz.user.exception.ResourceNotFoundException;
+import com.splitz.user.exception.UserAlreadyExistsException;
+import com.splitz.user.service.UserService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @DisplayName("UserController Integration Tests")
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class UserControllerTest {
 
         @Autowired
@@ -93,10 +100,17 @@ class UserControllerTest {
                         when(userService.createUser(any(UserDTO.class)))
                                         .thenReturn(responseDTO);
 
-                        // Act & Assert
+                        // Act & Assert - send as map so password (write-only) is included in request
+                        java.util.Map<String, Object> requestMap = new java.util.HashMap<>();
+                        requestMap.put("username", requestDTO.getUsername());
+                        requestMap.put("email", requestDTO.getEmail());
+                        requestMap.put("firstName", requestDTO.getFirstName());
+                        requestMap.put("lastName", requestDTO.getLastName());
+                        requestMap.put("password", requestDTO.getPassword());
+
                         mockMvc.perform(post("/users")
                                         .contentType(MediaType.APPLICATION_JSON)
-                                        .content(objectMapper.writeValueAsString(requestDTO)))
+                                        .content(objectMapper.writeValueAsString(requestMap)))
                                         .andExpect(status().isCreated())
                                         .andExpect(jsonPath("$.id", is(1)))
                                         .andExpect(jsonPath("$.username", is("johndoe")))
@@ -116,10 +130,17 @@ class UserControllerTest {
                         when(userService.createUser(any(UserDTO.class)))
                                         .thenThrow(new UserAlreadyExistsException("Username already exists: johndoe"));
 
-                        // Act & Assert
+                        // Act & Assert - send as map so password (write-only) is included in request
+                        java.util.Map<String, Object> requestMap = new java.util.HashMap<>();
+                        requestMap.put("username", requestDTO.getUsername());
+                        requestMap.put("email", requestDTO.getEmail());
+                        requestMap.put("firstName", requestDTO.getFirstName());
+                        requestMap.put("lastName", requestDTO.getLastName());
+                        requestMap.put("password", requestDTO.getPassword());
+
                         mockMvc.perform(post("/users")
                                         .contentType(MediaType.APPLICATION_JSON)
-                                        .content(objectMapper.writeValueAsString(requestDTO)))
+                                        .content(objectMapper.writeValueAsString(requestMap)))
                                         .andExpect(status().isConflict())
                                         .andExpect(jsonPath("$.status", is(409)))
                                         .andExpect(jsonPath("$.title", is("User Already Exists")))
@@ -138,10 +159,17 @@ class UserControllerTest {
                                         .thenThrow(new UserAlreadyExistsException(
                                                         "Email already exists: john@example.com"));
 
-                        // Act & Assert
+                        // Act & Assert - send as map so password (write-only) is included in request
+                        java.util.Map<String, Object> requestMap = new java.util.HashMap<>();
+                        requestMap.put("username", requestDTO.getUsername());
+                        requestMap.put("email", requestDTO.getEmail());
+                        requestMap.put("firstName", requestDTO.getFirstName());
+                        requestMap.put("lastName", requestDTO.getLastName());
+                        requestMap.put("password", requestDTO.getPassword());
+
                         mockMvc.perform(post("/users")
                                         .contentType(MediaType.APPLICATION_JSON)
-                                        .content(objectMapper.writeValueAsString(requestDTO)))
+                                        .content(objectMapper.writeValueAsString(requestMap)))
                                         .andExpect(status().isConflict());
 
                         verify(userService, times(1)).createUser(any(UserDTO.class));
@@ -359,10 +387,18 @@ class UserControllerTest {
                         when(userService.updateUser(eq(userId), any(UserDTO.class)))
                                         .thenReturn(responseDTO);
 
-                        // Act & Assert
+                        // Act & Assert - send as map so password (write-only) is included in request
+                        java.util.Map<String, Object> updateMap = new java.util.HashMap<>();
+                        updateMap.put("id", updateDTO.getId());
+                        updateMap.put("username", updateDTO.getUsername());
+                        updateMap.put("email", updateDTO.getEmail());
+                        updateMap.put("firstName", updateDTO.getFirstName());
+                        updateMap.put("lastName", updateDTO.getLastName());
+                        updateMap.put("password", updateDTO.getPassword());
+
                         mockMvc.perform(put("/users/{id}", userId)
                                         .contentType(MediaType.APPLICATION_JSON)
-                                        .content(objectMapper.writeValueAsString(updateDTO)))
+                                        .content(objectMapper.writeValueAsString(updateMap)))
                                         .andExpect(status().isOk())
                                         .andExpect(jsonPath("$.id", is(1)))
                                         .andExpect(jsonPath("$.firstName", is("Jonathan")))
@@ -379,12 +415,20 @@ class UserControllerTest {
                         UserDTO updateDTO = createValidUserDTO();
 
                         when(userService.updateUser(eq(userId), any(UserDTO.class)))
-                                        .thenThrow(new RuntimeException("User not found"));
+                                        .thenThrow(new ResourceNotFoundException("User not found"));
 
-                        // Act & Assert
+                        // Act & Assert - send as map so password (write-only) is included
+                        java.util.Map<String, Object> updateMap = new java.util.HashMap<>();
+                        updateMap.put("id", updateDTO.getId());
+                        updateMap.put("username", updateDTO.getUsername());
+                        updateMap.put("email", updateDTO.getEmail());
+                        updateMap.put("firstName", updateDTO.getFirstName());
+                        updateMap.put("lastName", updateDTO.getLastName());
+                        updateMap.put("password", updateDTO.getPassword());
+
                         mockMvc.perform(put("/users/{id}", userId)
                                         .contentType(MediaType.APPLICATION_JSON)
-                                        .content(objectMapper.writeValueAsString(updateDTO)))
+                                        .content(objectMapper.writeValueAsString(updateMap)))
                                         .andExpect(status().isNotFound());
 
                         verify(userService, times(1)).updateUser(eq(userId), any(UserDTO.class));
@@ -434,7 +478,7 @@ class UserControllerTest {
                 void testDeleteUser_WhenUserNotFound_ThenReturnsNotFound() throws Exception {
                         // Arrange
                         Long userId = 999L;
-                        doThrow(new RuntimeException("User not found"))
+                        doThrow(new ResourceNotFoundException("User not found"))
                                         .when(userService).deleteUser(userId);
 
                         // Act & Assert
@@ -446,8 +490,8 @@ class UserControllerTest {
                 }
 
                 @Test
-                @DisplayName("Should return 404 NOT FOUND when service throws exception")
-                void testDeleteUser_WhenServiceThrowsException_ThenReturnsNotFound() throws Exception {
+                @DisplayName("Should return 500 INTERNAL SERVER ERROR when service throws exception")
+                void testDeleteUser_WhenServiceThrowsException_ThenReturnsInternalServerError() throws Exception {
                         // Arrange
                         Long userId = 1L;
                         doThrow(new RuntimeException("Database error"))
@@ -456,7 +500,7 @@ class UserControllerTest {
                         // Act & Assert
                         mockMvc.perform(delete("/users/{id}", userId)
                                         .contentType(MediaType.APPLICATION_JSON))
-                                        .andExpect(status().isNotFound());
+                                        .andExpect(status().isInternalServerError());
 
                         verify(userService, times(1)).deleteUser(userId);
                 }

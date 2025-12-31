@@ -1,10 +1,9 @@
 package com.splitz.user.service;
 
-import com.splitz.user.dto.UserDTO;
-import com.splitz.user.exception.UserAlreadyExistsException;
-import com.splitz.user.mapper.UserMapper;
-import com.splitz.user.model.User;
-import com.splitz.user.repository.UserRepository;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,8 +13,14 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Optional;
+import com.splitz.user.dto.UserDTO;
+import com.splitz.user.exception.ResourceNotFoundException;
+import com.splitz.user.exception.UserAlreadyExistsException;
+import com.splitz.user.mapper.UserMapper;
+import com.splitz.user.model.Role;
+import com.splitz.user.model.User;
+import com.splitz.user.repository.RoleRepository;
+import com.splitz.user.repository.UserRepository;
 
 @Service
 public class UserService implements UserDetailsService {
@@ -23,12 +28,16 @@ public class UserService implements UserDetailsService {
     @Autowired
     private final UserRepository userRepository;
     @Autowired
+    private final RoleRepository roleRepository;
+    @Autowired
     private final UserMapper userMapper;
     @Autowired
     private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, UserMapper userMapper, BCryptPasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, RoleRepository roleRepository, UserMapper userMapper,
+            BCryptPasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
     }
@@ -61,13 +70,19 @@ public class UserService implements UserDetailsService {
 
         // Encode password and create user
         User user = userMapper.toEntityWithPasswordEncoding(newUserDTO, passwordEncoder);
+
+        // Assign default role
+        Role userRole = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+        user.setRoles(Collections.singleton(userRole));
+
         User savedUser = userRepository.save(user);
         return userMapper.toDTO(savedUser);
     }
 
     public UserDTO updateUser(Long id, UserDTO userDTO) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
         // Update only provided fields (null-safe partial update)
         if (userDTO.getFirstName() != null && !userDTO.getFirstName().isBlank()) {
@@ -86,7 +101,7 @@ public class UserService implements UserDetailsService {
 
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
-            throw new UsernameNotFoundException("User not found with id: " + id);
+            throw new ResourceNotFoundException("User not found with id: " + id);
         }
         userRepository.deleteById(id);
     }
