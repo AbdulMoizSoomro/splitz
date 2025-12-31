@@ -52,6 +52,7 @@ import com.splitz.user.service.UserService;
 @SpringBootTest
 @AutoConfigureMockMvc
 @DisplayName("UserController Unit Tests")
+@org.springframework.test.context.ActiveProfiles("test")
 @org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class UserControllerTest {
 
