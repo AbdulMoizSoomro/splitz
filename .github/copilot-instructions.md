@@ -253,4 +253,4 @@ mvn -pl user-service test jacoco:report
 5. **S07**: OpenAPI documentation
 6. **S09+**: Expense service scaffold and features
 
-See [IMPLEMENTATION_ROADMAP.md](../IMPLEMENTATION_ROADMAP.md) for full story breakdown.
+See [IMPLEMENTATION_ROADMAP.md](../docs/IMPLEMENTATION_ROADMAP.md) for full story breakdown.

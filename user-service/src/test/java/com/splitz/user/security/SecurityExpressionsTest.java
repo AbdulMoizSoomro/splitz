@@ -17,6 +17,7 @@ import com.splitz.user.model.User;
 import com.splitz.user.service.UserService;
 
 @SpringBootTest
+@org.springframework.test.context.ActiveProfiles("test")
 class SecurityExpressionsTest {
 
     @Autowired

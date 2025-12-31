@@ -21,6 +21,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 
 @SpringBootTest
+@org.springframework.test.context.ActiveProfiles("test")
 class JwtRequestFilterTest {
 
     @Autowired
