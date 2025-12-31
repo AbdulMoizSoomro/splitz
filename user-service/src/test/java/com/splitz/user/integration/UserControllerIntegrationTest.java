@@ -622,7 +622,7 @@ class UserControllerIntegrationTest {
                 updateMap.put("email", "lifecycle@example.com");
                 updateMap.put("firstName", "Updated");
                 updateMap.put("lastName", "Name");
-                updateMap.put("password", "newpass");
+                updateMap.put("password", "newpassword123"); // Must be at least 8 characters
 
                 HttpEntity<java.util.Map<String, Object>> updateRequest = new HttpEntity<>(updateMap, headers);
                 ResponseEntity<UserDTO> updateResponse = restTemplate.exchange(
