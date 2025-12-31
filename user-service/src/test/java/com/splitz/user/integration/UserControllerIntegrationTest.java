@@ -42,6 +42,7 @@ import com.splitz.user.security.AuthController.JwtResponse;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("UserController Integration Tests")
 @ActiveProfiles("test")
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class UserControllerIntegrationTest {
 
         @LocalServerPort
