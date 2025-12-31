@@ -1,5 +1,7 @@
 # SPLITZ 💸
 
+[![CI](https://github.com/AbdulMoizSoomro/splitz/actions/workflows/ci.yml/badge.svg)](https://github.com/AbdulMoizSoomro/splitz/actions/workflows/ci.yml)
+
 A **Splitwise-like expense splitting application** for friends and roommates, built with microservices architecture using Spring Boot 3.2 and Java 21.
 
 ---
