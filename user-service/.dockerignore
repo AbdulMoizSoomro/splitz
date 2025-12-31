@@ -1,0 +1,50 @@
+# =============================================================================
+# Docker Ignore File for User Service
+# Excludes unnecessary files from Docker build context
+# =============================================================================
+
+# Build outputs (we rebuild inside Docker)
+target/
+
+# IDE and editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# Version control
+.git/
+.gitignore
+
+# Maven wrapper (using system Maven in Docker)
+.mvn/
+mvnw
+mvnw.cmd
+
+# Documentation
+*.md
+docs/
+LICENSE
+HELP.md
+
+# Test files (not needed in production image)
+src/test/
+
+# Local configuration
+*.env
+*.local
+application-local.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
