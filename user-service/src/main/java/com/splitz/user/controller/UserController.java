@@ -3,7 +3,6 @@ package com.splitz.user.controller;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,8 +28,12 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/users")
 public class UserController {
-    @Autowired
-    private UserService userService;
+
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     // Create a new user (public endpoint for registration)
     @PostMapping
@@ -43,30 +46,17 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
-        try {
-            List<UserDTO> users = userService.getAllUsers();
-            return ResponseEntity.ok(users);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        List<UserDTO> users = userService.getAllUsers();
+        return ResponseEntity.ok(users);
     }
 
     // Get user by ID - authenticated users only
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserDTO> getUserById(@PathVariable("id") Long id) {
-        try {
-            Optional<UserDTO> user = userService.getUserbyId(id);
-            if (user.isPresent()) {
-                return ResponseEntity.ok(user.get());
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        Optional<UserDTO> user = userService.getUserbyId(id);
+        return user.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     // Update user - only owner or admin
@@ -93,12 +83,8 @@ public class UserController {
             @RequestParam("query") String query,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size) {
-        try {
-            Pageable pageable = PageRequest.of(page, size);
-            Page<UserDTO> users = userService.searchUsers(query, pageable);
-            return ResponseEntity.ok(users);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        Pageable pageable = PageRequest.of(page, size);
+        Page<UserDTO> users = userService.searchUsers(query, pageable);
+        return ResponseEntity.ok(users);
     }
 }
