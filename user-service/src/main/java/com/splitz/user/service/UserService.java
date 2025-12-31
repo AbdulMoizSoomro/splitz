@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.splitz.user.dto.UpdateUserDTO;
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.exception.ResourceNotFoundException;
 import com.splitz.user.exception.UserAlreadyExistsException;
@@ -80,19 +81,27 @@ public class UserService implements UserDetailsService {
         return userMapper.toDTO(savedUser);
     }
 
-    public UserDTO updateUser(Long id, UserDTO userDTO) {
+    public UserDTO updateUser(Long id, UpdateUserDTO updateDTO) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
         // Update only provided fields (null-safe partial update)
-        if (userDTO.getFirstName() != null && !userDTO.getFirstName().isBlank()) {
-            user.setFirstName(userDTO.getFirstName());
+        if (updateDTO.getFirstName() != null && !updateDTO.getFirstName().isBlank()) {
+            user.setFirstName(updateDTO.getFirstName());
         }
-        if (userDTO.getLastName() != null && !userDTO.getLastName().isBlank()) {
-            user.setLastName(userDTO.getLastName());
+        if (updateDTO.getLastName() != null && !updateDTO.getLastName().isBlank()) {
+            user.setLastName(updateDTO.getLastName());
         }
-        if (userDTO.getPassword() != null && !userDTO.getPassword().isBlank()) {
-            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        if (updateDTO.getEmail() != null && !updateDTO.getEmail().isBlank()) {
+            // Check if email is already taken by another user
+            Optional<User> existingEmail = userRepository.findByEmail(updateDTO.getEmail());
+            if (existingEmail.isPresent() && !existingEmail.get().getId().equals(id)) {
+                throw new UserAlreadyExistsException("Email already exists: " + updateDTO.getEmail());
+            }
+            user.setEmail(updateDTO.getEmail());
+        }
+        if (updateDTO.getPassword() != null && !updateDTO.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(updateDTO.getPassword()));
         }
 
         User updatedUser = userRepository.save(user);

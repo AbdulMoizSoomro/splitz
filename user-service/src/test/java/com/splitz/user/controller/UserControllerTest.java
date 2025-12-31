@@ -37,14 +37,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.splitz.user.dto.UpdateUserDTO;
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.exception.ResourceNotFoundException;
 import com.splitz.user.exception.UserAlreadyExistsException;
 import com.splitz.user.service.UserService;
 
+/**
+ * Unit tests for UserController focusing on request/response handling.
+ * Uses @WithMockUser with ADMIN role for simplicity.
+ * Full security authorization is tested in UserControllerIntegrationTest with
+ * real JWT tokens.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
-@DisplayName("UserController Integration Tests")
+@DisplayName("UserController Unit Tests")
 @org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class UserControllerTest {
 
@@ -368,12 +375,10 @@ class UserControllerTest {
                 void testUpdateUser_WhenValidDTOAndUserExists_ThenReturnsUpdatedUser() throws Exception {
                         // Arrange
                         Long userId = 1L;
-                        UserDTO updateDTO = new UserDTO(
-                                        userId,
-                                        "johndoe",
-                                        "john@example.com",
+                        UpdateUserDTO updateDTO = new UpdateUserDTO(
                                         "Jonathan", // Updated firstName
                                         "Doe",
+                                        "john@example.com",
                                         "newpassword123");
                         UserDTO responseDTO = new UserDTO(
                                         userId,
@@ -384,16 +389,14 @@ class UserControllerTest {
                                         null // password not returned
                         );
 
-                        when(userService.updateUser(eq(userId), any(UserDTO.class)))
+                        when(userService.updateUser(eq(userId), any(UpdateUserDTO.class)))
                                         .thenReturn(responseDTO);
 
                         // Act & Assert - send as map so password (write-only) is included in request
                         java.util.Map<String, Object> updateMap = new java.util.HashMap<>();
-                        updateMap.put("id", updateDTO.getId());
-                        updateMap.put("username", updateDTO.getUsername());
-                        updateMap.put("email", updateDTO.getEmail());
                         updateMap.put("firstName", updateDTO.getFirstName());
                         updateMap.put("lastName", updateDTO.getLastName());
+                        updateMap.put("email", updateDTO.getEmail());
                         updateMap.put("password", updateDTO.getPassword());
 
                         mockMvc.perform(put("/users/{id}", userId)
@@ -404,7 +407,7 @@ class UserControllerTest {
                                         .andExpect(jsonPath("$.firstName", is("Jonathan")))
                                         .andExpect(jsonPath("$.username", is("johndoe")));
 
-                        verify(userService, times(1)).updateUser(eq(userId), any(UserDTO.class));
+                        verify(userService, times(1)).updateUser(eq(userId), any(UpdateUserDTO.class));
                 }
 
                 @Test
@@ -412,18 +415,16 @@ class UserControllerTest {
                 void testUpdateUser_WhenUserNotFound_ThenReturnsNotFound() throws Exception {
                         // Arrange
                         Long userId = 999L;
-                        UserDTO updateDTO = createValidUserDTO();
+                        UpdateUserDTO updateDTO = new UpdateUserDTO("John", "Doe", "john@example.com", "password123");
 
-                        when(userService.updateUser(eq(userId), any(UserDTO.class)))
+                        when(userService.updateUser(eq(userId), any(UpdateUserDTO.class)))
                                         .thenThrow(new ResourceNotFoundException("User not found"));
 
                         // Act & Assert - send as map so password (write-only) is included
                         java.util.Map<String, Object> updateMap = new java.util.HashMap<>();
-                        updateMap.put("id", updateDTO.getId());
-                        updateMap.put("username", updateDTO.getUsername());
-                        updateMap.put("email", updateDTO.getEmail());
                         updateMap.put("firstName", updateDTO.getFirstName());
                         updateMap.put("lastName", updateDTO.getLastName());
+                        updateMap.put("email", updateDTO.getEmail());
                         updateMap.put("password", updateDTO.getPassword());
 
                         mockMvc.perform(put("/users/{id}", userId)
@@ -431,16 +432,17 @@ class UserControllerTest {
                                         .content(objectMapper.writeValueAsString(updateMap)))
                                         .andExpect(status().isNotFound());
 
-                        verify(userService, times(1)).updateUser(eq(userId), any(UserDTO.class));
+                        verify(userService, times(1)).updateUser(eq(userId), any(UpdateUserDTO.class));
                 }
 
                 @Test
-                @DisplayName("Should return 400 BAD REQUEST when firstName is invalid")
-                void testUpdateUser_WhenFirstNameInvalid_ThenReturnsBadRequest() throws Exception {
+                @DisplayName("Should return 400 BAD REQUEST when firstName exceeds max length")
+                void testUpdateUser_WhenFirstNameTooLong_ThenReturnsBadRequest() throws Exception {
                         // Arrange
                         Long userId = 1L;
-                        UserDTO updateDTO = createValidUserDTO();
-                        updateDTO.setFirstName(""); // Invalid: blank firstName
+                        String longFirstName = "a".repeat(101); // Exceeds 100 char limit
+                        UpdateUserDTO updateDTO = new UpdateUserDTO(longFirstName, "Doe", "john@example.com",
+                                        "password123");
 
                         // Act & Assert
                         mockMvc.perform(put("/users/{id}", userId)
@@ -448,7 +450,7 @@ class UserControllerTest {
                                         .content(objectMapper.writeValueAsString(updateDTO)))
                                         .andExpect(status().isBadRequest());
 
-                        verify(userService, never()).updateUser(anyLong(), any(UserDTO.class));
+                        verify(userService, never()).updateUser(anyLong(), any(UpdateUserDTO.class));
                 }
         }
 

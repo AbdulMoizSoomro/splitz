@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.splitz.user.dto.UpdateUserDTO;
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.service.UserService;
 
@@ -70,15 +71,16 @@ public class UserController {
 
     // Update user - only owner or admin
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
-    public ResponseEntity<UserDTO> updateUser(@PathVariable("id") Long id, @Valid @RequestBody UserDTO userDTO) {
-        UserDTO updatedUser = userService.updateUser(id, userDTO);
+    @PreAuthorize("@security.isOwnerOrAdmin(#id)")
+    public ResponseEntity<UserDTO> updateUser(@PathVariable("id") Long id,
+            @Valid @RequestBody UpdateUserDTO updateDTO) {
+        UserDTO updatedUser = userService.updateUser(id, updateDTO);
         return ResponseEntity.ok(updatedUser);
     }
 
     // Delete user - only owner or admin
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == principal.id")
+    @PreAuthorize("@security.isOwnerOrAdmin(#id)")
     public ResponseEntity<Void> deleteUser(@PathVariable("id") Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
