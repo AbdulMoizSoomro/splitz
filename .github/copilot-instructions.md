@@ -1,24 +1,256 @@
 # Splitz – AI Coding Guide
 
-- **Architecture**: Maven multi-module root [pom.xml](../pom.xml) with `user-service` (Spring Boot 3.2, Java 21) and placeholder `expense-service`. `expense-service` only has a stub main class; expect to scaffold a Spring Boot app before adding endpoints.
-- **Planned scope**: See [IMPLEMENTATION_ROADMAP.md](../IMPLEMENTATION_ROADMAP.md) and [PROJECT_ANALYSIS_REPORT.md](../PROJECT_ANALYSIS_REPORT.md) for the intended Splitwise-like feature set, service boundaries, and phased delivery (REST + JWT now; gateway/gRPC later).
-- **Build & run**: From repo root use `mvn clean install`. Run user service with `mvn -pl user-service spring-boot:run`. Java 21 is enforced by the parent POM; avoid downgrading. Tests are minimal; `mvn -pl user-service test` is the only meaningful target today.
-- **Config & ports**: user service listens on 8080 using in-memory H2 with `create-drop` schema. Config lives in [user-service/src/main/resources/application.properties](../user-service/src/main/resources/application.properties). JWT secret/expiration are set here (base64 string); externalize for non-dev use.
-- **Auth flow**: `/authenticate` issues JWTs via [user-service/src/main/java/com/splitz/user/security/AuthController.java](../user-service/src/main/java/com/splitz/user/security/AuthController.java) and [JwtUtil](../user-service/src/main/java/com/splitz/user/security/JwtUtil.java). Security chain is defined in [SecurityConfig](../user-service/src/main/java/com/splitz/user/config/SecurityConfig.java) with stateless JWT auth and role-based matchers: `/actuator/**` and `/public/**` are open, `/admin/**` is `ROLE_ADMIN`, `/editor/**` allows `ROLE_USER`/`ROLE_ADMIN`.
-- **JWT filter**: Requests pass through [JwtRequestFilter](../user-service/src/main/java/com/splitz/user/security/JwtRequestFilter.java), which expects `Authorization: Bearer <token>` and loads users via `UserService`. Keep tokens compatible with `jjwt` 0.12 API and the configured HS256 key.
-- **Domain & DTOs**: User model and roles sit in [user-service/src/main/java/com/splitz/user/model](../user-service/src/main/java/com/splitz/user/model). Mapping is via MapStruct [UserMapper](../user-service/src/main/java/com/splitz/user/mapper/UserMapper.java); it currently performs no password encoding—encode passwords in the mapper or service before save.
-- **Known blockers**: In [User](../user-service/src/main/java/com/splitz/user/model/User.java) all account status methods return `false`, so authentication will always fail; set them to `true` (or real checks) before relying on login. Update/delete user endpoints are commented out in [UserController](../user-service/src/main/java/com/splitz/user/controller/UserController.java). Role initialization is missing; add a startup initializer to seed `ROLE_USER`/`ROLE_ADMIN`.
-- **Repositories**: [UserRepository](../user-service/src/main/java/com/splitz/user/repository/UserRepository.java) uses `findByusername` (case-sensitive method name); reuse this exact method when querying. Roles use [RoleRepository](../user-service/src/main/java/com/splitz/user/repository/RoleRepository.java).
-- **Endpoints (current)**: Public user CRUD under `/public/users` (create/list/get by id); login at `/authenticate`; roles exposed under `/public/role` for now. Harden/rename these when adding secured variants.
-- **Error handling**: Global exception advice in [GlobalExceptionHandler](../user-service/src/main/java/com/splitz/user/exception/GlobalExceptionHandler.java) returns RFC 7807 `ProblemDetail` for `UserAlreadyExistsException`. Extend this pattern for new domain errors.
-- **Data store**: Default H2 memory DB with `spring.jpa.hibernate.ddl-auto=create-drop`. PostgreSQL dependency exists but no prod profile—add `application-prod.properties` with `ddl-auto=validate` and migrations (Flyway/Liquibase) when ready.
-- **Logging/monitoring**: Actuator health is enabled and whitelisted. No structured logging config yet; add Logback tweaks if you need request tracing.
-- **Expense service start**: Before adding features, create a Spring Boot application class, dependencies (web, data-jpa, validation, jjwt/shared security), and `application.properties` mirroring the roadmap schemas. Keep user references by `userId`; call user-service for details.
-- **Inter-service communication**: Roadmap favors REST for MVP and shared JWT validation. No clients exist—prefer RestTemplate/WebClient with proper timeouts and token forwarding.
-- **Coding conventions**: Lombok is in use (`@Getter/@Setter`, etc.). MapStruct mapper uses `componentModel = "spring"`. Use constructor injection where possible (several classes still mix `@Autowired`). Maintain package layout per feature: config, controller, dto, exception, mapper, model, repository, security, service.
-- **Default roles & seeds**: There is no data initializer; create one if you depend on roles for authorization checks. Ensure passwords are stored encoded (BCrypt configured in `SecurityConfig`).
-- **Next safe fixes**: (1) flip account status flags, (2) encode passwords on create, (3) re-enable update/delete user endpoints with proper auth, (4) seed roles, (5) externalize JWT secret.
-- **Running locally**: Typical flow — `mvn -pl user-service spring-boot:run`, hit `/authenticate` with existing seeded user (you need to create one via `/public/users` first), then call protected endpoints with returned JWT in `Authorization` header.
-- **What not to break**: Parent POM manages dependency versions; do not hardcode versions in modules. Keep Spring Boot version aligned via the root property. Preserve stateless security and path-based authorization when adding endpoints.
+> **Last Updated:** December 31, 2025  
+> **Project Status:** User Service ~80% complete, Expense Service not started
 
-If any section is unclear or you need more detail (e.g., expected expense-service entities or API contracts), tell me and I’ll refine these notes.
+---
+
+## Quick Links
+
+- [IMPLEMENTATION_ROADMAP.md](../docs/IMPLEMENTATION_ROADMAP.md) — Stories, tasks, and development workflow
+- [MVP_0.0.1.md](../docs/MVP_0.0.1.md) — MVP scope, API contracts, data models
+- [PROJECT_ANALYSIS_REPORT.md](../PROJECT_ANALYSIS_REPORT.md) — Architecture analysis
+
+---
+
+## Architecture Overview
+
+- **Structure**: Maven multi-module with parent [pom.xml](../pom.xml)
+- **Services**: `user-service` (Spring Boot 3.2, Java 21) and `expense-service` (stub only)
+- **Target**: Splitwise-like expense splitting for friends/roommates
+
+---
+
+## User Service (Port 8080)
+
+### What Works ✅
+
+- JWT authentication via `/authenticate`
+- User CRUD: create, read, update, delete
+- User search with pagination (`/users/search?query=`)
+- Role-based access control (ROLE_USER, ROLE_ADMIN)
+- Password encoding (BCrypt)
+- Flyway migrations for schema management
+- Method-level security with `@PreAuthorize`
+
+### Key Files
+
+| Component            | Location                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| Security Config      | `user-service/src/main/java/com/splitz/user/config/SecurityConfig.java`            |
+| JWT Utilities        | `user-service/src/main/java/com/splitz/user/security/JwtUtil.java`                 |
+| Auth Controller      | `user-service/src/main/java/com/splitz/user/security/AuthController.java`          |
+| User Controller      | `user-service/src/main/java/com/splitz/user/controller/UserController.java`        |
+| User Entity          | `user-service/src/main/java/com/splitz/user/model/User.java`                       |
+| User Mapper          | `user-service/src/main/java/com/splitz/user/mapper/UserMapper.java`                |
+| Exception Handler    | `user-service/src/main/java/com/splitz/user/exception/GlobalExceptionHandler.java` |
+| Security Expressions | `user-service/src/main/java/com/splitz/user/security/SecurityExpressions.java`     |
+| Flyway Migrations    | `user-service/src/main/resources/db/migration/`                                    |
+
+### API Endpoints
+
+| Method | Endpoint        | Auth          | Description    |
+| ------ | --------------- | ------------- | -------------- |
+| POST   | `/authenticate` | Public        | Login, get JWT |
+| POST   | `/users`        | Public        | Register       |
+| GET    | `/users`        | ADMIN         | List all users |
+| GET    | `/users/{id}`   | Authenticated | Get user by ID |
+| PUT    | `/users/{id}`   | Owner/Admin   | Update user    |
+| DELETE | `/users/{id}`   | Owner/Admin   | Delete user    |
+| GET    | `/users/search` | Authenticated | Search users   |
+
+### Not Yet Implemented ⬜
+
+- Friendship API (send/accept/reject friend requests)
+- OpenAPI/Swagger documentation
+
+---
+
+## Expense Service (Port 8081)
+
+### Current State
+
+- **Stub only** — contains placeholder `Main.java`
+- Needs full Spring Boot scaffold before adding features
+
+### When Building Expense Service
+
+1. Update `expense-service/pom.xml` with dependencies (web, security, jpa, flyway, h2, mapstruct, lombok)
+2. Create `ExpenseServiceApplication.java` main class
+3. Add `application.properties` (port 8081, H2 dev, Flyway enabled)
+4. Copy JWT classes from user-service (JwtUtil, JwtRequestFilter, SecurityConfig)
+5. Create Flyway baseline migration
+6. See [MVP_0.0.1.md](../docs/MVP_0.0.1.md) for entity designs and API contracts
+
+### Planned Entities
+
+- Group, GroupMember, Category, Expense, ExpenseSplit, Settlement
+- Store `userId` references only — call user-service for user details
+
+---
+
+## Build & Run
+
+```bash
+# Build all modules
+mvn clean install
+
+# Run user service (dev mode with H2)
+mvn -pl user-service spring-boot:run
+
+# Run tests
+mvn -pl user-service test
+
+# Run expense service (once scaffolded)
+mvn -pl expense-service spring-boot:run
+```
+
+---
+
+## Configuration
+
+### Profiles
+
+- `dev` — H2 in-memory, Flyway enabled, debug logging
+- `prod` — PostgreSQL, Flyway validate mode
+
+### Environment Variables
+
+| Variable                 | Description                | Default                 |
+| ------------------------ | -------------------------- | ----------------------- |
+| `JWT_SECRET`             | Base64-encoded signing key | (dev key in properties) |
+| `JWT_EXPIRATION`         | Token TTL in milliseconds  | 86400000 (24h)          |
+| `SPRING_PROFILES_ACTIVE` | Active profile             | dev                     |
+
+### Key Config Files
+
+- `user-service/src/main/resources/application.properties` — main config
+- `user-service/src/main/resources/application-dev.properties` — H2 settings
+- `user-service/src/main/resources/application-prod.properties` — PostgreSQL settings
+
+---
+
+## Database
+
+### Flyway Migrations
+
+Migrations are in `src/main/resources/db/migration/`:
+
+- `V1__create_roles_table.sql`
+- `V2__create_users_table.sql`
+- `V3__create_users_roles_table.sql`
+- `V4__seed_roles_and_admin.sql`
+
+### Schema Notes
+
+- Roles seeded on startup: `ROLE_USER`, `ROLE_ADMIN`
+- Test admin user seeded (check V4 migration for credentials)
+- H2 console available at `/h2-console` in dev mode
+
+---
+
+## Security
+
+### Authentication Flow
+
+1. POST `/authenticate` with `{ username, password }`
+2. Receive JWT token in response
+3. Include `Authorization: Bearer <token>` header on subsequent requests
+4. JwtRequestFilter validates token and sets SecurityContext
+
+### Authorization
+
+- `@PreAuthorize("permitAll()")` — public endpoints
+- `@PreAuthorize("isAuthenticated()")` — any logged-in user
+- `@PreAuthorize("hasRole('ADMIN')")` — admin only
+- `@PreAuthorize("@security.isOwnerOrAdmin(#id)")` — owner or admin check
+
+### Security Expressions
+
+Custom expressions in `SecurityExpressions.java`:
+
+- `isOwnerOrAdmin(userId)` — checks if current user owns resource or is admin
+
+---
+
+## Coding Conventions
+
+### General
+
+- Use **constructor injection** (avoid `@Autowired` on fields)
+- Use **Lombok** for boilerplate (`@Getter`, `@Setter`, `@AllArgsConstructor`)
+- Use **MapStruct** for DTO mapping (`componentModel = "spring"`)
+- Follow **test-first** approach when possible
+
+### Package Structure
+
+```
+com.splitz.{service}/
+├── config/         # Spring configuration
+├── controller/     # REST controllers
+├── dto/            # Data transfer objects
+├── exception/      # Custom exceptions
+├── mapper/         # MapStruct mappers
+├── model/          # JPA entities
+├── repository/     # Spring Data repositories
+├── security/       # JWT, filters, auth
+└── service/        # Business logic
+```
+
+### Error Handling
+
+- Use RFC 7807 `ProblemDetail` for error responses
+- Add handlers to `GlobalExceptionHandler`
+- Create domain-specific exceptions (e.g., `UserAlreadyExistsException`)
+
+---
+
+## Testing
+
+### Test Structure
+
+- Unit tests: `src/test/java/.../service/`, `src/test/java/.../controller/`
+- Integration tests: `src/test/java/.../integration/`
+- Test config: `src/test/resources/application-test.properties`
+
+### Running Tests
+
+```bash
+# All tests
+mvn -pl user-service test
+
+# Specific test class
+mvn -pl user-service test -Dtest=UserControllerTest
+
+# With coverage (once JaCoCo configured)
+mvn -pl user-service test jacoco:report
+```
+
+### Test Patterns
+
+- Use `@WebMvcTest` + `@MockBean` for controller unit tests
+- Use `@SpringBootTest` + `TestRestTemplate` for integration tests
+- Use `@WithMockUser` for security testing
+
+---
+
+## What NOT to Break
+
+- **Parent POM** manages all dependency versions — don't hardcode versions in modules
+- **Spring Boot version** aligned via `${spring-boot.version}` property
+- **Stateless security** — no sessions, JWT only
+- **Flyway migrations** — never modify existing migrations, add new ones
+- **BCrypt encoding** — passwords must always be hashed before storage
+
+---
+
+## Next Steps (from Roadmap)
+
+1. **S01**: GitHub Actions CI pipeline
+2. **S02**: JaCoCo test coverage
+3. **S03**: Docker setup for user-service
+4. **S04-S06**: Friendship API (entity, service, controller)
+5. **S07**: OpenAPI documentation
+6. **S09+**: Expense service scaffold and features
+
+See [IMPLEMENTATION_ROADMAP.md](../IMPLEMENTATION_ROADMAP.md) for full story breakdown.
