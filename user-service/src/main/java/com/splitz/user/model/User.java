@@ -22,11 +22,15 @@ public class User implements UserDetails {
     private Long id;
     @Column(unique = true, nullable = false)
     private String username;
+    @Column(unique = true, nullable = false)
+    private String email;
     @Column(nullable = false)
     private String firstName;
     private String lastName;
     private String password;
-    @ManyToMany(fetch = FetchType.LAZY)
+    private boolean enabled = true;
+    private boolean verified = false;
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles = new HashSet<>();
 
@@ -37,12 +41,7 @@ public class User implements UserDetails {
         this.firstName = firstName;
         this.username = username;
         this.password = password;
-        this.roles = roles;
-        // Ensure ROLE_USER is present
-        boolean hasUserRole = roles.stream().anyMatch(role -> "ROLE_USER".equals(role.getName()));
-        if (!hasUserRole) {
-            this.roles.add(new Role("ROLE_USER"));
-        }
+        this.roles = roles != null ? roles : new HashSet<>();
     }
 
     @Override
@@ -65,22 +64,22 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return false;
+        return this.enabled && this.verified;
     }
 
 }
