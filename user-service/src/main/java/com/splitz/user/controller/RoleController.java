@@ -1,6 +1,6 @@
 package com.splitz.user.controller;
 
-import com.splitz.user.model.Role;
+import com.splitz.user.dto.RoleDTO;
 import com.splitz.user.service.RoleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -12,36 +12,40 @@ import java.util.List;
 import java.util.Optional;
 
 @Controller
-@RequestMapping("/public/role")
+@RequestMapping("/roles")
 public class RoleController {
 
     @Autowired
     private RoleService roleService;
 
     @GetMapping("/{id}")
-    public Optional<Role> getById(@PathVariable Long id) {
-        return roleService.getRoleById(id);
+    public ResponseEntity<RoleDTO> getById(@PathVariable Long id) {
+        return roleService.getRoleById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/{name}")
-    public Optional<Role> getByName(@PathVariable String name) {
-        return roleService.getRoleByName(name);
+    @GetMapping("/name/{name}")
+    public ResponseEntity<RoleDTO> getByName(@PathVariable String name) {
+        return roleService.getRoleByName(name)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/getAllRoles")
-    public ResponseEntity<List<Role>> getAllRoles() {
+    @GetMapping
+    public ResponseEntity<List<RoleDTO>> getAllRoles() {
         try {
-            List<Role> roles = roleService.getAllRoles();
-            return new ResponseEntity<List<Role>>(roles, HttpStatus.OK);
+            List<RoleDTO> roles = roleService.getAllRoles();
+            return new ResponseEntity<>(roles, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
-            return new ResponseEntity<List<Role>>(HttpStatus.CONFLICT);
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
         }
     }
 
     @PostMapping
-    public ResponseEntity<Role> createRole(@RequestBody String name) {
+    public ResponseEntity<RoleDTO> createRole(@RequestBody String name) {
         try {
-            Role newRole = roleService.createRole(name);
+            RoleDTO newRole = roleService.createRole(name);
             return new ResponseEntity<>(newRole, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(HttpStatus.CONFLICT); // Or HttpStatus.BAD_REQUEST

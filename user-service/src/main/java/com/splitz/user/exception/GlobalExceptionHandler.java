@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -16,9 +17,17 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
         problem.setTitle("User Already Exists");
         problem.setDetail(ex.getMessage());
-        problem.setType(URI.create("https://example.com/errors/user-already-exists"));
-        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setType(create("https://example.com/errors/user-already-exists"));
+        problem.setInstance(create(request.getRequestURI()));
         return problem;
     }
 
+    @org.springframework.lang.NonNull
+    public static URI create(String str) {
+        try {
+            return new URI(str);
+        } catch (URISyntaxException var2) {
+            throw new IllegalArgumentException(var2.getMessage(), var2);
+        }
+    }
 }
