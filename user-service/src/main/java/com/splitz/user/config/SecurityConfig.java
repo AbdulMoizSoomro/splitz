@@ -48,11 +48,12 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((auths) -> auths
-                        // Public endpoints
-                        .requestMatchers("/actuator/**", "/authenticate").permitAll()
+                        // Public endpoints - no authentication required
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/authenticate").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/users").permitAll()
                         // All other endpoints require authentication
-                        // Authorization is handled by @PreAuthorize on controller methods
+                        // Fine-grained authorization is handled by @PreAuthorize on controller methods
                         .anyRequest().authenticated())
                 .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
