@@ -47,6 +47,16 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(FriendshipException.class)
+    public ProblemDetail handleFriendshipException(FriendshipException ex, HttpServletRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Friendship Error");
+        problem.setDetail(ex.getMessage());
+        problem.setType(create("https://example.com/errors/friendship-error"));
+        problem.setInstance(create(request.getRequestURI()));
+        return problem;
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
