@@ -215,6 +215,8 @@ com.splitz.{service}/
 
 ### Running Tests
 
+Run Tests one by one first to isolate issues, when running all tests together use `tail` or `grep` to filter logs.
+
 ```bash
 # All tests
 mvn -pl user-service test
