@@ -59,8 +59,8 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Run tests
-        run: mvn -B test -Dsurefire.useFile=false
+      - name: Run tests with coverage
+        run: mvn -B verify -Dsurefire.useFile=false
 
       - name: Upload test results
         if: always()
@@ -71,3 +71,27 @@ jobs:
             **/target/surefire-reports/*.xml
             **/target/surefire-reports/*.txt
           retention-days: 7
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            **/target/site/jacoco/
+          retention-days: 7
+
+      - name: Generate coverage summary
+        if: always()
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f user-service/target/site/jacoco/index.html ]; then
+            # Extract coverage percentage from JaCoCo report
+            COVERAGE=$(grep -oP 'Total.*?(\d+)%' user-service/target/site/jacoco/index.html | grep -oP '\d+%' | head -1 || echo "N/A")
+            echo "**User Service Line Coverage:** $COVERAGE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Detailed report available in the coverage-report artifact." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Coverage report not found." >> $GITHUB_STEP_SUMMARY
+          fi

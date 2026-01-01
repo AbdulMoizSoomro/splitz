@@ -1,0 +1,53 @@
+# =============================================================================
+# Docker Ignore File for SPLITZ Project
+# Excludes unnecessary files from Docker build context
+# =============================================================================
+
+# Build outputs (we rebuild inside Docker)
+**/target/
+!**/target/*.jar
+
+# IDE and editor files
+**/.idea/
+**/*.iml
+**/.vscode/
+**/*.swp
+**/*.swo
+**/*~
+
+# Version control
+.git/
+.gitignore
+**/.gitignore
+
+# GitHub
+.github/
+
+# Documentation
+*.md
+docs/
+LICENSE
+**/HELP.md
+
+# Test files (not needed in production image)
+**/src/test/
+
+# Local configuration
+*.env
+*.local
+**/*-local.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+**/logs/
+
+# Temporary files
+*.tmp
+*.bak
+
+# Expense service (not needed for user-service build)
+# expense-service/

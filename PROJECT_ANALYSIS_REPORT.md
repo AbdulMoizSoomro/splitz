@@ -1,6 +1,6 @@
 # SPLITZ Project Analysis Report
 
-**Analysis Date:** December 29, 2025  
+**Analysis Date:** January 1, 2026  
 **Project Type:** Multi-Module Microservices Application  
 **Technology Stack:** Java 21, Spring Boot 3.2.0, Maven
 
@@ -8,9 +8,11 @@
 
 ## Executive Summary
 
-SPLITZ is a **multi-module expense splitting application** currently in early development stage. The project demonstrates a microservices architecture with two services:
-- **user-service**: Partially implemented with authentication and user management
+SPLITZ is a **multi-module expense splitting application** currently in active development. The project demonstrates a microservices architecture with two services:
+- **user-service**: ~80% complete with authentication, user management, and friendship foundation
 - **expense-service**: Placeholder service (not yet developed)
+
+**Significant progress has been made since the initial analysis**, including CI/CD pipeline setup, test coverage integration, Docker support, Flyway migrations, and the Friendship entity/repository layer.
 
 ---
 
@@ -22,67 +24,103 @@ SPLITZ is a **multi-module expense splitting application** currently in early de
 - Well-organized version management for libraries (Lombok, JWT, MapStruct, PostgreSQL, H2)
 - Maven plugin configuration is clean and follows best practices
 
-### 2. User Service (60% Complete)
+### 2. User Service (~80% Complete)
 
 #### ✅ Implemented Features:
+
 - **Authentication & Security**
   - JWT-based authentication with `/authenticate` endpoint
-  - Spring Security configuration with role-based access control
-  - JWT token generation and validation
+  - Spring Security configuration with method-level security (`@PreAuthorize`)
+  - JWT token generation and validation (`JwtUtil`, `JwtRequestFilter`)
   - Password encryption using BCrypt
+  - Custom security expressions (`SecurityExpressions.java`) for owner/admin checks
   
 - **User Management**
-  - User entity with role-based permissions
-  - User CRUD operations (partial)
+  - User entity with role-based permissions (implements `UserDetails`)
+  - **Full User CRUD operations** (create, read, update, delete)
+  - User search with pagination (`/users/search?query=`)
   - UserDTO with MapStruct mapper
-  - Global exception handling
+  - Global exception handling (`GlobalExceptionHandler`)
+  - Custom exceptions (`ResourceNotFoundException`, `UserAlreadyExistsException`)
+  
+- **Friendship Foundation (S04 Complete)**
+  - `Friendship` entity with status tracking (PENDING, ACCEPTED, REJECTED, BLOCKED)
+  - `FriendshipStatus` enum
+  - `FriendshipRepository` with comprehensive query methods
+  - Flyway migration `V5__Create_friendship_table.sql`
+  - Unit tests for Friendship entity and repository
   
 - **Database**
-  - JPA/Hibernate integration
+  - JPA/Hibernate integration with auditing enabled
   - H2 in-memory database (development)
-  - PostgreSQL support configured
+  - PostgreSQL support configured (production)
+  - **Flyway migrations** for schema management (V1-V5)
+  - Default roles seeded via migration (ROLE_USER, ROLE_ADMIN)
   
 - **API Endpoints**
-  - `POST /authenticate` - Login
-  - `POST /public/users` - Create user
-  - `GET /public/users` - Get all users
-  - `GET /public/users/{id}` - Get user by ID
-  - Role-based endpoints: `/admin/**`, `/editor/**`, `/public/**`
+  | Method | Endpoint | Auth | Description |
+  |--------|----------|------|-------------|
+  | POST | `/authenticate` | Public | Login, get JWT |
+  | POST | `/users` | Public | Register new user |
+  | GET | `/users` | ADMIN | List all users |
+  | GET | `/users/{id}` | Authenticated | Get user by ID |
+  | PUT | `/users/{id}` | Owner/Admin | Update user |
+  | DELETE | `/users/{id}` | Owner/Admin | Delete user |
+  | GET | `/users/search` | Authenticated | Search users (paginated) |
 
-#### ⚠️ Critical Issues Found:
+- **DevOps & Infrastructure**
+  - ✅ **GitHub Actions CI pipeline** (`.github/workflows/ci.yml`)
+  - ✅ **JaCoCo test coverage** (~76% line coverage)
+  - ✅ **Dockerfile** with multi-stage build and non-root user
+  - ✅ Actuator endpoints for health monitoring
 
-1. **SECURITY VULNERABILITY - User Account Status**
-   - In [User.java](user-service/src/main/java/com/splitz/user/model/User.java#L67-L82), ALL account status methods return `false`:
-     ```java
-     public boolean isAccountNonExpired() { return false; }
-     public boolean isAccountNonLocked() { return false; }
-     public boolean isCredentialsNonExpired() { return false; }
-     public boolean isEnabled() { return false; }
-     ```
-   - **Impact**: No user can authenticate successfully! These should return `true` to allow login.
+#### ✅ Previously Reported Issues - NOW FIXED:
 
-2. **Incomplete User CRUD**
-   - Update user endpoint is commented out
-   - Delete user endpoint is commented out
+1. **~~SECURITY VULNERABILITY - User Account Status~~** ✅ FIXED
+   - `isAccountNonExpired()`, `isAccountNonLocked()`, `isCredentialsNonExpired()` now return `true`
+   - `isEnabled()` correctly returns `this.enabled && this.verified`
 
-3. **Missing Password Encoding in User Creation**
-   - UserMapper doesn't encode passwords before saving
-   - Security risk: passwords might be stored in plain text
+2. **~~Incomplete User CRUD~~** ✅ FIXED
+   - Update user endpoint fully implemented
+   - Delete user endpoint fully implemented
+   - Both protected with `@PreAuthorize("@security.isOwnerOrAdmin(#id)")`
 
-4. **JWT Secret Hardcoded**
-   - JWT secret in `application.properties` should be externalized
-   - Should use environment variables in production
+3. **~~Missing Password Encoding~~** ✅ FIXED
+   - `UserMapper.toEntityWithPasswordEncoding()` uses `BCryptPasswordEncoder`
+   - Password encoding in `UserService.updateUser()` when password is changed
 
-5. **Role Management**
-   - `RoleController` and `RoleService` exist but implementation unknown
-   - Role initialization logic missing (no default roles created on startup)
+4. **~~Role Initialization Missing~~** ✅ FIXED
+   - Default roles seeded via Flyway migration `V4__Seed_default_roles.sql`
+
+5. **~~No Database Migrations~~** ✅ FIXED
+   - Flyway integrated with 5 migrations:
+     - `V1__Create_roles_table.sql`
+     - `V2__Create_users_table.sql`
+     - `V3__Create_users_roles_table.sql`
+     - `V4__Seed_default_roles.sql`
+     - `V5__Create_friendship_table.sql`
+
+#### ⬜ Still Pending:
+
+1. **Friendship Service & API (S05, S06)**
+   - `FriendshipService` - business logic for friend requests
+   - `FriendshipController` - REST endpoints for friendship management
+   - Send/accept/reject friend requests
+
+2. **OpenAPI Documentation (S07)**
+   - SpringDoc OpenAPI integration
+   - Swagger UI for API documentation
+
+3. **JWT Secret Externalization**
+   - JWT secret should use environment variables in production
+   - Currently configured via `application.properties`
 
 ### 3. Expense Service (0% Complete)
 
 - Only contains a placeholder `Main.java` with hello world code
 - No Spring Boot application
-- No dependencies configured in POM
-- Completely needs to be built from scratch
+- Minimal POM with only parent reference
+- Completely needs to be built from scratch per roadmap (S09+)
 
 ---
 
@@ -96,220 +134,219 @@ SPLITZ is a **multi-module expense splitting application** currently in early de
 5. ✅ MapStruct for DTO mapping
 6. ✅ Actuator for monitoring
 7. ✅ Proper exception handling with `GlobalExceptionHandler`
+8. ✅ **Flyway database migrations**
+9. ✅ **GitHub Actions CI/CD pipeline**
+10. ✅ **JaCoCo test coverage (76%)**
+11. ✅ **Docker support with multi-stage build**
+12. ✅ **Method-level security with custom expressions**
 
 ### Weaknesses:
 1. ⚠️ No inter-service communication mechanism
 2. ⚠️ No API Gateway or service discovery
 3. ⚠️ No centralized configuration management
-4. ⚠️ Missing Docker/containerization setup
-5. ⚠️ No database migration tool (Flyway/Liquibase)
-6. ⚠️ Limited test coverage
-7. ⚠️ No API documentation (Swagger/OpenAPI)
-8. ⚠️ No logging framework configuration
+4. ⚠️ No docker-compose for local development
+5. ⚠️ No API documentation (Swagger/OpenAPI)
+6. ⚠️ Friendship API not yet exposed (entity/repo only)
+
+---
+
+## Test Coverage Summary
+
+| Service | Line Coverage | Status |
+|---------|--------------|--------|
+| user-service | ~76% | ✅ Exceeds 60% threshold |
+| expense-service | N/A | Not started |
+
+### Test Files:
+- `UserControllerTest.java` - Unit tests for all controller endpoints
+- `UserControllerIntegrationTest.java` - Integration tests with full Spring context
+- `FriendshipTest.java` - Entity and status transition tests
+- `FriendshipRepositoryTest.java` - Repository query tests
+- `SecurityDebugTest.java` - Security configuration tests
+
+---
+
+## Development Progress by Roadmap
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| S01 | GitHub Actions CI Pipeline | ✅ Complete |
+| S02 | JaCoCo Test Coverage | ✅ Complete (76%) |
+| S03 | Dockerfile for User Service | ✅ Complete |
+| S04 | Friendship Entity & Repository | ✅ Complete |
+| S05 | Friendship Service | ⬜ Not Started |
+| S06 | Friendship REST API | ⬜ Not Started |
+| S07 | OpenAPI Documentation | ⬜ Not Started |
+| S09+ | Expense Service | ⬜ Not Started |
 
 ---
 
 ## Questions for Clarification
 
-Before proceeding, I need clarity on the following:
+*(Answers provided during initial analysis)*
 
 ### 1. **Project Scope & Vision**
    - What is the intended functionality of SPLITZ? (Bill splitting? Expense tracking? Group payments?)
-     - yes, Bill splitting, expense tracking, group payments. Giving analyses about the expenses. etc
+     - ✅ Bill splitting, expense tracking, group payments, expense analysis
    - Who are the target users? (Friends? Roommates? Business teams?)
-     - Friends and Roommates and splitwise's targeted audience
+     - ✅ Friends and Roommates (Splitwise-like audience)
    - Should it support multiple groups/organizations?
-     - yes
+     - ✅ Yes
 
 ### 2. **Expense Service Requirements**
    - What entities should the expense-service manage?
-     - Expenses?
-     - Groups?
-     - Settlements/Payments?
-     - Splits/Shares?
-       - yes
+     - ✅ Expenses, Groups, Settlements/Payments, Splits/Shares
    - Should it integrate with payment gateways?
-     - yes, but in future. for mvp 0.0.1. NO
+     - ✅ Yes, but not for MVP 0.0.1
 
 ### 3. **Service Communication**
    - How should user-service and expense-service communicate?
-     - REST API calls?
-       - I am thinking grpc calls
-     - Message queue (RabbitMQ/Kafka)?
-       - We have to look into what is best strategy to implement this. Still not sure. have to research further.
-     - Shared database (not recommended)?
+     - 🔄 Considering gRPC calls (research needed)
+     - 🔄 Message queue strategy TBD
 
 ### 4. **Authentication Strategy**
    - Should expense-service validate JWT tokens independently?
-   - Do you want a separate API Gateway for authentication?
-     - if every service is independentely validating and authenticating, it will not be a good practice. Need further research on what is the best implementation for this.
+     - 🔄 Research needed for best practice (possibly API Gateway)
 
 ### 5. **Deployment Target**
-   - Local development only?
-   - Docker containers?
-   - Kubernetes?
-   - Cloud platform (AWS/Azure/GCP)?
-     - we have to dockerize it and in future we have to implement it on the cloud plateforms aswell
+   - ✅ Docker containers (Dockerfile ready)
+   - 🔄 Cloud platform deployment planned for future
 
 ### 6. **Database Strategy**
-   - Separate database per service (recommended)?
-   - Shared database?
-   - Production database preference? (PostgreSQL confirmed?)
-     - Need to research further.
+   - 🔄 Research needed (likely separate DB per service)
+   - ✅ PostgreSQL for production confirmed
 
 ---
 
 ## Recommended Next Steps
 
-### Priority 1: Fix Critical Issues in User Service 🔴
+### Priority 1: Complete User Service Friendship API 🔴
 
-1. **Fix User Account Status** (CRITICAL)
-   ```java
-   // Change all these methods to return true
-   public boolean isAccountNonExpired() { return true; }
-   public boolean isAccountNonLocked() { return true; }
-   public boolean isCredentialsNonExpired() { return true; }
-   public boolean isEnabled() { return true; }
-   ```
+1. **Implement FriendshipService (S05)**
+   - Business logic for sending friend requests
+   - Accept/reject/block friend requests
+   - Validation (no self-friendship, no duplicates)
+   - Unit tests (test-first approach)
 
-2. **Implement Password Encoding in User Creation**
-   - Update `UserMapper` to encode passwords using `BCryptPasswordEncoder`
-   - Ensure passwords are never stored in plain text
+2. **Implement FriendshipController (S06)**
+   - REST endpoints:
+     - `POST /users/{id}/friends` — send friend request
+     - `GET /users/{id}/friends` — list accepted friends
+     - `GET /users/{id}/friends/requests` — list pending requests
+     - `PUT /users/{id}/friends/{fid}/accept` — accept request
+     - `PUT /users/{id}/friends/{fid}/reject` — reject request
+     - `DELETE /users/{id}/friends/{friendId}` — remove friend
+   - Integration tests
 
-3. **Complete User CRUD Operations**
-   - Implement update user endpoint
-   - Implement delete user endpoint
-   - Add proper authorization checks
-
-4. **Initialize Default Roles**
-   - Create a `DataInitializer` component to create default roles (`ROLE_USER`, `ROLE_ADMIN`) on startup
+3. **Add OpenAPI Documentation (S07)**
+   - Add `springdoc-openapi` dependency
+   - Configure Swagger UI at `/swagger-ui.html`
+   - Annotate all controllers with `@Operation`, `@ApiResponse`
 
 ### Priority 2: Build Expense Service 🟠
 
-1. **Set up Spring Boot Application**
-   - Create `ExpenseApplication.java`
-   - Configure `application.properties`
-   - Add necessary dependencies to POM
+1. **Bootstrap Expense Service (S09)**
+   - Create `ExpenseServiceApplication.java`
+   - Configure `application.properties` (port 8081)
+   - Add dependencies (web, security, jpa, flyway, h2)
+   - Copy JWT validation from user-service
+   - Create Dockerfile
 
-2. **Design Core Entities**
-   - `Expense` (amount, description, date, payer, category)
-   - `Group` (name, members, expenses)
-   - `ExpenseSplit` (expense, user, share amount)
-   - `Settlement` (payer, payee, amount, status)
+2. **Core Entities (S10-S13)**
+   - `Category` - expense categories with seeding
+   - `Group` and `GroupMember` - group management
+   - `Expense` - expense tracking
+   - `ExpenseSplit` - split calculations (EQUAL, EXACT)
 
-3. **Implement REST Controllers**
-   - Expense CRUD operations
-   - Group management
-   - Split calculation logic
+3. **Balance & Settlements (S14-S15)**
+   - Balance calculation service
    - Settlement tracking
 
-4. **Service Layer Implementation**
-   - Business logic for expense splitting algorithms
-   - Settlement calculation
-   - Balance tracking
+### Priority 3: Infrastructure Improvements 🟡
 
-### Priority 3: Inter-Service Communication 🟡
+1. **Docker Compose Setup**
+   - Create `docker-compose.yml` for local development
+   - Add PostgreSQL container for integration testing
+   - Configure environment-based settings
 
-1. **Add Service-to-Service Communication**
-   - Option A: Use RestTemplate/WebClient for REST calls
-   - Option B: Implement message queue (RabbitMQ/Kafka)
-   - Recommend: RestTemplate for now, message queue later
+2. **Inter-Service Communication Research**
+   - Evaluate gRPC vs REST vs Message Queue
+   - Consider API Gateway pattern
+   - Document decision and implement
 
-2. **Implement JWT Validation in Expense Service**
-   - Share JWT validation logic
-   - Consider creating a common security library
+### Priority 4: Production Readiness 🟢
 
-### Priority 4: Infrastructure & DevOps 🟢
+1. **Security Hardening**
+   - Externalize JWT secret to environment variables
+   - Add rate limiting
+   - CORS configuration
+   - Input validation improvements
 
-1. **Add API Documentation**
-   - Integrate SpringDoc OpenAPI (Swagger)
-   - Document all endpoints
-
-2. **Containerization**
-   - Create Dockerfiles for each service
-   - Create docker-compose.yml for local development
-
-3. **Database Migrations**
-   - Add Flyway or Liquibase
-   - Version control database schema
-
-4. **Add Comprehensive Tests**
-   - Unit tests for services
-   - Integration tests for controllers
-   - Security tests
-
-5. **Implement Proper Logging**
-   - Configure SLF4J with Logback
-   - Add structured logging
-   - Consider ELK stack for log aggregation
-
-6. **API Gateway** (Optional but recommended)
-   - Spring Cloud Gateway
-   - Centralized routing and authentication
-
-### Priority 5: Enhanced Features 🔵
-
-1. **Email Notifications**
-   - Expense creation notifications
-   - Settlement reminders
-
-2. **Advanced Features**
-   - Multiple currency support
-   - Receipt upload/storage
-   - Expense categories and tags
-   - Reports and analytics
-
-3. **Mobile App Support**
-   - Ensure APIs are mobile-friendly
-   - Consider adding push notifications
+2. **Observability**
+   - Structured logging with correlation IDs
+   - Metrics with Micrometer/Prometheus
+   - Distributed tracing consideration
 
 ---
 
-## Technology Recommendations
+## Technology Stack Summary
 
-### Immediate Additions:
-- **SpringDoc OpenAPI**: For API documentation
-- **Flyway**: For database migrations
-- **RestTemplate/WebClient**: For inter-service communication
-- **Docker**: For containerization
+### Current Stack:
+| Layer | Technology | Version | Status |
+|-------|------------|---------|--------|
+| Language | Java | 21 | ✅ |
+| Framework | Spring Boot | 3.2.0 | ✅ |
+| Security | Spring Security + JWT | - | ✅ |
+| Database (dev) | H2 | - | ✅ |
+| Database (prod) | PostgreSQL | 16 | ✅ Ready |
+| ORM | Spring Data JPA | - | ✅ |
+| Migrations | Flyway | - | ✅ |
+| Build | Maven | 3.8+ | ✅ |
+| Mapping | MapStruct | 1.6.3 | ✅ |
+| Code Gen | Lombok | 1.18.x | ✅ |
+| Testing | JUnit 5, Mockito | - | ✅ |
+| Coverage | JaCoCo | 0.8.11 | ✅ |
+| CI/CD | GitHub Actions | - | ✅ |
+| Containers | Docker | - | ✅ |
 
-### Future Considerations:
-- **Spring Cloud Config**: Centralized configuration
-- **Spring Cloud Gateway**: API Gateway
-- **Eureka**: Service discovery
-- **Resilience4j**: Circuit breaker pattern
-- **Redis**: For caching and session management
-- **Kafka/RabbitMQ**: For asynchronous communication
+### Planned Additions:
+- SpringDoc OpenAPI (API documentation)
+- Docker Compose (local development)
+- gRPC or API Gateway (inter-service communication)
 
 ---
 
 ## Conclusion
 
-The SPLITZ project has a **solid foundation** with proper Spring Boot setup and modern Java practices. However, it requires:
+The SPLITZ project has made **significant progress** since the initial analysis:
 
-1. **Immediate bug fixes** in user authentication
-2. **Complete implementation** of the expense-service
-3. **Proper testing** and documentation
-4. **Infrastructure setup** for production readiness
+### Completed ✅
+- User authentication and full CRUD operations
+- Security vulnerabilities fixed
+- CI/CD pipeline with test coverage
+- Docker support
+- Flyway migrations
+- Friendship entity and repository layer
 
-The project is approximately **20-25% complete**. With focused development, it can be brought to MVP stage in:
-- **Quick MVP**: 2-3 weeks (basic expense splitting)
-- **Production Ready**: 4-6 weeks (with testing, docs, deployment)
+### In Progress 🟡
+- Friendship API (service and controller layers)
 
----
+### Pending ⬜
+- OpenAPI documentation
+- Expense service (entire service)
+- Docker Compose setup
+- Inter-service communication
 
-## Next Steps - What Should I Do?
+**Current Completion:** ~35-40% of MVP 0.0.1
 
-Please answer the **questions in the "Questions for Clarification" section** so I can:
-
-1. Provide a detailed implementation plan for expense-service
-2. Design the exact entity relationships
-3. Create a proper API contract between services
-4. Set up the deployment infrastructure
-
-**Immediate Action:** Would you like me to start by **fixing the critical security issues** in user-service? This is the most urgent task.
+**Estimated Remaining Effort:**
+- Friendship API completion: ~1-2 days
+- Expense service MVP: ~5-7 days
+- Integration & testing: ~2-3 days
+- **Total to MVP:** ~10-12 working days
 
 ---
 
 **Report Generated by:** GitHub Copilot  
-**Model:** Claude Sonnet 4.5
+**Model:** Claude Opus 4.5  
+**Last Updated:** January 1, 2026
