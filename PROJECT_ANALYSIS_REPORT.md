@@ -1,7 +1,7 @@
 # SPLITZ Project Analysis Report
 
-**Analysis Date:** January 2, 2026  
-**Project Type:** Multi-Module Microservices Application  
+**Analysis Date:** January 2, 2026
+**Project Type:** Multi-Module Microservices Application
 **Technology Stack:** Java 21, Spring Boot 3.2.0, Maven
 
 ---
@@ -9,10 +9,10 @@
 ## Executive Summary
 
 SPLITZ is a **multi-module expense splitting application** currently in active development. The project demonstrates a microservices architecture with two services:
-- **user-service**: ~80% complete with authentication, user management, and friendship foundation
+- **user-service**: **100% Phase 1 Complete** (Auth, User CRUD, Friendship API)
 - **expense-service**: Placeholder service (not yet developed)
 
-**Significant progress has been made since the initial analysis**, including CI/CD pipeline setup, test coverage integration, Docker support, Flyway migrations, and the Friendship entity/repository layer.
+**Significant progress has been made**, with the User Service fully implemented for MVP requirements. The focus now shifts to building the Expense Service.
 
 ---
 
@@ -24,7 +24,7 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
 - Well-organized version management for libraries (Lombok, JWT, MapStruct, PostgreSQL, H2)
 - Maven plugin configuration is clean and follows best practices
 
-### 2. User Service (~80% Complete)
+### 2. User Service (100% Phase 1 Complete)
 
 #### ✅ Implemented Features:
 
@@ -34,7 +34,7 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
   - JWT token generation and validation (`JwtUtil`, `JwtRequestFilter`)
   - Password encryption using BCrypt
   - Custom security expressions (`SecurityExpressions.java`) for owner/admin checks
-  
+
 - **User Management**
   - User entity with role-based permissions (implements `UserDetails`)
   - **Full User CRUD operations** (create, read, update, delete)
@@ -42,27 +42,28 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
   - UserDTO with MapStruct mapper
   - Global exception handling (`GlobalExceptionHandler`)
   - Custom exceptions (`ResourceNotFoundException`, `UserAlreadyExistsException`)
-  
-- **Friendship Foundation (S04 Complete)**
+
+- **Friendship Module (S04-S06 Complete) ✅**
+  - **Full Friendship API** implemented
   - `Friendship` entity with status tracking (PENDING, ACCEPTED, REJECTED, BLOCKED)
-  - `FriendshipStatus` enum
-  - `FriendshipRepository` with comprehensive query methods
-  - Flyway migration `V5__Create_friendship_table.sql`
-  - Unit tests for Friendship entity and repository
+  - `FriendshipService` handling business logic (send, accept, reject, block)
+  - `FriendshipController` exposing REST endpoints
+  - Validation rules (no self-friending, no duplicates)
+  - Integration tests covering all scenarios
 
 - **OpenAPI Documentation (S07 Complete) ✅**
   - SpringDoc OpenAPI integration
   - Swagger UI available at `/swagger-ui.html`
   - All controllers annotated with @Operation and @ApiResponse
   - JWT Bearer authentication configured in OpenAPI security scheme
-  
+
 - **Database**
   - JPA/Hibernate integration with auditing enabled
   - H2 in-memory database (development)
   - PostgreSQL support configured (production)
   - **Flyway migrations** for schema management (V1-V5)
   - Default roles seeded via migration (ROLE_USER, ROLE_ADMIN)
-  
+
 - **API Endpoints**
   | Method | Endpoint | Auth | Description |
   |--------|----------|------|-------------|
@@ -73,6 +74,12 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
   | PUT | `/users/{id}` | Owner/Admin | Update user |
   | DELETE | `/users/{id}` | Owner/Admin | Delete user |
   | GET | `/users/search` | Authenticated | Search users (paginated) |
+  | POST | `/users/{id}/friends` | Auth | Send friend request |
+  | GET | `/users/{id}/friends` | Auth | List friends |
+  | GET | `/users/{id}/friends/requests` | Auth | List pending requests |
+  | PUT | `/users/{id}/friends/{fid}/accept` | Auth | Accept request |
+  | PUT | `/users/{id}/friends/{fid}/reject` | Auth | Reject request |
+  | DELETE | `/users/{id}/friends/{friendId}` | Auth | Remove friend |
 
 - **DevOps & Infrastructure**
   - ✅ **GitHub Actions CI pipeline** (`.github/workflows/ci.yml`)
@@ -80,40 +87,9 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
   - ✅ **Dockerfile** with multi-stage build and non-root user
   - ✅ Actuator endpoints for health monitoring
 
-#### ✅ Previously Reported Issues - NOW FIXED:
-
-1. **~~SECURITY VULNERABILITY - User Account Status~~** ✅ FIXED
-   - `isAccountNonExpired()`, `isAccountNonLocked()`, `isCredentialsNonExpired()` now return `true`
-   - `isEnabled()` correctly returns `this.enabled && this.verified`
-
-2. **~~Incomplete User CRUD~~** ✅ FIXED
-   - Update user endpoint fully implemented
-   - Delete user endpoint fully implemented
-   - Both protected with `@PreAuthorize("@security.isOwnerOrAdmin(#id)")`
-
-3. **~~Missing Password Encoding~~** ✅ FIXED
-   - `UserMapper.toEntityWithPasswordEncoding()` uses `BCryptPasswordEncoder`
-   - Password encoding in `UserService.updateUser()` when password is changed
-
-4. **~~Role Initialization Missing~~** ✅ FIXED
-   - Default roles seeded via Flyway migration `V4__Seed_default_roles.sql`
-
-5. **~~No Database Migrations~~** ✅ FIXED
-   - Flyway integrated with 5 migrations:
-     - `V1__Create_roles_table.sql`
-     - `V2__Create_users_table.sql`
-     - `V3__Create_users_roles_table.sql`
-     - `V4__Seed_default_roles.sql`
-     - `V5__Create_friendship_table.sql`
-
 #### ⬜ Still Pending:
 
-1. **Friendship Service & API (S05, S06)**
-   - `FriendshipService` - business logic for friend requests
-   - `FriendshipController` - REST endpoints for friendship management
-   - Send/accept/reject friend requests
-
-2. **JWT Secret Externalization**
+1. **JWT Secret Externalization**
    - JWT secret should use environment variables in production
    - Currently configured via `application.properties`
 
@@ -142,13 +118,13 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
 11. ✅ **Docker support with multi-stage build**
 12. ✅ **Method-level security with custom expressions**
 13. ✅ **OpenAPI documentation (Swagger UI)**
+14. ✅ **Comprehensive Friendship API**
 
 ### Weaknesses:
 1. ⚠️ No inter-service communication mechanism
 2. ⚠️ No API Gateway or service discovery
 3. ⚠️ No centralized configuration management
 4. ⚠️ No docker-compose for local development
-6. ⚠️ Friendship API not yet exposed (entity/repo only)
 
 ---
 
@@ -164,6 +140,9 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
 - `UserControllerIntegrationTest.java` - Integration tests with full Spring context
 - `FriendshipTest.java` - Entity and status transition tests
 - `FriendshipRepositoryTest.java` - Repository query tests
+- `FriendshipServiceTest.java` - Service logic tests
+- `FriendshipControllerTest.java` - Controller tests
+- `FriendshipIntegrationTest.java` - Full integration tests
 - `SecurityDebugTest.java` - Security configuration tests
 
 ---
@@ -176,71 +155,16 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
 | S02 | JaCoCo Test Coverage | ✅ Complete (76%) |
 | S03 | Dockerfile for User Service | ✅ Complete |
 | S04 | Friendship Entity & Repository | ✅ Complete |
-| S05 | Friendship Service | ⬜ Not Started |
-| S06 | Friendship REST API | ⬜ Not Started |
+| S05 | Friendship Service | ✅ Complete |
+| S06 | Friendship REST API | ✅ Complete |
 | S07 | OpenAPI Documentation | ✅ Complete |
-| S09+ | Expense Service | ⬜ Not Started |
-
----
-
-## Questions for Clarification
-
-*(Answers provided during initial analysis)*
-
-### 1. **Project Scope & Vision**
-   - What is the intended functionality of SPLITZ? (Bill splitting? Expense tracking? Group payments?)
-     - ✅ Bill splitting, expense tracking, group payments, expense analysis
-   - Who are the target users? (Friends? Roommates? Business teams?)
-     - ✅ Friends and Roommates (Splitwise-like audience)
-   - Should it support multiple groups/organizations?
-     - ✅ Yes
-
-### 2. **Expense Service Requirements**
-   - What entities should the expense-service manage?
-     - ✅ Expenses, Groups, Settlements/Payments, Splits/Shares
-   - Should it integrate with payment gateways?
-     - ✅ Yes, but not for MVP 0.0.1
-
-### 3. **Service Communication**
-   - How should user-service and expense-service communicate?
-     - 🔄 Considering gRPC calls (research needed)
-     - 🔄 Message queue strategy TBD
-
-### 4. **Authentication Strategy**
-   - Should expense-service validate JWT tokens independently?
-     - 🔄 Research needed for best practice (possibly API Gateway)
-
-### 5. **Deployment Target**
-   - ✅ Docker containers (Dockerfile ready)
-   - 🔄 Cloud platform deployment planned for future
-
-### 6. **Database Strategy**
-   - 🔄 Research needed (likely separate DB per service)
-   - ✅ PostgreSQL for production confirmed
+| S09+ | Expense Service | ⬜ Next Up |
 
 ---
 
 ## Recommended Next Steps
 
-### Priority 1: Complete User Service Friendship API 🔴
-
-1. **Implement FriendshipService (S05)**
-   - Business logic for sending friend requests
-   - Accept/reject/block friend requests
-   - Validation (no self-friendship, no duplicates)
-   - Unit tests (test-first approach)
-
-2. **Implement FriendshipController (S06)**
-   - REST endpoints:
-     - `POST /users/{id}/friends` — send friend request
-     - `GET /users/{id}/friends` — list accepted friends
-     - `GET /users/{id}/friends/requests` — list pending requests
-     - `PUT /users/{id}/friends/{fid}/accept` — accept request
-     - `PUT /users/{id}/friends/{fid}/reject` — reject request
-     - `DELETE /users/{id}/friends/{friendId}` — remove friend
-   - Integration tests
-
-### Priority 2: Build Expense Service 🟠
+### Priority 1: Build Expense Service (S09-S13) 🔴
 
 1. **Bootstrap Expense Service (S09)**
    - Create `ExpenseServiceApplication.java`
@@ -255,11 +179,7 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
    - `Expense` - expense tracking
    - `ExpenseSplit` - split calculations (EQUAL, EXACT)
 
-3. **Balance & Settlements (S14-S15)**
-   - Balance calculation service
-   - Settlement tracking
-
-### Priority 3: Infrastructure Improvements 🟡
+### Priority 2: Infrastructure Improvements 🟡
 
 1. **Docker Compose Setup**
    - Create `docker-compose.yml` for local development
@@ -271,7 +191,7 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
    - Consider API Gateway pattern
    - Document decision and implement
 
-### Priority 4: Production Readiness 🟢
+### Priority 3: Production Readiness 🟢
 
 1. **Security Hardening**
    - Externalize JWT secret to environment variables
@@ -314,7 +234,7 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
 
 ## Conclusion
 
-The SPLITZ project has made **significant progress** since the initial analysis:
+The SPLITZ project has completed **Phase 1 (User Service)** successfully:
 
 ### Completed ✅
 - User authentication and full CRUD operations
@@ -322,28 +242,23 @@ The SPLITZ project has made **significant progress** since the initial analysis:
 - CI/CD pipeline with test coverage
 - Docker support
 - Flyway migrations
-- Friendship entity and repository layer
+- **Full Friendship API (Entity, Service, Controller)**
 - OpenAPI documentation (Swagger UI)
 
-### In Progress 🟡
-- Friendship API (service and controller layers)
-
 ### Pending ⬜
-- Friendship API (service and controller layers)
 - Expense service (entire service)
 - Docker Compose setup
 - Inter-service communication
 
-**Current Completion:** ~40-45% of MVP 0.0.1
+**Current Completion:** ~50% of MVP 0.0.1
 
 **Estimated Remaining Effort:**
-- Friendship API completion: ~1-2 days
 - Expense service MVP: ~5-7 days
 - Integration & testing: ~2-3 days
-- **Total to MVP:** ~8-12 working days
+- **Total to MVP:** ~7-10 working days
 
 ---
 
-**Report Generated by:** GitHub Copilot  
-**Model:** Claude Opus 4.5  
+**Report Generated by:** GitHub Copilot
+**Model:** Gemini 3 Pro (Preview)
 **Last Updated:** January 2, 2026
