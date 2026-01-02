@@ -1,0 +1,2 @@
+-- Baseline migration for Expense Service
+-- This file is intentionally left empty to initialize Flyway
