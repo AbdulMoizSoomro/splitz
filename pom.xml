@@ -31,6 +31,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <postgresql.version>42.7.1</postgresql.version>
         <h2.version>2.2.224</h2.version>
+        <springdoc-openapi.version>2.3.0</springdoc-openapi.version>
 
         <!-- Maven Plugin Versions -->
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
@@ -82,6 +83,11 @@
                 <groupId>com.h2database</groupId>
                 <artifactId>h2</artifactId>
                 <version>${h2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc-openapi.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

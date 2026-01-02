@@ -52,6 +52,8 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/authenticate").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/users").permitAll()
+                        // OpenAPI and Swagger UI
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // All other endpoints require authentication
                         // Fine-grained authorization is handled by @PreAuthorize on controller methods
                         .anyRequest().authenticated())

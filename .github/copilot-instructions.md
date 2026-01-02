@@ -215,6 +215,7 @@ com.splitz.{service}/
 
 ### Running Tests
 
+!!! IMPORTANT "Note"
 Run Tests one by one first to isolate issues, when running all tests together use `tail` or `grep` to filter logs.
 
 ```bash
