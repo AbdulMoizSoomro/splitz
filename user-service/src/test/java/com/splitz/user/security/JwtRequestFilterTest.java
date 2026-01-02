@@ -13,6 +13,8 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.splitz.security.JwtRequestFilter;
+import com.splitz.security.JwtUtil;
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.model.User;
 import com.splitz.user.service.UserService;

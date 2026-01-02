@@ -29,9 +29,9 @@ import com.splitz.user.dto.FriendshipDTO;
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.model.FriendshipStatus;
 import com.splitz.user.model.User;
-import com.splitz.user.security.JwtRequestFilter;
-import com.splitz.user.security.JwtUtil;
 import com.splitz.user.security.SecurityExpressions;
+import com.splitz.security.JwtRequestFilter;
+import com.splitz.security.JwtUtil;
 import com.splitz.user.service.FriendshipService;
 import com.splitz.user.service.UserService;
 
