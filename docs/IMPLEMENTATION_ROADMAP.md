@@ -33,39 +33,35 @@ Example: feature/S01-github-actions-ci
 
 | Service | Status | What Works |
 |---------|--------|------------|
-| user-service | ~80% Phase 1 | Auth, User CRUD, Search, Roles, Flyway |
+| user-service | 100% Phase 1 | Auth, User CRUD, Search, Roles, Flyway, Friendship API |
 | expense-service | 0% | Stub only |
-| DevOps | 0% | No CI/CD, No Docker |
+| DevOps | 100% Phase 0 | CI Pipeline, Test Coverage, Dockerfile |
 
 **What's Missing for MVP:**
-1. Friendship API (user-service)
-2. CI/CD pipeline
-3. Entire expense-service
-4. API documentation (OpenAPI)
-5. Docker setup
+1. Entire expense-service
 
 ---
 
-## Phase 0: DevOps Foundation ⬜
+## Phase 0: DevOps Foundation ✅
 > **Goal:** Automated quality gates before adding more features  
 > **Duration:** ~2 days
 
-### Story S01: GitHub Actions CI Pipeline ⬜
+### Story S01: GitHub Actions CI Pipeline ✅
 > Branch: `feature/S01-github-actions-ci`
 
 **Why:** Every commit should be validated automatically. Catch issues early.
 
 **Acceptance Criteria:**
-- [ ] Push to `main` or PR triggers build
-- [ ] Maven build + test runs
-- [ ] Build fails if tests fail
-- [ ] Badge shows build status in README
+- [x] Push to `main` or PR triggers build
+- [x] Maven build + test runs
+- [x] Build fails if tests fail
+- [x] Badge shows build status in README
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T01.1 | Create `.github/workflows/ci.yml` with Maven build | 2h | Trigger on push/PR to main |
-| T01.2 | Add build status badge to README | 15m | |
+| T01.1 | Create `.github/workflows/ci.yml` with Maven build | 2h | ✅ Trigger on push/PR to main |
+| T01.2 | Add build status badge to README | 15m | ✅ |
 
 **Test Strategy:** CI itself is the test — verify a failing test breaks the build.
 
@@ -75,22 +71,22 @@ Example: feature/S01-github-actions-ci
 
 ---
 
-### Story S02: Test Coverage Reporting ⬜
+### Story S02: Test Coverage Reporting ✅
 > Branch: `feature/S02-test-coverage`
 
 **Why:** Know what's tested, prevent coverage regression.
 
 **Acceptance Criteria:**
-- [ ] JaCoCo generates coverage report
-- [ ] Coverage report visible in CI logs or artifact
-- [ ] Minimum 60% line coverage enforced (fail build if below)
+- [x] JaCoCo generates coverage report
+- [x] Coverage report visible in CI logs or artifact
+- [x] Minimum 60% line coverage enforced (fail build if below)
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T02.1 | Add JaCoCo plugin to user-service pom.xml | 1h | Configure report generation |
-| T02.2 | Set coverage threshold (60% lines) | 30m | Build fails if below |
-| T02.3 | Update CI to publish coverage report | 1h | Upload as artifact |
+| T02.1 | Add JaCoCo plugin to user-service pom.xml | 1h | ✅ Configure report generation |
+| T02.2 | Set coverage threshold (60% lines) | 30m | ✅ Build fails if below |
+| T02.3 | Update CI to publish coverage report | 1h | ✅ Upload as artifact |
 
 **Test Strategy:** Intentionally drop coverage below threshold, verify build fails.
 
@@ -100,23 +96,23 @@ Example: feature/S01-github-actions-ci
 
 ---
 
-### Story S03: Basic Dockerfile for User Service ⬜
+### Story S03: Basic Dockerfile for User Service ✅
 > Branch: `feature/S03-user-service-dockerfile`
 
 **Why:** Reproducible builds, prep for compose and deployment.
 
 **Acceptance Criteria:**
-- [ ] `docker build` succeeds
-- [ ] Container starts and responds to health endpoint
-- [ ] Image uses non-root user
-- [ ] Image size under 400MB
+- [x] `docker build` succeeds
+- [x] Container starts and responds to health endpoint
+- [x] Image uses non-root user
+- [x] Image size under 400MB
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T03.1 | Create multi-stage Dockerfile | 2h | Build stage + runtime stage |
-| T03.2 | Add .dockerignore | 15m | Exclude target/, .git, etc. |
-| T03.3 | Test container locally | 1h | Verify /actuator/health works |
+| T03.1 | Create multi-stage Dockerfile | 2h | ✅ Build stage + runtime stage |
+| T03.2 | Add .dockerignore | 15m | ✅ Exclude target/, .git, etc. |
+| T03.3 | Test container locally | 1h | ✅ Verify /actuator/health works |
 
 **Test Strategy:** Manual — build image, run container, curl health endpoint.
 
@@ -126,29 +122,29 @@ Example: feature/S01-github-actions-ci
 
 ---
 
-## Phase 1: Complete User Service ⬜
+## Phase 1: Complete User Service ✅
 > **Goal:** Finish user-service MVP features  
 > **Duration:** ~3 days
 
-### Story S04: Friendship Entity & Repository ⬜
+### Story S04: Friendship Entity & Repository ✅
 > Branch: `feature/S04-friendship-entity`
 
 **Why:** Core social feature — users need to connect before splitting expenses.
 
 **Acceptance Criteria:**
-- [ ] Friendship entity with requester, addressee, status, timestamps
-- [ ] Status enum: PENDING, ACCEPTED, REJECTED, BLOCKED
-- [ ] Repository methods: findByRequesterOrAddressee, findPendingRequests
-- [ ] Flyway migration creates table
-- [ ] Entity tests pass
+- [x] Friendship entity with requester, addressee, status, timestamps
+- [x] Status enum: PENDING, ACCEPTED, REJECTED, BLOCKED
+- [x] Repository methods: findByRequesterOrAddressee, findPendingRequests
+- [x] Flyway migration creates table
+- [x] Entity tests pass
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T04.1 | Write Friendship entity test | 1h | Test-first: test status transitions |
-| T04.2 | Create Friendship entity & FriendshipStatus enum | 1h | |
-| T04.3 | Create FriendshipRepository with custom queries | 1h | |
-| T04.4 | Add Flyway migration V5__create_friendship_table.sql | 30m | |
+| T04.1 | Write Friendship entity test | 1h | ✅ Test-first: test status transitions |
+| T04.2 | Create Friendship entity & FriendshipStatus enum | 1h | ✅ |
+| T04.3 | Create FriendshipRepository with custom queries | 1h | ✅ |
+| T04.4 | Add Flyway migration V5__create_friendship_table.sql | 30m | ✅ |
 
 **Entity Design:**
 ```java
@@ -171,26 +167,26 @@ Friendship {
 
 ---
 
-### Story S05: Friendship Service ⬜
+### Story S05: Friendship Service ✅
 > Branch: `feature/S05-friendship-service`
 
 **Why:** Business logic for friend requests — validation, state transitions.
 
 **Acceptance Criteria:**
-- [ ] Send friend request (creates PENDING)
-- [ ] Accept/reject friend request (updates status)
-- [ ] Cannot send duplicate request
-- [ ] Cannot friend yourself
-- [ ] Get pending requests for user
-- [ ] Get accepted friends for user
-- [ ] All service methods have unit tests
+- [x] Send friend request (creates PENDING)
+- [x] Accept/reject friend request (updates status)
+- [x] Cannot send duplicate request
+- [x] Cannot friend yourself
+- [x] Get pending requests for user
+- [x] Get accepted friends for user
+- [x] All service methods have unit tests
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T05.1 | Write FriendshipService unit tests | 2h | Test-first: all scenarios |
-| T05.2 | Implement FriendshipService | 2h | |
-| T05.3 | Create FriendshipDTO and mapper | 1h | |
+| T05.1 | Write FriendshipService unit tests | 2h | ✅ Test-first: all scenarios |
+| T05.2 | Implement FriendshipService | 2h | ✅ |
+| T05.3 | Create FriendshipDTO and mapper | 1h | ✅ |
 
 **Business Rules:**
 - User A sends request to User B → status = PENDING
@@ -207,29 +203,29 @@ Friendship {
 
 ---
 
-### Story S06: Friendship REST API ⬜
+### Story S06: Friendship REST API ✅
 > Branch: `feature/S06-friendship-api`
 
 **Why:** Expose friendship features to clients.
 
 **Acceptance Criteria:**
-- [ ] POST /users/{id}/friends — send friend request
-- [ ] GET /users/{id}/friends — list accepted friends
-- [ ] GET /users/{id}/friends/requests — list pending incoming requests  
-- [ ] PUT /users/{id}/friends/{friendshipId}/accept — accept request
-- [ ] PUT /users/{id}/friends/{friendshipId}/reject — reject request
-- [ ] DELETE /users/{id}/friends/{friendId} — remove friend
-- [ ] All endpoints require authentication
-- [ ] Users can only manage their own friendships
-- [ ] Integration tests pass
+- [x] POST /users/{id}/friends — send friend request
+- [x] GET /users/{id}/friends — list accepted friends
+- [x] GET /users/{id}/friends/requests — list pending incoming requests  
+- [x] PUT /users/{id}/friends/{friendshipId}/accept — accept request
+- [x] PUT /users/{id}/friends/{friendshipId}/reject — reject request
+- [x] DELETE /users/{id}/friends/{friendId} — remove friend
+- [x] All endpoints require authentication
+- [x] Users can only manage their own friendships
+- [x] Integration tests pass
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T06.1 | Write FriendshipController integration tests | 2h | Test-first |
-| T06.2 | Implement FriendshipController | 2h | |
-| T06.3 | Add security expressions for ownership check | 30m | |
-| T06.4 | Add exception handling for friendship errors | 30m | |
+| T06.1 | Write FriendshipController integration tests | 2h | ✅ Test-first |
+| T06.2 | Implement FriendshipController | 2h | ✅ |
+| T06.3 | Add security expressions for ownership check | 30m | ✅ |
+| T06.4 | Add exception handling for friendship errors | 30m | ✅ |
 
 **Files to Create:**
 - `user-service/src/main/java/com/splitz/user/controller/FriendshipController.java`

@@ -26,7 +26,7 @@ A user can register, login, create a group with friends, add expenses, and see c
 | Login | JWT-based authentication | ✅ Done |
 | Profile | View/update own profile | ✅ Done |
 | User Search | Find users by name/email | ✅ Done |
-| Friendships | Send/accept/reject friend requests | ⬜ Not Started |
+| Friendships | Send/accept/reject friend requests | ✅ Done |
 
 ### Expense Service (Port 8081)
 
@@ -44,9 +44,9 @@ A user can register, login, create a group with friends, add expenses, and see c
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| CI Pipeline | GitHub Actions build/test | ⬜ Not Started |
-| API Docs | Swagger UI for both services | ⬜ Not Started |
-| Docker | Dockerfile for local development | ⬜ Not Started |
+| CI Pipeline | GitHub Actions build/test | ✅ Done |
+| API Docs | Swagger UI for both services | ✅ Done |
+| Docker | Dockerfile for local development | ✅ Done |
 
 ---
 
