@@ -239,24 +239,24 @@ Friendship {
 
 ---
 
-### Story S07: User Service OpenAPI Documentation ⬜
+### Story S07: User Service OpenAPI Documentation ✅
 > Branch: `feature/S07-openapi-docs`
 
 **Why:** Self-documenting API for testing and future clients.
 
 **Acceptance Criteria:**
-- [ ] SpringDoc OpenAPI dependency added
-- [ ] Swagger UI available at /swagger-ui.html
-- [ ] All endpoints documented with descriptions
-- [ ] Request/response examples included
+- [x] SpringDoc OpenAPI dependency added
+- [x] Swagger UI available at /swagger-ui.html
+- [x] All endpoints documented with descriptions
+- [x] Request/response examples included
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T07.1 | Add springdoc-openapi dependency | 30m | |
-| T07.2 | Configure OpenAPI info (title, version, description) | 30m | |
-| T07.3 | Annotate controllers with @Operation, @ApiResponse | 2h | |
-| T07.4 | Verify Swagger UI loads correctly | 30m | Manual test |
+| T07.1 | Add springdoc-openapi dependency | 30m | ✅ |
+| T07.2 | Configure OpenAPI info (title, version, description) | 30m | ✅ |
+| T07.3 | Annotate controllers with @Operation, @ApiResponse | 2h | ✅ |
+| T07.4 | Verify Swagger UI loads correctly | 30m | ✅ |
 
 **Files to Modify:**
 - `user-service/pom.xml`
