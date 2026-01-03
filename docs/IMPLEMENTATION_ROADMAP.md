@@ -35,6 +35,7 @@ Example: feature/S01-github-actions-ci
 |---------|--------|------------|
 | user-service | 100% Phase 1 | Auth, User CRUD, Search, Roles, Flyway, Friendship API |
 | expense-service | 0% | Stub only |
+| common-security | 100% Phase 2 | Shared JWT, Security Config |
 | DevOps | 100% Phase 0 | CI Pipeline, Test Coverage, Dockerfile |
 
 **What's Missing for MVP:**
@@ -261,21 +262,48 @@ Friendship {
 
 ---
 
-## Phase 2: Common Security Module ⏸️
+## Phase 2: Common Security Module ✅
 > **Goal:** Shared JWT validation for all services  
 > **Duration:** ~1 day  
-> **Status:** Deferred until expense-service needs it
+> **Status:** Complete
 
-**Decision:** Start expense-service with copy-paste of JWT classes. Extract common module when we have two working services — avoids premature abstraction.
+**Decision:** Extracted common module to avoid code duplication between user-service and expense-service.
 
-### Story S08: Extract common-security Module ⏸️
-> Deferred — implement when expense-service is ready for JWT
+### Story S08: Extract common-security Module ✅
+> Branch: `feature/S08-common-security`
 
-**Tasks (for later):**
-- Create `common-security` Maven module
-- Move JwtUtil, JwtRequestFilter, security exceptions
-- Update both services to depend on common-security
-- Verify both services still work
+**Tasks:**
+| ID | Task | Est | Notes |
+|----|------|-----|-------|
+| T08.1 | Create `common-security` Maven module | 1h | ✅ |
+| T08.2 | Move JwtUtil, JwtRequestFilter, security exceptions | 2h | ✅ |
+| T08.3 | Update both services to depend on common-security | 1h | ✅ |
+| T08.4 | Verify both services still work | 1h | ✅ |
+
+---
+
+### Story S08a: Common Security Unit Tests ✅
+> Branch: `feature/S08a-common-security-tests`
+
+**Why:** Ensure shared security components are robust and bug-free.
+
+**Acceptance Criteria:**
+- [x] JwtUtil has unit tests (generate, validate, extract)
+- [x] JwtRequestFilter has unit tests (mocked chain)
+- [x] SecurityExceptions are tested
+- [x] Coverage for common-security module > 80%
+
+**Tasks:**
+| ID | Task | Est | Notes |
+|----|------|-----|-------|
+| T08a.1 | Add test dependencies to common-security pom.xml | 30m | ✅ JUnit 5, Mockito |
+| T08a.2 | Write JwtUtilTest | 2h | ✅ Test token generation & validation |
+| T08a.3 | Write JwtRequestFilterTest | 2h | ✅ Mock FilterChain and UserDetailsService |
+| T08a.4 | Configure JaCoCo for common-security | 30m | ✅ |
+
+**Files to Create:**
+- `common-security/src/test/java/com/splitz/security/JwtUtilTest.java`
+- `common-security/src/test/java/com/splitz/security/JwtRequestFilterTest.java`
 
 ---
 
@@ -293,7 +321,7 @@ Friendship {
 - [ ] H2 console available in dev mode
 - [ ] Flyway runs migrations
 - [ ] Actuator health endpoint responds
-- [ ] JWT authentication works (copy from user-service initially)
+- [ ] JWT authentication works (using common-security)
 
 **Tasks:**
 | ID | Task | Est | Notes |
@@ -301,7 +329,7 @@ Friendship {
 | T09.1 | Update expense-service pom.xml with dependencies | 1h | web, security, jpa, flyway, h2, etc. |
 | T09.2 | Create ExpenseServiceApplication main class | 30m | |
 | T09.3 | Create application.properties (dev profile) | 30m | Port 8081, H2, Flyway |
-| T09.4 | Copy JWT classes from user-service | 1h | JwtUtil, JwtRequestFilter, SecurityConfig |
+| T09.4 | Configure SecurityConfig using common-security | 1h | Use JwtUtil, JwtRequestFilter from common |
 | T09.5 | Create V1 Flyway migration (empty baseline) | 15m | |
 | T09.6 | Verify app starts and health endpoint works | 30m | |
 
