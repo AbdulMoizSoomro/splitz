@@ -147,6 +147,48 @@ SPLITZ is a **multi-module expense splitting application** currently in active d
 
 ---
 
+## Deep Dive Analysis (Phase 1 & 2)
+
+### 1. Architecture & Design
+- **Strengths**:
+  - **Layered Architecture**: Clear separation between Controller, Service, Repository, and Model layers.
+  - **DTO Pattern**: Consistent use of DTOs and MapStruct prevents leaking internal entity structures.
+  - **Standardized Error Handling**: Implementation of RFC 7807 (`ProblemDetail`) in `GlobalExceptionHandler` is a modern and robust choice.
+  - **Security Design**: The extraction of `common-security` is a strategic move, ensuring consistent JWT handling across future services.
+
+- **Weaknesses**:
+  - **Pagination Gaps**: The `getAllUsers` endpoint returns a full list. This will become a performance bottleneck as the user base grows. It should implement pagination similar to the search endpoint.
+  - **Hardcoded Error Types**: The `type` field in `ProblemDetail` responses uses placeholder URLs (e.g., `https://example.com/errors/...`). These should eventually point to real documentation or be removed.
+
+### 2. Code Quality & Best Practices
+- **Strengths**:
+  - **Modern Java**: Usage of Java 21 features and Spring Boot 3.2 best practices.
+  - **Lombok Usage**: Reduces boilerplate effectively.
+  - **Auditing**: JPA Auditing (`@CreatedDate`, `@LastModifiedDate`) is correctly configured.
+
+- **Areas for Improvement**:
+  - **Input Validation**: `FriendshipService` uses `Objects.requireNonNull()` for business logic validation, which throws `NullPointerException`. It is better practice to throw `IllegalArgumentException` or a custom `ValidationException` for invalid inputs to provide clearer client feedback.
+  - **Configuration Management**: `JwtUtil` relies on `@Value` injection. Moving to type-safe `@ConfigurationProperties` would improve maintainability and validation of configuration values.
+  - **Eager Fetching**: The `User` entity uses `FetchType.EAGER` for roles. While acceptable for simple role sets, this pattern should be avoided for other relationships to prevent N+1 query issues.
+
+### 3. Security & Edge Cases
+- **Strengths**:
+  - **Method-Level Security**: Extensive use of `@PreAuthorize` ensures secure endpoints.
+  - **Custom Security Expressions**: `SecurityExpressions.java` provides a reusable and readable way to handle complex ownership logic (`isOwnerOrAdmin`).
+  - **Self-Friending Check**: Business logic correctly prevents users from sending friend requests to themselves.
+
+- **Risks**:
+  - **Principal Casting**: `SecurityExpressions` attempts to cast the authentication principal to `User`. If the security context is not populated exactly as expected (e.g., during certain test scenarios or if the `UserDetailsService` changes), it falls back to a DB call (`loadUserByUsername`). This fallback, while safe, could hide configuration issues and cause unnecessary performance overhead.
+  - **JWT Secret**: As noted, the JWT secret is property-driven. Ensure this is injected via environment variables in the production deployment to avoid committing secrets.
+
+### 4. Test Coverage
+- **Strengths**:
+  - **Comprehensive Testing**: High coverage across Controllers, Services, and Repositories.
+  - **Integration Tests**: `FriendshipIntegrationTest` verifies the full stack, which is critical for logic involving database constraints and security context.
+  - **Negative Test Cases**: Tests explicitly cover edge cases like self-friending and duplicate requests.
+
+---
+
 ## Development Progress by Roadmap
 
 | Story | Description | Status |
