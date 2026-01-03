@@ -217,13 +217,14 @@ com.splitz.{service}/
 
 !!! IMPORTANT "Note"
 Run Tests one by one first to isolate issues, when running all tests together use `tail` or `grep` to filter logs.
+Example given below:
 
 ```bash
 # All tests
-mvn -pl user-service test
+mvn -pl user-service test | grep -E "Tests run: |Failures: |Errors: |Skipped: |BUILD SUCCESS|BUILD FAILURE"
 
 # Specific test class
-mvn -pl user-service test -Dtest=UserControllerTest
+mvn -pl user-service test -Dtest=UserControllerTest | grep -E "Tests run: |Failures: |Errors: |Skipped: |BUILD SUCCESS|BUILD FAILURE"
 
 # With coverage (once JaCoCo configured)
 mvn -pl user-service test jacoco:report

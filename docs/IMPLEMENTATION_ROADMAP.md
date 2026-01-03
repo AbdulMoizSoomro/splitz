@@ -16,7 +16,7 @@ Example: feature/S01-github-actions-ci
 
 ### Definition of Done (DoD)
 - [ ] Code compiles without warnings
-- [ ] All new code has tests (written first when possible)
+- [ ] All new code has tests (it is important that tests are written first when possible)
 - [ ] All tests pass (`mvn test`)
 - [ ] Self-review completed
 - [ ] Documentation updated if public API changed
@@ -307,31 +307,31 @@ Friendship {
 
 ---
 
-## Phase 3: Expense Service Foundation ⬜
+## Phase 3: Expense Service Foundation 🟡
 > **Goal:** Bootable expense service with core entities and CRUD  
 > **Duration:** ~5 days
 
-### Story S09: Expense Service Bootstrap ⬜
+### Story S09: Expense Service Bootstrap ✅
 > Branch: `feature/S09-expense-service-bootstrap`
 
 **Why:** Need a running Spring Boot app before adding features.
 
 **Acceptance Criteria:**
-- [ ] Spring Boot app starts on port 8081
-- [ ] H2 console available in dev mode
-- [ ] Flyway runs migrations
-- [ ] Actuator health endpoint responds
-- [ ] JWT authentication works (using common-security)
+- [x] Spring Boot app starts on port 8081
+- [x] H2 console available in dev mode
+- [x] Flyway runs migrations
+- [x] Actuator health endpoint responds
+- [x] JWT authentication works (using common-security)
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T09.1 | Update expense-service pom.xml with dependencies | 1h | web, security, jpa, flyway, h2, etc. |
-| T09.2 | Create ExpenseServiceApplication main class | 30m | |
-| T09.3 | Create application.properties (dev profile) | 30m | Port 8081, H2, Flyway |
-| T09.4 | Configure SecurityConfig using common-security | 1h | Use JwtUtil, JwtRequestFilter from common |
-| T09.5 | Create V1 Flyway migration (empty baseline) | 15m | |
-| T09.6 | Verify app starts and health endpoint works | 30m | |
+| T09.1 | Update expense-service pom.xml with dependencies | 1h | ✅ web, security, jpa, flyway, h2, etc. |
+| T09.2 | Create ExpenseServiceApplication main class | 30m | ✅ |
+| T09.3 | Create application.properties (dev profile) | 30m | ✅ Port 8081, H2, Flyway |
+| T09.4 | Configure SecurityConfig using common-security | 1h | ✅ Use JwtUtil, JwtRequestFilter from common |
+| T09.5 | Create V1 Flyway migration (empty baseline) | 15m | ✅ |
+| T09.6 | Verify app starts and health endpoint works | 30m | ✅ |
 
 **Files to Create:**
 - `expense-service/src/main/java/com/splitz/expense/ExpenseServiceApplication.java`
