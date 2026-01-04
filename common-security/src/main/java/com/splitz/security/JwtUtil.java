@@ -2,7 +2,6 @@ package com.splitz.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -46,7 +45,11 @@ public class JwtUtil {
   }
 
   private Claims extractAllClaims(String token) {
-    return Jwts.parser().setSigningKey(signingKey).build().parseSignedClaims(token).getPayload();
+    return Jwts.parser()
+        .verifyWith((javax.crypto.SecretKey) signingKey)
+        .build()
+        .parseSignedClaims(token)
+        .getPayload();
   }
 
   private String createToken(Map<String, Object> claims, String subject) {
@@ -58,7 +61,7 @@ public class JwtUtil {
         .subject(subject)
         .issuedAt(now)
         .expiration(expiryDate)
-        .signWith(signingKey, SignatureAlgorithm.HS256)
+        .signWith(signingKey)
         .compact();
   }
 

@@ -8,5 +8,6 @@ import org.mapstruct.Mapper;
 public interface CategoryMapper {
   CategoryDTO toDTO(Category category);
 
+  @org.mapstruct.Mapping(target = "createdAt", ignore = true)
   Category toEntity(CategoryDTO categoryDTO);
 }

@@ -3,6 +3,7 @@ package com.splitz.expense.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -20,8 +21,9 @@ public class GlobalExceptionHandler {
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
     problem.setTitle("Resource Not Found");
     problem.setDetail(ex.getMessage());
-    problem.setType(create("https://example.com/errors/resource-not-found"));
-    problem.setInstance(create(request.getRequestURI()));
+    problem.setType(
+        Objects.requireNonNull(create("https://example.com/errors/resource-not-found")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
     return problem;
   }
 
@@ -31,8 +33,8 @@ public class GlobalExceptionHandler {
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
     problem.setTitle("Access Denied");
     problem.setDetail(ex.getMessage());
-    problem.setType(create("https://example.com/errors/access-denied"));
-    problem.setInstance(create(request.getRequestURI()));
+    problem.setType(Objects.requireNonNull(create("https://example.com/errors/access-denied")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
     return problem;
   }
 
@@ -46,8 +48,8 @@ public class GlobalExceptionHandler {
             .map(error -> error.getField() + ": " + error.getDefaultMessage())
             .collect(Collectors.joining(", "));
     problem.setDetail(detail);
-    problem.setType(create("https://example.com/errors/validation-error"));
-    problem.setInstance(create(request.getRequestURI()));
+    problem.setType(Objects.requireNonNull(create("https://example.com/errors/validation-error")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
     return problem;
   }
 
@@ -57,8 +59,8 @@ public class GlobalExceptionHandler {
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
     problem.setTitle("Invalid Request");
     problem.setDetail(ex.getMessage());
-    problem.setType(create("https://example.com/errors/invalid-request"));
-    problem.setInstance(create(request.getRequestURI()));
+    problem.setType(Objects.requireNonNull(create("https://example.com/errors/invalid-request")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
     return problem;
   }
 
@@ -67,8 +69,9 @@ public class GlobalExceptionHandler {
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
     problem.setTitle("Internal Server Error");
     problem.setDetail(ex.getMessage());
-    problem.setType(create("https://example.com/errors/internal-server-error"));
-    problem.setInstance(create(request.getRequestURI()));
+    problem.setType(
+        Objects.requireNonNull(create("https://example.com/errors/internal-server-error")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
     return problem;
   }
 
