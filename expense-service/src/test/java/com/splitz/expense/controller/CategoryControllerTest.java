@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.splitz.expense.dto.CategoryDTO;
 import com.splitz.expense.service.CategoryService;
 import com.splitz.security.JwtRequestFilter;
-import com.splitz.security.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
@@ -36,8 +35,6 @@ class CategoryControllerTest {
   @MockBean private CategoryService categoryService;
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
-
-  @MockBean private JwtUtil jwtUtil;
 
   @BeforeEach
   void setUp() throws ServletException, IOException {

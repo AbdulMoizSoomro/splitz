@@ -25,6 +25,7 @@ public class UserDTO {
   private String lastName;
 
   @NotBlank(message = "Password is required")
-  @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
+  @com.fasterxml.jackson.annotation.JsonProperty(
+      access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
   private String password;
 }

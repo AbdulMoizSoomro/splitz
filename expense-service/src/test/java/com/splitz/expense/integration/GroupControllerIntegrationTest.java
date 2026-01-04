@@ -39,23 +39,19 @@ import org.springframework.test.web.servlet.MockMvc;
 @ActiveProfiles("test")
 public class GroupControllerIntegrationTest {
 
-  @Autowired
-  private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-  @Autowired
-  private ObjectMapper objectMapper;
+  @Autowired private ObjectMapper objectMapper;
 
-  @Autowired
-  private JwtUtil jwtUtil;
+  @Autowired private JwtUtil jwtUtil;
 
-  @Autowired
-  private GroupRepository groupRepository;
+  @Autowired private GroupRepository groupRepository;
 
-  @Autowired
-  private GroupMemberRepository groupMemberRepository;
+  @Autowired private GroupMemberRepository groupMemberRepository;
 
   private String tokenFor(long userId) {
-    var user = User.withUsername(String.valueOf(userId)).password("").authorities(List.of()).build();
+    var user =
+        User.withUsername(String.valueOf(userId)).password("").authorities(List.of()).build();
     return "Bearer " + jwtUtil.generateToken(user);
   }
 
@@ -78,15 +74,16 @@ public class GroupControllerIntegrationTest {
     create.setName("Roommates");
     create.setDescription("Monthly");
 
-    var createResult = mockMvc
-        .perform(
-            post("/groups")
-                .header("Authorization", tokenFor(100L))
-                .contentType(APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(create)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.name").value("Roommates"))
-        .andReturn();
+    var createResult =
+        mockMvc
+            .perform(
+                post("/groups")
+                    .header("Authorization", tokenFor(100L))
+                    .contentType(APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(create)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.name").value("Roommates"))
+            .andReturn();
 
     String resp = createResult.getResponse().getContentAsString();
     var node = objectMapper.readTree(resp);
@@ -218,6 +215,7 @@ public class GroupControllerIntegrationTest {
 
   @TestConfiguration
   static class TestSecurityConfig {
+
     @Bean
     public UserDetailsService userDetailsService() {
       return username -> {
