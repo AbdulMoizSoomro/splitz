@@ -35,87 +35,83 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc(addFilters = false)
 class BalanceControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-    @MockBean
-    private BalanceService balanceService;
+  @MockBean private BalanceService balanceService;
 
-    @MockBean(name = "security")
-    private SecurityExpressions securityExpressions;
+  @MockBean(name = "security")
+  private SecurityExpressions securityExpressions;
 
-    @MockBean
-    private JwtRequestFilter jwtRequestFilter;
+  @MockBean private JwtRequestFilter jwtRequestFilter;
 
-    @MockBean
-    private JwtUtil jwtUtil;
+  @MockBean private JwtUtil jwtUtil;
 
-    @BeforeEach
-    void setUp() throws ServletException, IOException {
-        doAnswer(
-                invocation -> {
-                    ServletRequest request = invocation.getArgument(0);
-                    ServletResponse response = invocation.getArgument(1);
-                    FilterChain chain = invocation.getArgument(2);
-                    chain.doFilter(request, response);
-                    return null;
-                })
-                .when(jwtRequestFilter)
-                .doFilter(any(), any(), any());
-    }
+  @BeforeEach
+  void setUp() throws ServletException, IOException {
+    doAnswer(
+            invocation -> {
+              ServletRequest request = invocation.getArgument(0);
+              ServletResponse response = invocation.getArgument(1);
+              FilterChain chain = invocation.getArgument(2);
+              chain.doFilter(request, response);
+              return null;
+            })
+        .when(jwtRequestFilter)
+        .doFilter(any(), any(), any());
+  }
 
-    @Test
-    @WithMockUser(username = "101")
-    void getGroupBalances_ShouldReturnBalances() throws Exception {
-        GroupBalanceResponseDTO response
-                = GroupBalanceResponseDTO.builder()
-                        .groupId(1L)
-                        .balances(
-                                Arrays.asList(
-                                        new BalanceDTO(101L, new BigDecimal("40.00")),
-                                        new BalanceDTO(102L, new BigDecimal("-20.00")),
-                                        new BalanceDTO(103L, new BigDecimal("-20.00"))))
-                        .simplifiedDebts(
-                                Arrays.asList(
-                                        new DebtDTO(102L, 101L, new BigDecimal("20.00")),
-                                        new DebtDTO(103L, 101L, new BigDecimal("20.00"))))
-                        .build();
+  @Test
+  @WithMockUser(username = "101")
+  void getGroupBalances_ShouldReturnBalances() throws Exception {
+    GroupBalanceResponseDTO response =
+        GroupBalanceResponseDTO.builder()
+            .groupId(1L)
+            .balances(
+                Arrays.asList(
+                    new BalanceDTO(101L, new BigDecimal("40.00")),
+                    new BalanceDTO(102L, new BigDecimal("-20.00")),
+                    new BalanceDTO(103L, new BigDecimal("-20.00"))))
+            .simplifiedDebts(
+                Arrays.asList(
+                    new DebtDTO(102L, 101L, new BigDecimal("20.00")),
+                    new DebtDTO(103L, 101L, new BigDecimal("20.00"))))
+            .build();
 
-        when(balanceService.getGroupBalances(1L)).thenReturn(response);
+    when(balanceService.getGroupBalances(1L)).thenReturn(response);
 
-        mockMvc
-                .perform(get("/groups/1/balances"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.groupId").value(1L))
-                .andExpect(jsonPath("$.balances[0].userId").value(101L))
-                .andExpect(jsonPath("$.balances[0].balance").value(40.00))
-                .andExpect(jsonPath("$.simplifiedDebts[0].from").value(102L))
-                .andExpect(jsonPath("$.simplifiedDebts[0].amount").value(20.00));
-    }
+    mockMvc
+        .perform(get("/groups/1/balances"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.groupId").value(1L))
+        .andExpect(jsonPath("$.balances[0].userId").value(101L))
+        .andExpect(jsonPath("$.balances[0].balance").value(40.00))
+        .andExpect(jsonPath("$.simplifiedDebts[0].from").value(102L))
+        .andExpect(jsonPath("$.simplifiedDebts[0].amount").value(20.00));
+  }
 
-    @Test
-    @WithMockUser(username = "101")
-    void getUserBalances_ShouldReturnUserBalances() throws Exception {
-        UserBalanceResponseDTO response
-                = UserBalanceResponseDTO.builder()
-                        .userId(101L)
-                        .totalBalance(new BigDecimal("15.00"))
-                        .groupBalances(
-                                Arrays.asList(
-                                        new UserBalanceResponseDTO.GroupBalanceDTO(
-                                                1L, "Group 1", new BigDecimal("25.00")),
-                                        new UserBalanceResponseDTO.GroupBalanceDTO(
-                                                2L, "Group 2", new BigDecimal("-10.00"))))
-                        .build();
+  @Test
+  @WithMockUser(username = "101")
+  void getUserBalances_ShouldReturnUserBalances() throws Exception {
+    UserBalanceResponseDTO response =
+        UserBalanceResponseDTO.builder()
+            .userId(101L)
+            .totalBalance(new BigDecimal("15.00"))
+            .groupBalances(
+                Arrays.asList(
+                    new UserBalanceResponseDTO.GroupBalanceDTO(
+                        1L, "Group 1", new BigDecimal("25.00")),
+                    new UserBalanceResponseDTO.GroupBalanceDTO(
+                        2L, "Group 2", new BigDecimal("-10.00"))))
+            .build();
 
-        when(balanceService.getUserBalances(101L)).thenReturn(response);
+    when(balanceService.getUserBalances(101L)).thenReturn(response);
 
-        mockMvc
-                .perform(get("/users/101/balances"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(101L))
-                .andExpect(jsonPath("$.totalBalance").value(15.00))
-                .andExpect(jsonPath("$.groupBalances[0].groupId").value(1L))
-                .andExpect(jsonPath("$.groupBalances[0].balance").value(25.00));
-    }
+    mockMvc
+        .perform(get("/users/101/balances"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.userId").value(101L))
+        .andExpect(jsonPath("$.totalBalance").value(15.00))
+        .andExpect(jsonPath("$.groupBalances[0].groupId").value(1L))
+        .andExpect(jsonPath("$.groupBalances[0].balance").value(25.00));
+  }
 }

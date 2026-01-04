@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class BalanceDTO {
 
-    private Long userId;
-    private BigDecimal balance;
+  private Long userId;
+  private BigDecimal balance;
 }

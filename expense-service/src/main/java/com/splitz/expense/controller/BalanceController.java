@@ -21,23 +21,23 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = "bearerAuth")
 public class BalanceController {
 
-    private final BalanceService balanceService;
+  private final BalanceService balanceService;
 
-    @GetMapping("/groups/{id}/balances")
-    @Operation(
-            summary = "Get group balances",
-            description = "Returns balance per member and simplified debts for a group")
-    @PreAuthorize("@security.isGroupMember(#id)")
-    public ResponseEntity<GroupBalanceResponseDTO> getGroupBalances(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(balanceService.getGroupBalances(id));
-    }
+  @GetMapping("/groups/{id}/balances")
+  @Operation(
+      summary = "Get group balances",
+      description = "Returns balance per member and simplified debts for a group")
+  @PreAuthorize("@security.isGroupMember(#id)")
+  public ResponseEntity<GroupBalanceResponseDTO> getGroupBalances(@PathVariable("id") Long id) {
+    return ResponseEntity.ok(balanceService.getGroupBalances(id));
+  }
 
-    @GetMapping("/users/{id}/balances")
-    @Operation(
-            summary = "Get user balances",
-            description = "Returns user's balances across all groups")
-    @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or #id == principal.id)")
-    public ResponseEntity<UserBalanceResponseDTO> getUserBalances(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(balanceService.getUserBalances(id));
-    }
+  @GetMapping("/users/{id}/balances")
+  @Operation(
+      summary = "Get user balances",
+      description = "Returns user's balances across all groups")
+  @PreAuthorize("isAuthenticated() and (hasRole('ADMIN') or #id == principal.id)")
+  public ResponseEntity<UserBalanceResponseDTO> getUserBalances(@PathVariable("id") Long id) {
+    return ResponseEntity.ok(balanceService.getUserBalances(id));
+  }
 }

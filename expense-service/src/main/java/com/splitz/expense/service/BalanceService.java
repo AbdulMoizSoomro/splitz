@@ -8,9 +8,12 @@ import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.GroupMember;
+import com.splitz.expense.model.Settlement;
+import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import com.splitz.expense.repository.SettlementRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -29,6 +32,7 @@ public class BalanceService {
     private final ExpenseRepository expenseRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final GroupRepository groupRepository;
+    private final SettlementRepository settlementRepository;
 
     @Transactional(readOnly = true)
     public GroupBalanceResponseDTO getGroupBalances(Long groupId) {
@@ -38,6 +42,7 @@ public class BalanceService {
 
         List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
         List<Expense> expenses = expenseRepository.findByGroupId(groupId);
+        List<Settlement> settlements = settlementRepository.findByGroupId(groupId);
 
         Map<Long, BigDecimal> balances = new HashMap<>();
         for (GroupMember member : members) {
@@ -56,6 +61,20 @@ public class BalanceService {
                 Long userId = split.getUserId();
                 BigDecimal share = split.getShareAmount();
                 balances.put(userId, balances.getOrDefault(userId, BigDecimal.ZERO).subtract(share));
+            }
+        }
+
+        // Process Settlements (only COMPLETED ones)
+        for (Settlement settlement : settlements) {
+            if (settlement.getStatus() == SettlementStatus.COMPLETED) {
+                Long payerId = settlement.getPayerId();
+                Long payeeId = settlement.getPayeeId();
+                BigDecimal amount = settlement.getAmount();
+
+                // Payer paid off debt, so their balance increases
+                balances.put(payerId, balances.getOrDefault(payerId, BigDecimal.ZERO).add(amount));
+                // Payee received money, so their balance decreases
+                balances.put(payeeId, balances.getOrDefault(payeeId, BigDecimal.ZERO).subtract(amount));
             }
         }
 

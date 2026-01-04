@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class GroupBalanceResponseDTO {
 
-    private Long groupId;
-    private List<BalanceDTO> balances;
-    private List<DebtDTO> simplifiedDebts;
+  private Long groupId;
+  private List<BalanceDTO> balances;
+  private List<DebtDTO> simplifiedDebts;
 }
