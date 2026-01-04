@@ -8,6 +8,6 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface SettlementMapper {
 
-    @Mapping(source = "group.id", target = "groupId")
-    SettlementDTO toDTO(Settlement settlement);
+  @Mapping(source = "group.id", target = "groupId")
+  SettlementDTO toDTO(Settlement settlement);
 }

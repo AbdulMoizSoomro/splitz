@@ -1,6 +1,6 @@
 # SPLITZ Implementation Roadmap
 
-> **Last Updated:** December 31, 2025  
+> **Last Updated:** January 4, 2026  
 > **Goal:** Splitwise-like expense splitting app for friends and roommates  
 > **Approach:** Stories → Tasks, Test-First, ~1 day per story
 
@@ -15,11 +15,11 @@ Example: feature/S01-github-actions-ci
 ```
 
 ### Definition of Done (DoD)
-- [ ] Code compiles without warnings
-- [ ] All new code has tests (it is important that tests are written first when possible)
-- [ ] All tests pass (`mvn test`)
-- [ ] Self-review completed
-- [ ] Documentation updated if public API changed
+- [x] Code compiles without warnings
+- [x] All new code has tests (it is important that tests are written first when possible)
+- [x] All tests pass (`mvn test`)
+- [x] Self-review completed
+- [x] Documentation updated if public API changed
 
 ### Story Status Legend
 - ⬜ Not Started
@@ -34,12 +34,13 @@ Example: feature/S01-github-actions-ci
 | Service | Status | What Works |
 |---------|--------|------------|
 | user-service | 100% Phase 1 | Auth, User CRUD, Search, Roles, Flyway, Friendship API |
-| expense-service | 🟡 Phase 3 | Groups, Expenses |
+| expense-service | ✅ Phase 3 | Groups, Expenses, Splits, Balances, Settlements |
 | common-security | 100% Phase 2 | Shared JWT, Security Config |
 | DevOps | 100% Phase 0 | CI Pipeline, Test Coverage, Dockerfile |
 
 **What's Missing for MVP:**
-1. Entire expense-service
+1. Phase 4: Inter-service communication and integration
+2. Phase 5: Docker Compose setup
 
 ---
 
@@ -307,7 +308,7 @@ Friendship {
 
 ---
 
-## Phase 3: Expense Service Foundation 🟡
+## Phase 3: Expense Service Foundation ✅
 > **Goal:** Bootable expense service with core entities and CRUD  
 > **Duration:** ~5 days
 
@@ -350,11 +351,11 @@ Friendship {
 **Why:** Expenses need categories. Seed defaults so users can start immediately.
 
 **Acceptance Criteria:**
-- [ ] Category entity: id, name, icon, color, defaultCategory, createdAt
-- [ ] Flyway migration creates table and seeds defaults
-- [ ] Default categories: Food, Transport, Entertainment, Utilities, Shopping, Other
-- [ ] GET /categories returns all categories
-- [ ] Default categories cannot be deleted
+- [x] Category entity: id, name, icon, color, defaultCategory, createdAt
+- [x] Flyway migration creates table and seeds defaults
+- [x] Default categories: Food, Transport, Entertainment, Utilities, Shopping, Other
+- [x] GET /categories returns all categories
+- [x] Default categories cannot be deleted
 
 **Tasks:**
 | ID | Task | Est | Notes |
@@ -383,11 +384,11 @@ Friendship {
 **Why:** Groups are containers for shared expenses.
 
 **Acceptance Criteria:**
-- [ ] Group entity: id, name, description, imageUrl, createdBy, isActive, timestamps
-- [ ] GroupMember entity: id, groupId, userId, role (ADMIN/MEMBER), joinedAt
-- [ ] Group creator automatically becomes ADMIN member
-- [ ] CRUD endpoints: create, get, list (user's groups), update, soft-delete
-- [ ] Only group ADMINs can update/delete group
+- [x] Group entity: id, name, description, imageUrl, createdBy, isActive, timestamps
+- [x] GroupMember entity: id, groupId, userId, role (ADMIN/MEMBER), joinedAt
+- [x] Group creator automatically becomes ADMIN member
+- [x] CRUD endpoints: create, get, list (user's groups), update, soft-delete
+- [x] Only group ADMINs can update/delete group
 
 **Tasks:**
 | ID | Task | Est | Notes |
@@ -534,27 +535,27 @@ Expense: Groceries $60, paid by Alice, split EQUAL (Alice, Bob, Carol)
 
 ---
 
-### Story S15: Settlement Tracking ⬜
+### Story S15: Settlement Tracking ✅
 > Branch: `feature/S15-settlements`
 
 **Why:** Track when debts are paid off.
 
 **Acceptance Criteria:**
-- [ ] Settlement entity: groupId, payerId, payeeId, amount, status, timestamps
-- [ ] Status flow: PENDING → MARKED_PAID → COMPLETED
-- [ ] Payer marks as paid, Payee confirms
-- [ ] Settlements reduce calculated balances
-- [ ] CRUD: create, list by group, update status
+- [x] Settlement entity: groupId, payerId, payeeId, amount, status, timestamps
+- [x] Status flow: PENDING → MARKED_PAID → COMPLETED
+- [x] Payer marks as paid, Payee confirms
+- [x] Settlements reduce calculated balances
+- [x] CRUD: create, list by group, update status
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T15.1 | Write Settlement entity and status tests | 1h | |
-| T15.2 | Create Settlement entity and repository | 1h | |
-| T15.3 | Write SettlementService tests | 2h | |
-| T15.4 | Implement SettlementService | 2h | |
-| T15.5 | Implement SettlementController | 1h | |
-| T15.6 | Create Flyway migration | 30m | |
+| T15.1 | Write Settlement entity and status tests | 1h | ✅ |
+| T15.2 | Create Settlement entity and repository | 1h | ✅ |
+| T15.3 | Write SettlementService tests | 2h | ✅ |
+| T15.4 | Implement SettlementService | 2h | ✅ |
+| T15.5 | Implement SettlementController | 1h | ✅ |
+| T15.6 | Create Flyway migration | 30m | ✅ |
 
 ---
 

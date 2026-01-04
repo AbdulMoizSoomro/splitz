@@ -14,16 +14,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateSettlementRequest {
 
-    @NotNull(message = "Group ID is required")
-    private Long groupId;
+  @NotNull(message = "Group ID is required")
+  private Long groupId;
 
-    @NotNull(message = "Payer ID is required")
-    private Long payerId;
+  @NotNull(message = "Payer ID is required")
+  private Long payerId;
 
-    @NotNull(message = "Payee ID is required")
-    private Long payeeId;
+  @NotNull(message = "Payee ID is required")
+  private Long payeeId;
 
-    @NotNull(message = "Amount is required")
-    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
-    private BigDecimal amount;
+  @NotNull(message = "Amount is required")
+  @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+  private BigDecimal amount;
 }

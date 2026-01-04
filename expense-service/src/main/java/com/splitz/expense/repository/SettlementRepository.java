@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SettlementRepository extends JpaRepository<Settlement, Long> {
 
-    List<Settlement> findByGroupId(Long groupId);
+  List<Settlement> findByGroupId(Long groupId);
 
-    List<Settlement> findByPayerIdOrPayeeId(Long payerId, Long payeeId);
+  List<Settlement> findByPayerIdOrPayeeId(Long payerId, Long payeeId);
 }

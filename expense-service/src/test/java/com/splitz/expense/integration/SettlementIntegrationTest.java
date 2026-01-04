@@ -39,147 +39,141 @@ import org.springframework.test.web.servlet.MockMvc;
 @ActiveProfiles("test")
 public class SettlementIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+  @Autowired private ObjectMapper objectMapper;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+  @Autowired private JwtUtil jwtUtil;
 
-    @Autowired
-    private GroupRepository groupRepository;
+  @Autowired private GroupRepository groupRepository;
 
-    @Autowired
-    private GroupMemberRepository groupMemberRepository;
+  @Autowired private GroupMemberRepository groupMemberRepository;
 
-    @Autowired
-    private SettlementRepository settlementRepository;
+  @Autowired private SettlementRepository settlementRepository;
 
-    private Group group;
-    private String payerToken;
-    private String payeeToken;
-    private Long payerId = 101L;
-    private Long payeeId = 102L;
+  private Group group;
+  private String payerToken;
+  private String payeeToken;
+  private Long payerId = 101L;
+  private Long payeeId = 102L;
 
-    @BeforeEach
-    void setUp() {
-        group
-                = groupRepository.save(
-                        Group.builder().name("Test Group").createdBy(payerId).active(true).build());
-        groupMemberRepository.save(
-                GroupMember.builder().group(group).userId(payerId).role(GroupRole.ADMIN).build());
-        groupMemberRepository.save(
-                GroupMember.builder().group(group).userId(payeeId).role(GroupRole.MEMBER).build());
+  @BeforeEach
+  void setUp() {
+    group =
+        groupRepository.save(
+            Group.builder().name("Test Group").createdBy(payerId).active(true).build());
+    groupMemberRepository.save(
+        GroupMember.builder().group(group).userId(payerId).role(GroupRole.ADMIN).build());
+    groupMemberRepository.save(
+        GroupMember.builder().group(group).userId(payeeId).role(GroupRole.MEMBER).build());
 
-        payerToken = tokenFor(payerId);
-        payeeToken = tokenFor(payeeId);
-    }
+    payerToken = tokenFor(payerId);
+    payeeToken = tokenFor(payeeId);
+  }
 
-    private String tokenFor(Long userId) {
-        var user
-                = org.springframework.security.core.userdetails.User.withUsername(userId.toString())
-                        .password("")
-                        .authorities(java.util.List.of())
-                        .build();
-        return "Bearer " + jwtUtil.generateToken(user);
-    }
+  private String tokenFor(Long userId) {
+    var user =
+        org.springframework.security.core.userdetails.User.withUsername(userId.toString())
+            .password("")
+            .authorities(java.util.List.of())
+            .build();
+    return "Bearer " + jwtUtil.generateToken(user);
+  }
 
-    @AfterEach
-    void tearDown() {
-        settlementRepository.deleteAll();
-        groupMemberRepository.deleteAll();
-        groupRepository.deleteAll();
-    }
+  @AfterEach
+  void tearDown() {
+    settlementRepository.deleteAll();
+    groupMemberRepository.deleteAll();
+    groupRepository.deleteAll();
+  }
 
-    @Test
-    void testSettlementLifecycle() throws Exception {
-        // 1. Create Settlement
-        CreateSettlementRequest request
-                = CreateSettlementRequest.builder()
-                        .groupId(group.getId())
-                        .payerId(payerId)
-                        .payeeId(payeeId)
-                        .amount(new BigDecimal("50.00"))
-                        .build();
+  @Test
+  void testSettlementLifecycle() throws Exception {
+    // 1. Create Settlement
+    CreateSettlementRequest request =
+        CreateSettlementRequest.builder()
+            .groupId(group.getId())
+            .payerId(payerId)
+            .payeeId(payeeId)
+            .amount(new BigDecimal("50.00"))
+            .build();
 
-        String response
-                = mockMvc
-                        .perform(
-                                post("/settlements")
-                                        .header("Authorization", payerToken)
-                                        .contentType(APPLICATION_JSON)
-                                        .content(objectMapper.writeValueAsString(request)))
-                        .andExpect(status().isCreated())
-                        .andExpect(jsonPath("$.status").value("PENDING"))
-                        .andReturn()
-                        .getResponse()
-                        .getContentAsString();
-
-        Long settlementId = objectMapper.readTree(response).get("id").asLong();
-
-        // 2. Mark as Paid (by Payer)
+    String response =
         mockMvc
-                .perform(
-                        put("/settlements/" + settlementId + "/mark-paid").header("Authorization", payerToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("MARKED_PAID"));
+            .perform(
+                post("/settlements")
+                    .header("Authorization", payerToken)
+                    .contentType(APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.status").value("PENDING"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
-        // 3. Confirm (by Payee)
+    Long settlementId = objectMapper.readTree(response).get("id").asLong();
+
+    // 2. Mark as Paid (by Payer)
+    mockMvc
+        .perform(
+            put("/settlements/" + settlementId + "/mark-paid").header("Authorization", payerToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("MARKED_PAID"));
+
+    // 3. Confirm (by Payee)
+    mockMvc
+        .perform(
+            put("/settlements/" + settlementId + "/confirm").header("Authorization", payeeToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+    // 4. Verify in DB
+    Settlement settlement = settlementRepository.findById(settlementId).orElseThrow();
+    assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.COMPLETED);
+    assertThat(settlement.getSettledAt()).isNotNull();
+  }
+
+  @Test
+  void testUnauthorizedMarkAsPaid() throws Exception {
+    CreateSettlementRequest request =
+        CreateSettlementRequest.builder()
+            .groupId(group.getId())
+            .payerId(payerId)
+            .payeeId(payeeId)
+            .amount(new BigDecimal("50.00"))
+            .build();
+
+    String response =
         mockMvc
-                .perform(
-                        put("/settlements/" + settlementId + "/confirm").header("Authorization", payeeToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("COMPLETED"));
+            .perform(
+                post("/settlements")
+                    .header("Authorization", payerToken)
+                    .contentType(APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
-        // 4. Verify in DB
-        Settlement settlement = settlementRepository.findById(settlementId).orElseThrow();
-        assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.COMPLETED);
-        assertThat(settlement.getSettledAt()).isNotNull();
-    }
+    Long settlementId = objectMapper.readTree(response).get("id").asLong();
 
-    @Test
-    void testUnauthorizedMarkAsPaid() throws Exception {
-        CreateSettlementRequest request
-                = CreateSettlementRequest.builder()
-                        .groupId(group.getId())
-                        .payerId(payerId)
-                        .payeeId(payeeId)
-                        .amount(new BigDecimal("50.00"))
-                        .build();
+    // Payee tries to mark as paid
+    mockMvc
+        .perform(
+            put("/settlements/" + settlementId + "/mark-paid").header("Authorization", payeeToken))
+        .andExpect(status().isForbidden());
+  }
 
-        String response
-                = mockMvc
-                        .perform(
-                                post("/settlements")
-                                        .header("Authorization", payerToken)
-                                        .contentType(APPLICATION_JSON)
-                                        .content(objectMapper.writeValueAsString(request)))
-                        .andReturn()
-                        .getResponse()
-                        .getContentAsString();
+  @TestConfiguration
+  static class TestSecurityConfig {
 
-        Long settlementId = objectMapper.readTree(response).get("id").asLong();
-
-        // Payee tries to mark as paid
-        mockMvc
-                .perform(
-                        put("/settlements/" + settlementId + "/mark-paid").header("Authorization", payeeToken))
-                .andExpect(status().isForbidden());
-    }
-
-    @TestConfiguration
-    static class TestSecurityConfig {
-
-        @Bean
-        public UserDetailsService userDetailsService() {
-            return username -> {
-                if (username == null || username.isBlank()) {
-                    throw new UsernameNotFoundException("username empty");
-                }
-                return User.withUsername(username).password("").authorities(List.of()).build();
-            };
+    @Bean
+    public UserDetailsService userDetailsService() {
+      return username -> {
+        if (username == null || username.isBlank()) {
+          throw new UsernameNotFoundException("username empty");
         }
+        return User.withUsername(username).password("").authorities(List.of()).build();
+      };
     }
+  }
 }

@@ -15,82 +15,82 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ProblemDetail handleResourceNotFoundException(
-            ResourceNotFoundException ex, HttpServletRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problem.setTitle("Resource Not Found");
-        problem.setDetail(ex.getMessage());
-        problem.setType(
-                Objects.requireNonNull(create("https://example.com/errors/resource-not-found")));
-        problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
-        return problem;
-    }
+  @ExceptionHandler(ResourceNotFoundException.class)
+  public ProblemDetail handleResourceNotFoundException(
+      ResourceNotFoundException ex, HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+    problem.setTitle("Resource Not Found");
+    problem.setDetail(ex.getMessage());
+    problem.setType(
+        Objects.requireNonNull(create("https://example.com/errors/resource-not-found")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
+    return problem;
+  }
 
-    @ExceptionHandler(AccessDeniedException.class)
-    public ProblemDetail handleAccessDeniedException(
-            AccessDeniedException ex, HttpServletRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
-        problem.setTitle("Access Denied");
-        problem.setDetail(ex.getMessage());
-        problem.setType(Objects.requireNonNull(create("https://example.com/errors/access-denied")));
-        problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
-        return problem;
-    }
+  @ExceptionHandler(AccessDeniedException.class)
+  public ProblemDetail handleAccessDeniedException(
+      AccessDeniedException ex, HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+    problem.setTitle("Access Denied");
+    problem.setDetail(ex.getMessage());
+    problem.setType(Objects.requireNonNull(create("https://example.com/errors/access-denied")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
+    return problem;
+  }
 
-    @ExceptionHandler(UnauthorizedException.class)
-    public ProblemDetail handleUnauthorizedException(
-            UnauthorizedException ex, HttpServletRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
-        problem.setTitle("Unauthorized");
-        problem.setDetail(ex.getMessage());
-        problem.setType(Objects.requireNonNull(create("https://example.com/errors/unauthorized")));
-        problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
-        return problem;
-    }
+  @ExceptionHandler(UnauthorizedException.class)
+  public ProblemDetail handleUnauthorizedException(
+      UnauthorizedException ex, HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+    problem.setTitle("Unauthorized");
+    problem.setDetail(ex.getMessage());
+    problem.setType(Objects.requireNonNull(create("https://example.com/errors/unauthorized")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
+    return problem;
+  }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleValidationException(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-        problem.setTitle("Validation Error");
-        String detail
-                = ex.getBindingResult().getFieldErrors().stream()
-                        .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                        .collect(Collectors.joining(", "));
-        problem.setDetail(detail);
-        problem.setType(Objects.requireNonNull(create("https://example.com/errors/validation-error")));
-        problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
-        return problem;
-    }
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ProblemDetail handleValidationException(
+      MethodArgumentNotValidException ex, HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    problem.setTitle("Validation Error");
+    String detail =
+        ex.getBindingResult().getFieldErrors().stream()
+            .map(error -> error.getField() + ": " + error.getDefaultMessage())
+            .collect(Collectors.joining(", "));
+    problem.setDetail(detail);
+    problem.setType(Objects.requireNonNull(create("https://example.com/errors/validation-error")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
+    return problem;
+  }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ProblemDetail handleIllegalArgumentException(
-            IllegalArgumentException ex, HttpServletRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-        problem.setTitle("Invalid Request");
-        problem.setDetail(ex.getMessage());
-        problem.setType(Objects.requireNonNull(create("https://example.com/errors/invalid-request")));
-        problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
-        return problem;
-    }
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ProblemDetail handleIllegalArgumentException(
+      IllegalArgumentException ex, HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    problem.setTitle("Invalid Request");
+    problem.setDetail(ex.getMessage());
+    problem.setType(Objects.requireNonNull(create("https://example.com/errors/invalid-request")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
+    return problem;
+  }
 
-    @ExceptionHandler(Exception.class)
-    public ProblemDetail handleGlobalException(Exception ex, HttpServletRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
-        problem.setTitle("Internal Server Error");
-        problem.setDetail(ex.getMessage());
-        problem.setType(
-                Objects.requireNonNull(create("https://example.com/errors/internal-server-error")));
-        problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
-        return problem;
-    }
+  @ExceptionHandler(Exception.class)
+  public ProblemDetail handleGlobalException(Exception ex, HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+    problem.setTitle("Internal Server Error");
+    problem.setDetail(ex.getMessage());
+    problem.setType(
+        Objects.requireNonNull(create("https://example.com/errors/internal-server-error")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
+    return problem;
+  }
 
-    private static URI create(String str) {
-        try {
-            return new URI(str);
-        } catch (URISyntaxException var2) {
-            throw new IllegalArgumentException(var2.getMessage(), var2);
-        }
+  private static URI create(String str) {
+    try {
+      return new URI(str);
+    } catch (URISyntaxException var2) {
+      throw new IllegalArgumentException(var2.getMessage(), var2);
     }
+  }
 }
