@@ -231,7 +231,7 @@ spring.jpa.hibernate.ddl-auto=validate
 | API Gateway | 📋 Planned | 0% |
 | Notifications | 📋 Planned | 0% |
 
-See [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) for detailed plans.
+See [./docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) for detailed plans. These plans are updated regularly with each development implemenationtation. 
 
 ---
 
