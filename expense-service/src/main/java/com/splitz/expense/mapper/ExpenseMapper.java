@@ -5,7 +5,9 @@ import com.splitz.expense.model.Expense;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring")
+@Mapper(
+    componentModel = "spring",
+    uses = {ExpenseSplitMapper.class})
 public interface ExpenseMapper {
 
   @Mapping(source = "group.id", target = "groupId")

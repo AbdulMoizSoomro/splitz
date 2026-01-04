@@ -1,10 +1,12 @@
 package com.splitz.expense.dto;
 
+import com.splitz.expense.model.SplitType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,4 +37,9 @@ public class CreateExpenseRequest {
   private String notes;
 
   private String receiptUrl;
+
+  @NotNull(message = "Split type is required")
+  private SplitType splitType;
+
+  private List<SplitRequest> splits;
 }
