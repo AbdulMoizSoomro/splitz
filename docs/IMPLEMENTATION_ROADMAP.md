@@ -377,7 +377,7 @@ Friendship {
 
 ---
 
-### Story S11: Group Entity & CRUD ⬜
+### Story S11: Group Entity & CRUD ✅
 > Branch: `feature/S11-group-entity`
 
 **Why:** Groups are containers for shared expenses.
