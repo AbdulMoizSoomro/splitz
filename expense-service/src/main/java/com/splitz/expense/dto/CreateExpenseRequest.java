@@ -16,24 +16,23 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateExpenseRequest {
 
-    @NotBlank(message = "Description is required")
-    private String description;
+  @NotBlank(message = "Description is required")
+  private String description;
 
-    @NotNull(message = "Amount is required")
-    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
-    private BigDecimal amount;
+  @NotNull(message = "Amount is required")
+  @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+  private BigDecimal amount;
 
-    @Builder.Default
-    private String currency = "EUR";
+  @Builder.Default private String currency = "EUR";
 
-    @NotNull(message = "Payer ID is required")
-    private Long paidBy;
+  @NotNull(message = "Payer ID is required")
+  private Long paidBy;
 
-    private Long categoryId;
+  private Long categoryId;
 
-    private LocalDate expenseDate;
+  private LocalDate expenseDate;
 
-    private String notes;
+  private String notes;
 
-    private String receiptUrl;
+  private String receiptUrl;
 }

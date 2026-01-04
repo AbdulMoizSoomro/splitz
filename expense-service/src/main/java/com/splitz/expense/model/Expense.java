@@ -29,45 +29,45 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Builder
 public class Expense {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "group_id", nullable = false)
-    private Group group;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "group_id", nullable = false)
+  private Group group;
 
-    @Column(nullable = false)
-    private String description;
+  @Column(nullable = false)
+  private String description;
 
-    @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal amount;
+  @Column(nullable = false, precision = 19, scale = 2)
+  private BigDecimal amount;
 
-    @Column(nullable = false, length = 3)
-    @Builder.Default
-    private String currency = "EUR";
+  @Column(nullable = false, length = 3)
+  @Builder.Default
+  private String currency = "EUR";
 
-    @Column(name = "paid_by", nullable = false)
-    private Long paidBy;
+  @Column(name = "paid_by", nullable = false)
+  private Long paidBy;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private Category category;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "category_id")
+  private Category category;
 
-    @Column(name = "expense_date")
-    private LocalDate expenseDate;
+  @Column(name = "expense_date")
+  private LocalDate expenseDate;
 
-    @Column(columnDefinition = "TEXT")
-    private String notes;
+  @Column(columnDefinition = "TEXT")
+  private String notes;
 
-    @Column(name = "receipt_url")
-    private String receiptUrl;
+  @Column(name = "receipt_url")
+  private String receiptUrl;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+  @CreationTimestamp
+  @Column(name = "created_at", updatable = false)
+  private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+  @UpdateTimestamp
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
 }

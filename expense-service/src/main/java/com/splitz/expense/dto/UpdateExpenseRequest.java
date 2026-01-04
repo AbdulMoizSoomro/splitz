@@ -14,18 +14,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UpdateExpenseRequest {
 
-    private String description;
+  private String description;
 
-    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
-    private BigDecimal amount;
+  @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+  private BigDecimal amount;
 
-    private String currency;
+  private String currency;
 
-    private Long categoryId;
+  private Long categoryId;
 
-    private LocalDate expenseDate;
+  private LocalDate expenseDate;
 
-    private String notes;
+  private String notes;
 
-    private String receiptUrl;
+  private String receiptUrl;
 }

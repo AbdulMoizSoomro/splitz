@@ -8,7 +8,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ExpenseMapper {
 
-    @Mapping(source = "group.id", target = "groupId")
-    @Mapping(source = "category.id", target = "categoryId")
-    ExpenseDTO toDTO(Expense expense);
+  @Mapping(source = "group.id", target = "groupId")
+  @Mapping(source = "category.id", target = "categoryId")
+  ExpenseDTO toDTO(Expense expense);
 }
