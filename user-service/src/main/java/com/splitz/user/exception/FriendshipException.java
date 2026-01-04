@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.BAD_REQUEST)
 public class FriendshipException extends RuntimeException {
-    public FriendshipException(String message) {
-        super(message);
-    }
+  public FriendshipException(String message) {
+    super(message);
+  }
 }

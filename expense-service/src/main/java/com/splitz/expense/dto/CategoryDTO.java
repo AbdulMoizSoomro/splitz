@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryDTO {
-    private Long id;
-    private String name;
-    private String icon;
-    private String color;
-    private boolean defaultCategory;
+  private Long id;
+  private String name;
+  private String icon;
+  private String color;
+  private boolean defaultCategory;
 }

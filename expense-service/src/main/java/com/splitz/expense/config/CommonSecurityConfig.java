@@ -5,5 +5,4 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @ComponentScan("com.splitz.security")
-public class CommonSecurityConfig {
-}
+public class CommonSecurityConfig {}
