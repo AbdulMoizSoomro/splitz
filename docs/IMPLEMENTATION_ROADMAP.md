@@ -34,7 +34,7 @@ Example: feature/S01-github-actions-ci
 | Service | Status | What Works |
 |---------|--------|------------|
 | user-service | 100% Phase 1 | Auth, User CRUD, Search, Roles, Flyway, Friendship API |
-| expense-service | 0% | Stub only |
+| expense-service | 🟡 Phase 3 | Groups, Expenses |
 | common-security | 100% Phase 2 | Shared JWT, Security Config |
 | DevOps | 100% Phase 0 | CI Pipeline, Test Coverage, Dockerfile |
 
@@ -432,28 +432,28 @@ GroupMember {
 
 ---
 
-### Story S12: Expense Entity & Basic CRUD ⬜
+### Story S12: Expense Entity & Basic CRUD ✅
 > Branch: `feature/S12-expense-entity`
 
 **Why:** Core feature — tracking who paid what.
 
 **Acceptance Criteria:**
-- [ ] Expense entity with all fields per ERD
-- [ ] Only group members can create expenses in that group
-- [ ] Payer must be a group member
-- [ ] CRUD: create, get, list by group, update, delete
-- [ ] Only expense creator or group admin can update/delete
+- [x] Expense entity with all fields per ERD
+- [x] Only group members can create expenses in that group
+- [x] Payer must be a group member
+- [x] CRUD: create, get, list by group, update, delete
+- [x] Only expense creator or group admin can update/delete
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T12.1 | Write Expense entity tests | 1h | |
-| T12.2 | Create Expense entity and repository | 1h | |
-| T12.3 | Create Flyway migration | 30m | |
-| T12.4 | Write ExpenseService unit tests | 2h | |
-| T12.5 | Implement ExpenseService | 2h | |
-| T12.6 | Write ExpenseController tests | 1h | |
-| T12.7 | Implement ExpenseController | 1h | |
+| T12.1 | Write Expense entity tests | 1h | ✅ |
+| T12.2 | Create Expense entity and repository | 1h | ✅ |
+| T12.3 | Create Flyway migration | 30m | ✅ |
+| T12.4 | Write ExpenseService unit tests | 2h | ✅ |
+| T12.5 | Implement ExpenseService | 2h | ✅ |
+| T12.6 | Write ExpenseController tests | 1h | ✅ |
+| T12.7 | Implement ExpenseController | 1h | ✅ |
 
 **Entity Design:**
 ```java
