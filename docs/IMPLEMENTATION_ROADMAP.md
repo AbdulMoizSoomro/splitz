@@ -350,7 +350,7 @@ Friendship {
 **Why:** Expenses need categories. Seed defaults so users can start immediately.
 
 **Acceptance Criteria:**
-- [ ] Category entity: id, name, icon, color, isDefault, createdAt
+- [ ] Category entity: id, name, icon, color, defaultCategory, createdAt
 - [ ] Flyway migration creates table and seeds defaults
 - [ ] Default categories: Food, Transport, Entertainment, Utilities, Shopping, Other
 - [ ] GET /categories returns all categories

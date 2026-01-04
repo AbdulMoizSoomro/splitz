@@ -27,7 +27,7 @@ public class Category {
     private String color;
 
     @Column(name = "is_default", nullable = false)
-    private boolean isDefault;
+    private boolean defaultCategory;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
