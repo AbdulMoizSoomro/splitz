@@ -11,7 +11,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CreateRoleRequest {
 
-    @NotBlank(message = "Role name cannot be blank")
-    @Pattern(regexp = "^ROLE_[A-Z_]+$", message = "Role name must start with ROLE_ and contain only uppercase letters and underscores")
-    private String name;
+  @NotBlank(message = "Role name cannot be blank")
+  @Pattern(
+      regexp = "^ROLE_[A-Z_]+$",
+      message =
+          "Role name must start with ROLE_ and contain only uppercase letters and underscores")
+  private String name;
 }
