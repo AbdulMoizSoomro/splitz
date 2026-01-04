@@ -344,7 +344,7 @@ Friendship {
 
 ---
 
-### Story S10: Category Entity & Seeding ⬜
+### Story S10: Category Entity & Seeding ✅
 > Branch: `feature/S10-category-entity`
 
 **Why:** Expenses need categories. Seed defaults so users can start immediately.
@@ -359,12 +359,12 @@ Friendship {
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T10.1 | Write Category entity test | 30m | |
-| T10.2 | Create Category entity and repository | 1h | |
-| T10.3 | Create Flyway migration with seed data | 30m | |
-| T10.4 | Create CategoryService (read-only for MVP) | 1h | |
-| T10.5 | Create CategoryController with GET endpoint | 1h | |
-| T10.6 | Write controller tests | 1h | |
+| T10.1 | Write Category entity test | 30m | ✅ |
+| T10.2 | Create Category entity and repository | 1h | ✅ |
+| T10.3 | Create Flyway migration with seed data | 30m | ✅ |
+| T10.4 | Create CategoryService (read-only for MVP) | 1h | ✅ |
+| T10.5 | Create CategoryController with GET endpoint | 1h | ✅ |
+| T10.6 | Write controller tests | 1h | ✅ |
 
 **Files to Create:**
 - `expense-service/src/main/java/com/splitz/expense/model/Category.java`
@@ -392,13 +392,13 @@ Friendship {
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T11.1 | Write Group and GroupMember entity tests | 1h | |
-| T11.2 | Create entities, enums, repositories | 2h | |
-| T11.3 | Create Flyway migration | 30m | |
-| T11.4 | Write GroupService unit tests | 2h | |
-| T11.5 | Implement GroupService | 2h | |
-| T11.6 | Write GroupController tests | 1h | |
-| T11.7 | Implement GroupController | 1h | |
+| T11.1 | Write Group and GroupMember entity tests | 1h | ✅ |
+| T11.2 | Create entities, enums, repositories | 2h | ✅ |
+| T11.3 | Create Flyway migration | 30m | ✅ |
+| T11.4 | Write GroupService unit tests | 2h | ✅ |
+| T11.5 | Implement GroupService | 2h | ✅ |
+| T11.6 | Write GroupController tests | 1h | ✅ |
+| T11.7 | Implement GroupController | 1h | ✅ |
 
 **Entity Design:**
 ```java
@@ -474,27 +474,27 @@ Expense {
 
 ---
 
-### Story S13: Expense Splits (EQUAL & EXACT) ⬜
+### Story S13: Expense Splits (EQUAL & EXACT) ✅
 > Branch: `feature/S13-expense-splits`
 
 **Why:** Core feature — tracking who owes what.
 
 **Acceptance Criteria:**
-- [ ] ExpenseSplit entity: expenseId, userId, splitType, splitValue, shareAmount
-- [ ] EQUAL split: divide amount equally among specified users
-- [ ] EXACT split: specify exact amount per user (must sum to total)
-- [ ] Splits created when expense is created
-- [ ] GET /expenses/{id} includes splits
-- [ ] Validation: split amounts must equal expense amount
+- [x] ExpenseSplit entity: expenseId, userId, splitType, splitValue, shareAmount
+- [x] EQUAL split: divide amount equally among specified users
+- [x] EXACT split: specify exact amount per user (must sum to total)
+- [x] Splits created when expense is created
+- [x] GET /expenses/{id} includes splits
+- [x] Validation: split amounts must equal expense amount
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T13.1 | Write split calculation tests | 2h | Test EQUAL and EXACT scenarios |
-| T13.2 | Create ExpenseSplit entity | 1h | |
-| T13.3 | Implement split calculation in ExpenseService | 2h | |
-| T13.4 | Update expense creation to include splits | 1h | |
-| T13.5 | Create Flyway migration | 30m | |
+| T13.1 | Write split calculation tests | 2h | ✅ Test EQUAL and EXACT scenarios |
+| T13.2 | Create ExpenseSplit entity | 1h | ✅ |
+| T13.3 | Implement split calculation in ExpenseService | 2h | ✅ |
+| T13.4 | Update expense creation to include splits | 1h | ✅ |
+| T13.5 | Create Flyway migration | 30m | ✅ |
 
 **Split Types:**
 ```java

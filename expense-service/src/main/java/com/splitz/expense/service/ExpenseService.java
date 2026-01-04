@@ -2,18 +2,24 @@ package com.splitz.expense.service;
 
 import com.splitz.expense.dto.CreateExpenseRequest;
 import com.splitz.expense.dto.ExpenseDTO;
+import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.dto.UpdateExpenseRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.mapper.ExpenseMapper;
 import com.splitz.expense.model.Category;
 import com.splitz.expense.model.Expense;
+import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupRole;
+import com.splitz.expense.model.SplitType;
 import com.splitz.expense.repository.CategoryRepository;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -66,7 +72,64 @@ public class ExpenseService {
             .receiptUrl(request.getReceiptUrl())
             .build();
 
+    List<ExpenseSplit> splits = calculateSplits(expense, request);
+    expense.setSplits(splits);
+
     return expenseMapper.toDTO(expenseRepository.save(expense));
+  }
+
+  private List<ExpenseSplit> calculateSplits(Expense expense, CreateExpenseRequest request) {
+    List<ExpenseSplit> splits = new ArrayList<>();
+    BigDecimal totalAmount = expense.getAmount();
+    SplitType splitType = request.getSplitType();
+    List<SplitRequest> splitRequests = request.getSplits();
+
+    if (splitRequests == null || splitRequests.isEmpty()) {
+      throw new IllegalArgumentException("At least one split is required");
+    }
+
+    if (splitType == SplitType.EQUAL) {
+      BigDecimal count = BigDecimal.valueOf(splitRequests.size());
+      BigDecimal shareAmount = totalAmount.divide(count, 2, RoundingMode.HALF_UP);
+      BigDecimal remainder = totalAmount.subtract(shareAmount.multiply(count));
+
+      for (int i = 0; i < splitRequests.size(); i++) {
+        SplitRequest sr = splitRequests.get(i);
+        BigDecimal amount = shareAmount;
+        if (i == 0) {
+          amount = amount.add(remainder);
+        }
+        splits.add(
+            ExpenseSplit.builder()
+                .expense(expense)
+                .userId(sr.getUserId())
+                .splitType(SplitType.EQUAL)
+                .shareAmount(amount)
+                .build());
+      }
+    } else if (splitType == SplitType.EXACT) {
+      BigDecimal sum = BigDecimal.ZERO;
+      for (SplitRequest sr : splitRequests) {
+        if (sr.getSplitValue() == null) {
+          throw new IllegalArgumentException("Split value is required for EXACT split");
+        }
+        sum = sum.add(sr.getSplitValue());
+        splits.add(
+            ExpenseSplit.builder()
+                .expense(expense)
+                .userId(sr.getUserId())
+                .splitType(SplitType.EXACT)
+                .splitValue(sr.getSplitValue())
+                .shareAmount(sr.getSplitValue())
+                .build());
+      }
+
+      if (sum.compareTo(totalAmount) != 0) {
+        throw new IllegalArgumentException("Sum of splits must equal total amount");
+      }
+    }
+
+    return splits;
   }
 
   @Transactional(readOnly = true)

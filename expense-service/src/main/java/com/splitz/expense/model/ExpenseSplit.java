@@ -1,21 +1,18 @@
 package com.splitz.expense.model;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,51 +22,34 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "expenses")
+@Table(name = "expense_splits")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Expense {
+public class ExpenseSplit {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "group_id", nullable = false)
-  private Group group;
+  @JoinColumn(name = "expense_id", nullable = false)
+  private Expense expense;
 
-  @Column(nullable = false)
-  private String description;
+  @Column(name = "user_id", nullable = false)
+  private Long userId;
 
-  @Column(nullable = false, precision = 19, scale = 2)
-  private BigDecimal amount;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "split_type", nullable = false)
+  private SplitType splitType;
 
-  @Column(nullable = false, length = 3)
-  @Builder.Default
-  private String currency = "EUR";
+  @Column(name = "split_value", precision = 19, scale = 2)
+  private BigDecimal splitValue;
 
-  @Column(name = "paid_by", nullable = false)
-  private Long paidBy;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "category_id")
-  private Category category;
-
-  @Column(name = "expense_date")
-  private LocalDate expenseDate;
-
-  @Column(columnDefinition = "TEXT")
-  private String notes;
-
-  @Column(name = "receipt_url")
-  private String receiptUrl;
-
-  @OneToMany(mappedBy = "expense", cascade = CascadeType.ALL, orphanRemoval = true)
-  @Builder.Default
-  private List<ExpenseSplit> splits = new ArrayList<>();
+  @Column(name = "share_amount", nullable = false, precision = 19, scale = 2)
+  private BigDecimal shareAmount;
 
   @CreationTimestamp
   @Column(name = "created_at", updatable = false)

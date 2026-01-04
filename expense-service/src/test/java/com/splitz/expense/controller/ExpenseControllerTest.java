@@ -13,7 +13,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.expense.dto.CreateExpenseRequest;
 import com.splitz.expense.dto.ExpenseDTO;
+import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.dto.UpdateExpenseRequest;
+import com.splitz.expense.model.SplitType;
 import com.splitz.expense.service.ExpenseService;
 import com.splitz.security.JwtRequestFilter;
 import java.math.BigDecimal;
@@ -61,6 +63,8 @@ class ExpenseControllerTest {
             .description("Dinner")
             .amount(new BigDecimal("60.00"))
             .paidBy(100L)
+            .splitType(SplitType.EQUAL)
+            .splits(List.of(SplitRequest.builder().userId(100L).build()))
             .build();
 
     when(expenseService.createExpense(eq(1L), any(CreateExpenseRequest.class)))

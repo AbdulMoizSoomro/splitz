@@ -3,6 +3,7 @@ package com.splitz.expense.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,6 +25,7 @@ public class ExpenseDTO {
   private LocalDate expenseDate;
   private String notes;
   private String receiptUrl;
+  private List<ExpenseSplitDTO> splits;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
 }
