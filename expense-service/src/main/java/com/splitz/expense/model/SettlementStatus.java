@@ -1,7 +1,7 @@
 package com.splitz.expense.model;
 
 public enum SettlementStatus {
-    PENDING,
-    MARKED_PAID,
-    COMPLETED
+  PENDING,
+  MARKED_PAID,
+  COMPLETED
 }

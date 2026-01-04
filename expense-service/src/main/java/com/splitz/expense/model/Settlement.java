@@ -30,38 +30,38 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Builder
 public class Settlement {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "group_id", nullable = false)
-    private Group group;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "group_id", nullable = false)
+  private Group group;
 
-    @Column(name = "payer_id", nullable = false)
-    private Long payerId;
+  @Column(name = "payer_id", nullable = false)
+  private Long payerId;
 
-    @Column(name = "payee_id", nullable = false)
-    private Long payeeId;
+  @Column(name = "payee_id", nullable = false)
+  private Long payeeId;
 
-    @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal amount;
+  @Column(nullable = false, precision = 19, scale = 2)
+  private BigDecimal amount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private SettlementStatus status;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private SettlementStatus status;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+  @CreationTimestamp
+  @Column(name = "created_at", updatable = false)
+  private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+  @UpdateTimestamp
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
 
-    @Column(name = "marked_paid_at")
-    private LocalDateTime markedPaidAt;
+  @Column(name = "marked_paid_at")
+  private LocalDateTime markedPaidAt;
 
-    @Column(name = "settled_at")
-    private LocalDateTime settledAt;
+  @Column(name = "settled_at")
+  private LocalDateTime settledAt;
 }

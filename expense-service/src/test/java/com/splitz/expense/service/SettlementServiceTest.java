@@ -27,147 +27,142 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SettlementServiceTest {
 
-    @Mock
-    private SettlementRepository settlementRepository;
+  @Mock private SettlementRepository settlementRepository;
 
-    @Mock
-    private GroupRepository groupRepository;
+  @Mock private GroupRepository groupRepository;
 
-    @Mock
-    private GroupMemberRepository groupMemberRepository;
+  @Mock private GroupMemberRepository groupMemberRepository;
 
-    @Mock
-    private SettlementMapper settlementMapper;
+  @Mock private SettlementMapper settlementMapper;
 
-    @InjectMocks
-    private SettlementService settlementService;
+  @InjectMocks private SettlementService settlementService;
 
-    private Group group;
-    private CreateSettlementRequest request;
-    private Settlement settlement;
-    private SettlementDTO settlementDTO;
+  private Group group;
+  private CreateSettlementRequest request;
+  private Settlement settlement;
+  private SettlementDTO settlementDTO;
 
-    @BeforeEach
-    void setUp() {
-        group = Group.builder().id(1L).name("Test Group").build();
-        request
-                = CreateSettlementRequest.builder()
-                        .groupId(1L)
-                        .payerId(101L)
-                        .payeeId(102L)
-                        .amount(new BigDecimal("50.00"))
-                        .build();
+  @BeforeEach
+  void setUp() {
+    group = Group.builder().id(1L).name("Test Group").build();
+    request =
+        CreateSettlementRequest.builder()
+            .groupId(1L)
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .build();
 
-        settlement
-                = Settlement.builder()
-                        .id(1L)
-                        .group(group)
-                        .payerId(101L)
-                        .payeeId(102L)
-                        .amount(new BigDecimal("50.00"))
-                        .status(SettlementStatus.PENDING)
-                        .build();
+    settlement =
+        Settlement.builder()
+            .id(1L)
+            .group(group)
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .status(SettlementStatus.PENDING)
+            .build();
 
-        settlementDTO
-                = SettlementDTO.builder()
-                        .id(1L)
-                        .groupId(1L)
-                        .payerId(101L)
-                        .payeeId(102L)
-                        .amount(new BigDecimal("50.00"))
-                        .status(SettlementStatus.PENDING)
-                        .build();
-    }
+    settlementDTO =
+        SettlementDTO.builder()
+            .id(1L)
+            .groupId(1L)
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .status(SettlementStatus.PENDING)
+            .build();
+  }
 
-    @Test
-    void createSettlement_Success() {
-        when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
-        when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
-        when(groupMemberRepository.existsByGroupIdAndUserId(1L, 102L)).thenReturn(true);
-        when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
-        when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
+  @Test
+  void createSettlement_Success() {
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 102L)).thenReturn(true);
+    when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
+    when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
 
-        SettlementDTO result = settlementService.createSettlement(request);
+    SettlementDTO result = settlementService.createSettlement(request);
 
-        assertNotNull(result);
-        assertEquals(SettlementStatus.PENDING, result.getStatus());
-        verify(settlementRepository).save(any(Settlement.class));
-    }
+    assertNotNull(result);
+    assertEquals(SettlementStatus.PENDING, result.getStatus());
+    verify(settlementRepository).save(any(Settlement.class));
+  }
 
-    @Test
-    void createSettlement_GroupNotFound() {
-        when(groupRepository.findById(1L)).thenReturn(Optional.empty());
+  @Test
+  void createSettlement_GroupNotFound() {
+    when(groupRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(
-                ResourceNotFoundException.class, () -> settlementService.createSettlement(request));
-    }
+    assertThrows(
+        ResourceNotFoundException.class, () -> settlementService.createSettlement(request));
+  }
 
-    @Test
-    void createSettlement_PayerNotMember() {
-        when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
-        when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(false);
+  @Test
+  void createSettlement_PayerNotMember() {
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(false);
 
-        assertThrows(
-                ResourceNotFoundException.class, () -> settlementService.createSettlement(request));
-    }
+    assertThrows(
+        ResourceNotFoundException.class, () -> settlementService.createSettlement(request));
+  }
 
-    @Test
-    void markAsPaid_Success() {
-        when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
-        when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
-        when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
+  @Test
+  void markAsPaid_Success() {
+    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
+    when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
 
-        settlementDTO.setStatus(SettlementStatus.MARKED_PAID);
-        SettlementDTO result = settlementService.markAsPaid(1L, 101L);
+    settlementDTO.setStatus(SettlementStatus.MARKED_PAID);
+    SettlementDTO result = settlementService.markAsPaid(1L, 101L);
 
-        assertNotNull(result);
-        assertEquals(SettlementStatus.MARKED_PAID, result.getStatus());
-        verify(settlementRepository).save(settlement);
-    }
+    assertNotNull(result);
+    assertEquals(SettlementStatus.MARKED_PAID, result.getStatus());
+    verify(settlementRepository).save(settlement);
+  }
 
-    @Test
-    void markAsPaid_Unauthorized() {
-        when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+  @Test
+  void markAsPaid_Unauthorized() {
+    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
 
-        assertThrows(UnauthorizedException.class, () -> settlementService.markAsPaid(1L, 999L));
-    }
+    assertThrows(UnauthorizedException.class, () -> settlementService.markAsPaid(1L, 999L));
+  }
 
-    @Test
-    void markAsPaid_InvalidStatus() {
-        settlement.setStatus(SettlementStatus.COMPLETED);
-        when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+  @Test
+  void markAsPaid_InvalidStatus() {
+    settlement.setStatus(SettlementStatus.COMPLETED);
+    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
 
-        assertThrows(IllegalStateException.class, () -> settlementService.markAsPaid(1L, 101L));
-    }
+    assertThrows(IllegalStateException.class, () -> settlementService.markAsPaid(1L, 101L));
+  }
 
-    @Test
-    void confirmSettlement_Success() {
-        settlement.setStatus(SettlementStatus.MARKED_PAID);
-        when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
-        when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
-        when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
+  @Test
+  void confirmSettlement_Success() {
+    settlement.setStatus(SettlementStatus.MARKED_PAID);
+    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
+    when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
 
-        settlementDTO.setStatus(SettlementStatus.COMPLETED);
-        SettlementDTO result = settlementService.confirmSettlement(1L, 102L);
+    settlementDTO.setStatus(SettlementStatus.COMPLETED);
+    SettlementDTO result = settlementService.confirmSettlement(1L, 102L);
 
-        assertNotNull(result);
-        assertEquals(SettlementStatus.COMPLETED, result.getStatus());
-        verify(settlementRepository).save(settlement);
-    }
+    assertNotNull(result);
+    assertEquals(SettlementStatus.COMPLETED, result.getStatus());
+    verify(settlementRepository).save(settlement);
+  }
 
-    @Test
-    void confirmSettlement_Unauthorized() {
-        settlement.setStatus(SettlementStatus.MARKED_PAID);
-        when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+  @Test
+  void confirmSettlement_Unauthorized() {
+    settlement.setStatus(SettlementStatus.MARKED_PAID);
+    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
 
-        assertThrows(UnauthorizedException.class, () -> settlementService.confirmSettlement(1L, 101L));
-    }
+    assertThrows(UnauthorizedException.class, () -> settlementService.confirmSettlement(1L, 101L));
+  }
 
-    @Test
-    void confirmSettlement_InvalidStatus() {
-        settlement.setStatus(SettlementStatus.PENDING);
-        when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+  @Test
+  void confirmSettlement_InvalidStatus() {
+    settlement.setStatus(SettlementStatus.PENDING);
+    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
 
-        assertThrows(IllegalStateException.class, () -> settlementService.confirmSettlement(1L, 102L));
-    }
+    assertThrows(IllegalStateException.class, () -> settlementService.confirmSettlement(1L, 102L));
+  }
 }

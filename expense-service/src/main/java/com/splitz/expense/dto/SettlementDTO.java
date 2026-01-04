@@ -14,14 +14,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SettlementDTO {
 
-    private Long id;
-    private Long groupId;
-    private Long payerId;
-    private Long payeeId;
-    private BigDecimal amount;
-    private SettlementStatus status;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private LocalDateTime markedPaidAt;
-    private LocalDateTime settledAt;
+  private Long id;
+  private Long groupId;
+  private Long payerId;
+  private Long payeeId;
+  private BigDecimal amount;
+  private SettlementStatus status;
+  private LocalDateTime createdAt;
+  private LocalDateTime updatedAt;
+  private LocalDateTime markedPaidAt;
+  private LocalDateTime settledAt;
 }
