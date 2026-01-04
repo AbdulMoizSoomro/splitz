@@ -504,24 +504,24 @@ Expense {
 
 ---
 
-### Story S14: Balance Calculation ⬜
+### Story S14: Balance Calculation ✅
 > Branch: `feature/S14-balance-calculation`
 
 **Why:** Users need to see who owes whom.
 
 **Acceptance Criteria:**
-- [ ] GET /groups/{id}/balances — returns balance per member
-- [ ] Balance = amount paid - amount owed
-- [ ] Positive = others owe you, Negative = you owe others
-- [ ] GET /users/{id}/balances — user's balances across all groups
+- [x] GET /groups/{id}/balances — returns balance per member
+- [x] Balance = amount paid - amount owed
+- [x] Positive = others owe you, Negative = you owe others
+- [x] GET /users/{id}/balances — user's balances across all groups
 
 **Tasks:**
 | ID | Task | Est | Notes |
 |----|------|-----|-------|
-| T14.1 | Write balance calculation tests | 2h | Various scenarios |
-| T14.2 | Implement BalanceService | 2h | |
-| T14.3 | Create BalanceController | 1h | |
-| T14.4 | Create BalanceDTO | 30m | |
+| T14.1 | Write balance calculation tests | 2h | ✅ Various scenarios |
+| T14.2 | Implement BalanceService | 2h | ✅ |
+| T14.3 | Create BalanceController | 1h | ✅ |
+| T14.4 | Create BalanceDTO | 30m | ✅ |
 
 **Example:**
 ```
