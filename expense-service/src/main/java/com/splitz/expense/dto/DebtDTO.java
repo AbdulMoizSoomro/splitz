@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class DebtDTO {
 
-    private Long from;
-    private Long to;
-    private BigDecimal amount;
+  private Long from;
+  private Long to;
+  private BigDecimal amount;
 }

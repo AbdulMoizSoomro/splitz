@@ -11,9 +11,12 @@ import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
+import com.splitz.expense.model.Settlement;
+import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import com.splitz.expense.repository.SettlementRepository;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +37,8 @@ class BalanceServiceTest {
     private GroupMemberRepository groupMemberRepository;
     @Mock
     private GroupRepository groupRepository;
+    @Mock
+    private SettlementRepository settlementRepository;
 
     @InjectMocks
     private BalanceService balanceService;
@@ -181,6 +186,55 @@ class BalanceServiceTest {
         assertEquals(2, response.getSimplifiedDebts().size());
         assertTrue(hasDebt(response.getSimplifiedDebts(), 102L, 101L, new BigDecimal("5.00")));
         assertTrue(hasDebt(response.getSimplifiedDebts(), 103L, 101L, new BigDecimal("20.00")));
+    }
+
+    @Test
+    void getGroupBalances_WithSettlements() {
+        // Expense: 60 EUR paid by User 101, split EQUAL among 101, 102
+        // User 101 paid 60, owes 30 -> Balance +30
+        // User 102 paid 0, owes 30 -> Balance -30
+        Expense expense
+                = Expense.builder().id(1L).group(group).amount(new BigDecimal("60.00")).paidBy(101L).build();
+        ExpenseSplit split1
+                = ExpenseSplit.builder()
+                        .userId(101L)
+                        .shareAmount(new BigDecimal("30.00"))
+                        .expense(expense)
+                        .build();
+        ExpenseSplit split2
+                = ExpenseSplit.builder()
+                        .userId(102L)
+                        .shareAmount(new BigDecimal("30.00"))
+                        .expense(expense)
+                        .build();
+        expense.setSplits(Arrays.asList(split1, split2));
+
+        // Settlement: User 102 pays User 101 20 EUR
+        Settlement settlement
+                = Settlement.builder()
+                        .id(1L)
+                        .group(group)
+                        .payerId(102L)
+                        .payeeId(101L)
+                        .amount(new BigDecimal("20.00"))
+                        .status(SettlementStatus.COMPLETED)
+                        .build();
+
+        when(groupRepository.existsById(1L)).thenReturn(true);
+        when(groupMemberRepository.findByGroupId(1L)).thenReturn(Arrays.asList(member1, member2));
+        when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(expense));
+        when(settlementRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(settlement));
+
+        GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
+
+        // Expected:
+        // User 101: +30 (from expense) - 20 (received settlement) = +10
+        // User 102: -30 (from expense) + 20 (paid settlement) = -10
+        BalanceDTO b1 = findBalance(response.getBalances(), 101L);
+        BalanceDTO b2 = findBalance(response.getBalances(), 102L);
+
+        assertEquals(0, new BigDecimal("10.00").compareTo(b1.getBalance()));
+        assertEquals(0, new BigDecimal("-10.00").compareTo(b2.getBalance()));
     }
 
     @Test

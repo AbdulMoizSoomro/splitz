@@ -13,18 +13,18 @@ import lombok.NoArgsConstructor;
 @Builder
 public class UserBalanceResponseDTO {
 
-    private Long userId;
-    private BigDecimal totalBalance;
-    private List<GroupBalanceDTO> groupBalances;
+  private Long userId;
+  private BigDecimal totalBalance;
+  private List<GroupBalanceDTO> groupBalances;
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class GroupBalanceDTO {
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  @Builder
+  public static class GroupBalanceDTO {
 
-        private Long groupId;
-        private String groupName;
-        private BigDecimal balance;
-    }
+    private Long groupId;
+    private String groupName;
+    private BigDecimal balance;
+  }
 }
