@@ -256,7 +256,7 @@ Category
 ├── name: String
 ├── icon: String
 ├── color: String
-├── isDefault: boolean
+├── defaultCategory: boolean
 └── createdAt: DateTime
 
 Expense
