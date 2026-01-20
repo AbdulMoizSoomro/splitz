@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 
 @Component
 public class JwtRequestFilter implements Filter {
+
   private final UserDetailsService userDetailsService;
   private final JwtUtil jwtUtil;
 
