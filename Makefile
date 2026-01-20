@@ -3,11 +3,11 @@
 .PHONY: ready-for-ci lint lint-fix
 
 ready-for-ci:
-	@echo "--- [1/3] LINTING ---"
-	@OUTPUT=$$(mvn spotless:check checkstyle:check -Dstyle.color=never 2>&1); \
+	@echo "--- [1/3] LINTING & FORMATTING ---"
+	@OUTPUT=$$(mvn spotless:apply checkstyle:check -Dstyle.color=never 2>&1); \
 	if [ $$? -ne 0 ]; then \
 		echo "$$OUTPUT" | grep -E "\[INFO\] .* \.{3,} FAILURE"; \
-		echo "❌ LINT FAILURE. Run 'make lint-fix' to resolve."; exit 1; \
+		echo "❌ LINT FAILURE."; exit 1; \
 	fi; \
 	echo "$$OUTPUT" | grep -E "\[INFO\] .* \.{3,} SUCCESS" | tail -n 1
 
@@ -25,7 +25,7 @@ ready-for-ci:
 	@echo "\n✅ ALL CHECKS PASSED: Code is ready to be pushed."
 
 lint:
-	@mvn spotless:check checkstyle:check
+	@mvn spotless:apply checkstyle:check
 
 lint-fix:
 	@mvn spotless:apply
