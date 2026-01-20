@@ -24,8 +24,3 @@ ready-for-ci:
 	@mvn test | grep -E "Tests run: |Failures: |Errors: |Skipped: |BUILD SUCCESS|BUILD FAILURE" || (echo "\n❌ TEST FAILURE: One or more tests failed." && exit 1)
 	@echo "\n✅ ALL CHECKS PASSED: Code is ready to be pushed."
 
-lint:
-	@mvn spotless:apply checkstyle:check
-
-lint-fix:
-	@mvn spotless:apply
