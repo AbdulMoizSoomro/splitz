@@ -1,21 +1,9 @@
 package com.splitz.expense.integration;
 
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -34,192 +22,197 @@ import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.security.JwtUtil;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 public class GroupControllerIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+  @Autowired private ObjectMapper objectMapper;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+  @Autowired private JwtUtil jwtUtil;
 
-    @Autowired
-    private GroupRepository groupRepository;
+  @Autowired private GroupRepository groupRepository;
 
-    @Autowired
-    private GroupMemberRepository groupMemberRepository;
+  @Autowired private GroupMemberRepository groupMemberRepository;
 
-    @MockBean
-    private UserClient userClient;
+  @MockBean private UserClient userClient;
 
-    private String tokenFor(long userId) {
-        var user
-                = User.withUsername(String.valueOf(userId)).password("").authorities(List.of()).build();
-        return "Bearer " + jwtUtil.generateToken(user);
-    }
+  private String tokenFor(long userId) {
+    var user =
+        User.withUsername(String.valueOf(userId)).password("").authorities(List.of()).build();
+    return "Bearer " + jwtUtil.generateToken(user);
+  }
 
-    @BeforeEach
-    void before() {
-        groupMemberRepository.deleteAll();
-        groupRepository.deleteAll();
-        when(userClient.existsById(anyLong())).thenReturn(true);
-    }
+  @BeforeEach
+  void before() {
+    groupMemberRepository.deleteAll();
+    groupRepository.deleteAll();
+    when(userClient.existsById(anyLong())).thenReturn(true);
+  }
 
-    @AfterEach
-    void after() {
-        groupMemberRepository.deleteAll();
-        groupRepository.deleteAll();
-    }
+  @AfterEach
+  void after() {
+    groupMemberRepository.deleteAll();
+    groupRepository.deleteAll();
+  }
 
-    @Test
-    void createGetUpdateAddRemoveDelete_flow() throws Exception {
-        // Create group as user 100
-        CreateGroupRequest create = new CreateGroupRequest();
-        create.setName("Roommates");
-        create.setDescription("Monthly");
+  @Test
+  void createGetUpdateAddRemoveDelete_flow() throws Exception {
+    // Create group as user 100
+    CreateGroupRequest create = new CreateGroupRequest();
+    create.setName("Roommates");
+    create.setDescription("Monthly");
 
-        var createResult
-                = mockMvc
-                        .perform(
-                                post("/groups")
-                                        .header("Authorization", tokenFor(100L))
-                                        .contentType(APPLICATION_JSON)
-                                        .content(objectMapper.writeValueAsString(create)))
-                        .andExpect(status().isCreated())
-                        .andExpect(jsonPath("$.name").value("Roommates"))
-                        .andReturn();
-
-        String resp = createResult.getResponse().getContentAsString();
-        var node = objectMapper.readTree(resp);
-        long groupId = node.get("id").asLong();
-
-        // Verify persisted group and membership
-        Group persisted = groupRepository.findById(groupId).orElseThrow();
-        assertThat(persisted.getCreatedBy()).isEqualTo(100L);
-        assertThat(persisted.getMembers()).hasSize(1);
-
-        // Get group as member
+    var createResult =
         mockMvc
-                .perform(get("/groups/" + groupId).header("Authorization", tokenFor(100L)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(groupId));
+            .perform(
+                post("/groups")
+                    .header("Authorization", tokenFor(100L))
+                    .contentType(APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(create)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.name").value("Roommates"))
+            .andReturn();
 
-        // Update group name
-        UpdateGroupRequest update = new UpdateGroupRequest();
-        update.setName("UpdatedRoom");
+    String resp = createResult.getResponse().getContentAsString();
+    var node = objectMapper.readTree(resp);
+    long groupId = node.get("id").asLong();
 
-        mockMvc
-                .perform(
-                        put("/groups/" + groupId)
-                                .header("Authorization", tokenFor(100L))
-                                .contentType(APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(update)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("UpdatedRoom"));
+    // Verify persisted group and membership
+    Group persisted = groupRepository.findById(groupId).orElseThrow();
+    assertThat(persisted.getCreatedBy()).isEqualTo(100L);
+    assertThat(persisted.getMembers()).hasSize(1);
 
-        // Add member 200
-        AddMemberRequest add = new AddMemberRequest();
-        add.setUserId(200L);
-        add.setRole(GroupRole.MEMBER);
+    // Get group as member
+    mockMvc
+        .perform(get("/groups/" + groupId).header("Authorization", tokenFor(100L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(groupId));
 
-        mockMvc
-                .perform(
-                        post("/groups/" + groupId + "/members")
-                                .header("Authorization", tokenFor(100L))
-                                .contentType(APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(add)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.members").isArray());
+    // Update group name
+    UpdateGroupRequest update = new UpdateGroupRequest();
+    update.setName("UpdatedRoom");
 
-        assertThat(groupMemberRepository.existsByGroupIdAndUserId(groupId, 200L)).isTrue();
+    mockMvc
+        .perform(
+            put("/groups/" + groupId)
+                .header("Authorization", tokenFor(100L))
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(update)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.name").value("UpdatedRoom"));
 
-        // Remove member 200
-        mockMvc
-                .perform(
-                        delete("/groups/" + groupId + "/members/200").header("Authorization", tokenFor(100L)))
-                .andExpect(status().isNoContent());
+    // Add member 200
+    AddMemberRequest add = new AddMemberRequest();
+    add.setUserId(200L);
+    add.setRole(GroupRole.MEMBER);
 
-        assertThat(groupMemberRepository.findByGroupIdAndUserId(groupId, 200L)).isEmpty();
+    mockMvc
+        .perform(
+            post("/groups/" + groupId + "/members")
+                .header("Authorization", tokenFor(100L))
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(add)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.members").isArray());
 
-        // Delete group
-        mockMvc
-                .perform(delete("/groups/" + groupId).header("Authorization", tokenFor(100L)))
-                .andExpect(status().isNoContent());
+    assertThat(groupMemberRepository.existsByGroupIdAndUserId(groupId, 200L)).isTrue();
 
-        // After delete, group should be inactive and not returned by user groups
-        var groups = groupRepository.findDistinctByMembersUserIdAndActiveTrue(100L);
-        assertThat(groups).isEmpty();
-    }
+    // Remove member 200
+    mockMvc
+        .perform(
+            delete("/groups/" + groupId + "/members/200").header("Authorization", tokenFor(100L)))
+        .andExpect(status().isNoContent());
 
-    @Test
-    void access_control_non_member_forbidden() throws Exception {
-        // Create group as user 300
-        Group g = Group.builder().name("Private").description("x").createdBy(300L).active(true).build();
-        GroupMember gm = GroupMember.builder().userId(300L).role(GroupRole.ADMIN).build();
-        g.addMember(gm);
-        Group saved = groupRepository.save(g);
+    assertThat(groupMemberRepository.findByGroupIdAndUserId(groupId, 200L)).isEmpty();
 
-        // User 400 is not a member
-        mockMvc
-                .perform(get("/groups/" + saved.getId()).header("Authorization", tokenFor(400L)))
-                .andExpect(status().isForbidden());
-    }
+    // Delete group
+    mockMvc
+        .perform(delete("/groups/" + groupId).header("Authorization", tokenFor(100L)))
+        .andExpect(status().isNoContent());
 
-    @Test
-    void listGroups_returnsOnlyUsersGroups() throws Exception {
-        // Group 1: User 100 is member
-        Group g1 = Group.builder().name("G1").createdBy(100L).active(true).build();
-        g1.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
-        groupRepository.save(g1);
+    // After delete, group should be inactive and not returned by user groups
+    var groups = groupRepository.findDistinctByMembersUserIdAndActiveTrue(100L);
+    assertThat(groups).isEmpty();
+  }
 
-        // Group 2: User 100 is NOT member
-        Group g2 = Group.builder().name("G2").createdBy(200L).active(true).build();
-        g2.addMember(GroupMember.builder().userId(200L).role(GroupRole.ADMIN).build());
-        groupRepository.save(g2);
+  @Test
+  void access_control_non_member_forbidden() throws Exception {
+    // Create group as user 300
+    Group g = Group.builder().name("Private").description("x").createdBy(300L).active(true).build();
+    GroupMember gm = GroupMember.builder().userId(300L).role(GroupRole.ADMIN).build();
+    g.addMember(gm);
+    Group saved = groupRepository.save(g);
 
-        mockMvc
-                .perform(get("/groups").header("Authorization", tokenFor(100L)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].name").value("G1"));
-    }
+    // User 400 is not a member
+    mockMvc
+        .perform(get("/groups/" + saved.getId()).header("Authorization", tokenFor(400L)))
+        .andExpect(status().isForbidden());
+  }
 
-    @Test
-    void updateGroup_memberForbidden() throws Exception {
-        Group g = Group.builder().name("AdminOnly").createdBy(100L).active(true).build();
-        g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
-        g.addMember(GroupMember.builder().userId(200L).role(GroupRole.MEMBER).build());
-        Group saved = groupRepository.save(g);
+  @Test
+  void listGroups_returnsOnlyUsersGroups() throws Exception {
+    // Group 1: User 100 is member
+    Group g1 = Group.builder().name("G1").createdBy(100L).active(true).build();
+    g1.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
+    groupRepository.save(g1);
 
-        UpdateGroupRequest update = new UpdateGroupRequest();
-        update.setName("HackerName");
+    // Group 2: User 100 is NOT member
+    Group g2 = Group.builder().name("G2").createdBy(200L).active(true).build();
+    g2.addMember(GroupMember.builder().userId(200L).role(GroupRole.ADMIN).build());
+    groupRepository.save(g2);
 
-        // User 200 (MEMBER) tries to update
-        mockMvc
-                .perform(
-                        put("/groups/" + saved.getId())
-                                .header("Authorization", tokenFor(200L))
-                                .contentType(APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(update)))
-                .andExpect(status().isForbidden());
-    }
+    mockMvc
+        .perform(get("/groups").header("Authorization", tokenFor(100L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].name").value("G1"));
+  }
 
-    @Test
-    void deleteGroup_memberForbidden() throws Exception {
-        Group g = Group.builder().name("AdminOnly").createdBy(100L).active(true).build();
-        g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
-        g.addMember(GroupMember.builder().userId(200L).role(GroupRole.MEMBER).build());
-        Group saved = groupRepository.save(g);
+  @Test
+  void updateGroup_memberForbidden() throws Exception {
+    Group g = Group.builder().name("AdminOnly").createdBy(100L).active(true).build();
+    g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
+    g.addMember(GroupMember.builder().userId(200L).role(GroupRole.MEMBER).build());
+    Group saved = groupRepository.save(g);
 
-        // User 200 (MEMBER) tries to delete
-        mockMvc
-                .perform(delete("/groups/" + saved.getId()).header("Authorization", tokenFor(200L)))
-                .andExpect(status().isForbidden());
-    }
+    UpdateGroupRequest update = new UpdateGroupRequest();
+    update.setName("HackerName");
+
+    // User 200 (MEMBER) tries to update
+    mockMvc
+        .perform(
+            put("/groups/" + saved.getId())
+                .header("Authorization", tokenFor(200L))
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(update)))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void deleteGroup_memberForbidden() throws Exception {
+    Group g = Group.builder().name("AdminOnly").createdBy(100L).active(true).build();
+    g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
+    g.addMember(GroupMember.builder().userId(200L).role(GroupRole.MEMBER).build());
+    Group saved = groupRepository.save(g);
+
+    // User 200 (MEMBER) tries to delete
+    mockMvc
+        .perform(delete("/groups/" + saved.getId()).header("Authorization", tokenFor(200L)))
+        .andExpect(status().isForbidden());
+  }
 }
