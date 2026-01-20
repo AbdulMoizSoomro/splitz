@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
@@ -35,6 +36,8 @@ class GroupServiceTest {
   @Mock private GroupMemberRepository groupMemberRepository;
 
   @Mock private GroupMapper groupMapper;
+
+  @Mock private UserClient userClient;
 
   @InjectMocks private GroupService groupService;
 
@@ -112,5 +115,27 @@ class GroupServiceTest {
     when(groupMemberRepository.findByGroupIdAndUserId(4L, 20L)).thenReturn(Optional.empty());
 
     assertThrows(ResourceNotFoundException.class, () -> groupService.removeMember(4L, 20L, 10L));
+  }
+
+  @Test
+  void addMember_WhenUserDoesNotExist_ShouldThrow() {
+    Group group =
+        Group.builder()
+            .id(4L)
+            .members(Set.of(GroupMember.builder().userId(1L).role(GroupRole.ADMIN).build()))
+            .build();
+
+    when(groupRepository.findById(4L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(4L, 2L)).thenReturn(false);
+    when(userClient.existsById(2L)).thenReturn(false);
+
+    AddMemberRequest addMemberRequest = new AddMemberRequest();
+    addMemberRequest.setUserId(2L);
+
+    ResourceNotFoundException exception =
+        assertThrows(
+            ResourceNotFoundException.class,
+            () -> groupService.addMember(4L, addMemberRequest, 1L));
+    assertEquals("User not found with id: 2", exception.getMessage());
   }
 }

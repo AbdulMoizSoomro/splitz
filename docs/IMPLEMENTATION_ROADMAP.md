@@ -9,12 +9,14 @@
 ## Quick Reference
 
 ### Branch Naming
+
 ```
 feature/<story-id>-<short-description>
 Example: feature/S01-github-actions-ci
 ```
 
 ### Definition of Done (DoD)
+
 - [x] Code compiles without warnings
 - [x] All new code has tests (it is important that tests are written first when possible)
 - [x] All tests pass (`mvn test`)
@@ -22,6 +24,7 @@ Example: feature/S01-github-actions-ci
 - [x] Documentation updated if public API changed
 
 ### Story Status Legend
+
 - ⬜ Not Started
 - 🟡 In Progress
 - ✅ Complete
@@ -39,559 +42,133 @@ Example: feature/S01-github-actions-ci
 | DevOps | 100% Phase 0 | CI Pipeline, Test Coverage, Dockerfile |
 
 **What's Missing for MVP:**
+
 1. Phase 4: Inter-service communication and integration
 2. Phase 5: Docker Compose setup
 
 ---
 
-## Phase 0: DevOps Foundation ✅
-> **Goal:** Automated quality gates before adding more features  
-> **Duration:** ~2 days
+## Completed: Phases 0–3 ✅
 
-### Story S01: GitHub Actions CI Pipeline ✅
-> Branch: `feature/S01-github-actions-ci`
+All work for Phases 0 through 3 is complete and validated (CI, test coverage, user-service, common-security, and expense-service core features). For auditability, the detailed story history is retained in the repo (commits and release notes); the roadmap now focuses on the next implementation phases.
 
-**Why:** Every commit should be validated automatically. Catch issues early.
+**Completed highlights:**
 
-**Acceptance Criteria:**
-- [x] Push to `main` or PR triggers build
-- [x] Maven build + test runs
-- [x] Build fails if tests fail
-- [x] Badge shows build status in README
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T01.1 | Create `.github/workflows/ci.yml` with Maven build | 2h | ✅ Trigger on push/PR to main |
-| T01.2 | Add build status badge to README | 15m | ✅ |
-
-**Test Strategy:** CI itself is the test — verify a failing test breaks the build.
-
-**Files to Create/Modify:**
-- `.github/workflows/ci.yml` (new)
-- `README.md` (add badge)
+- Phase 0 (DevOps): CI pipeline, JaCoCo coverage, Dockerfile for `user-service` ✅
+- Phase 1 (User Service): Auth, user CRUD, friendship API, OpenAPI ✅
+- Phase 2 (Common Security): `common-security` module with unit tests ✅
+- Phase 3 (Expense Service Foundation): Groups, Category, Expenses, Splits, Balances, Settlements ✅
 
 ---
 
-### Story S02: Test Coverage Reporting ✅
-> Branch: `feature/S02-test-coverage`
+1. Phase 4: Integration & Polish (3–5 days, detailed) 🟡
 
-**Why:** Know what's tested, prevent coverage regression.
+**Goal:** Wire services together, validate cross-service contracts, and add robust end-to-end tests so the system behaves as an integrated product.
 
-**Acceptance Criteria:**
-- [x] JaCoCo generates coverage report
-- [x] Coverage report visible in CI logs or artifact
-- [x] Minimum 60% line coverage enforced (fail build if below)
+**Acceptance criteria (must pass):**
 
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T02.1 | Add JaCoCo plugin to user-service pom.xml | 1h | ✅ Configure report generation |
-| T02.2 | Set coverage threshold (60% lines) | 30m | ✅ Build fails if below |
-| T02.3 | Update CI to publish coverage report | 1h | ✅ Upload as artifact |
+- Service-to-service calls (user & expense) use a defined client and contract.
+- End-to-end (E2E) tests exercise: register → create friends → create group → add members → create expense → verify balances.
+- OpenAPI docs load for both services and errors follow a standardized ProblemDetail shape.
+- Integration tests run in CI and fail the build if regressions are detected.
 
-**Test Strategy:** Intentionally drop coverage below threshold, verify build fails.
+### Story S16: Inter-service Communication (User & Expense) ✅
 
-**Files to Modify:**
-- `user-service/pom.xml`
-- `.github/workflows/ci.yml`
+**Why:** Expense service needs to verify user data from the User Service without direct DB access.
 
----
+- [x] T16.1 Define `UserClient` interface in `expense-service`.
+- [x] T16.2 Implement `WebClient`-based implementation.
+- [x] T16.3 Add error handling for service-to-service timeouts/failures.
+- [x] T16.4 JWT propagation across service boundaries.
+- [x] T16.5 User existence validation in `GroupService`.
 
-### Story S03: Basic Dockerfile for User Service ✅
-> Branch: `feature/S03-user-service-dockerfile`
+### Story S17: Consumer Contract Testing
 
-**Why:** Reproducible builds, prep for compose and deployment.
+**Why:** Prevent breaking changes when one service changes its API.
 
-**Acceptance Criteria:**
-- [x] `docker build` succeeds
-- [x] Container starts and responds to health endpoint
-- [x] Image uses non-root user
-- [x] Image size under 400MB
+- T17.1 Set up Spring Cloud Contract in `user-service` (producer) and `expense-service` (consumer).
+- T17.2 Define contract for user lookup and auth validation.
 
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T03.1 | Create multi-stage Dockerfile | 2h | ✅ Build stage + runtime stage |
-| T03.2 | Add .dockerignore | 15m | ✅ Exclude target/, .git, etc. |
-| T03.3 | Test container locally | 1h | ✅ Verify /actuator/health works |
+### Story S18: Integration Testing with Testcontainers
 
-**Test Strategy:** Manual — build image, run container, curl health endpoint.
+**Why:** Ensure services work with real Postgres and WireMock stubs.
 
-**Files to Create:**
-- `user-service/Dockerfile` (new)
-- `user-service/.dockerignore` (new)
+- T18.1 Add Postgres Testcontainers to `expense-service`.
+- T18.2 Add WireMock to stub `user-service` responses.
 
----
+### Story S19: End-to-End (E2E) Scenarios
 
-## Phase 1: Complete User Service ✅
-> **Goal:** Finish user-service MVP features  
-> **Duration:** ~3 days
+**Why:** Full system validation from a user's perspective.
 
-### Story S04: Friendship Entity & Repository ✅
-> Branch: `feature/S04-friendship-entity`
+- T19.1 Create `integration-tests` module or folder.
+- T19.2 Implement "Journey 3: Creating a Group Expense" as a code-based test.
 
-**Why:** Core social feature — users need to connect before splitting expenses.
+### Story S20: OpenAPI & Global Error Handling Harmonization
 
-**Acceptance Criteria:**
-- [x] Friendship entity with requester, addressee, status, timestamps
-- [x] Status enum: PENDING, ACCEPTED, REJECTED, BLOCKED
-- [x] Repository methods: findByRequesterOrAddressee, findPendingRequests
-- [x] Flyway migration creates table
-- [x] Entity tests pass
+**Why:** Consistent API documentation and error formats across all services.
 
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T04.1 | Write Friendship entity test | 1h | ✅ Test-first: test status transitions |
-| T04.2 | Create Friendship entity & FriendshipStatus enum | 1h | ✅ |
-| T04.3 | Create FriendshipRepository with custom queries | 1h | ✅ |
-| T04.4 | Add Flyway migration V5__create_friendship_table.sql | 30m | ✅ |
+- T20.1 Align `ProblemDetail` response structure in both services.
+- T20.2 Configure Swagger UI to show both service docs (if using a gateway or shared ui).
 
-**Entity Design:**
-```java
-Friendship {
-  id: Long
-  requester: User (ManyToOne)
-  addressee: User (ManyToOne) 
-  status: FriendshipStatus (PENDING, ACCEPTED, REJECTED, BLOCKED)
-  createdAt: LocalDateTime
-  updatedAt: LocalDateTime
-}
-```
-
-**Files to Create:**
-- `user-service/src/main/java/com/splitz/user/model/Friendship.java`
-- `user-service/src/main/java/com/splitz/user/model/FriendshipStatus.java`
-- `user-service/src/main/java/com/splitz/user/repository/FriendshipRepository.java`
-- `user-service/src/main/resources/db/migration/V5__create_friendship_table.sql`
-- `user-service/src/test/java/com/splitz/user/model/FriendshipTest.java`
+**Estimated total:** 14–25 hours.
 
 ---
 
-### Story S05: Friendship Service ✅
-> Branch: `feature/S05-friendship-service`
+## Phase 5: Containerization & Local Dev (2–4 days, detailed)
 
-**Why:** Business logic for friend requests — validation, state transitions.
+**Goal:** Provide a reproducible local environment and CI smoke tests.
 
-**Acceptance Criteria:**
-- [x] Send friend request (creates PENDING)
-- [x] Accept/reject friend request (updates status)
-- [x] Cannot send duplicate request
-- [x] Cannot friend yourself
-- [x] Get pending requests for user
-- [x] Get accepted friends for user
-- [x] All service methods have unit tests
+**Acceptance criteria (must pass):**
 
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T05.1 | Write FriendshipService unit tests | 2h | ✅ Test-first: all scenarios |
-| T05.2 | Implement FriendshipService | 2h | ✅ |
-| T05.3 | Create FriendshipDTO and mapper | 1h | ✅ |
+- `docker-compose up` starts all services and Postgres; health endpoints return UP.
+- `.env.example` documents required environment variables.
+- CI smoke job runs Compose and verifies health endpoints.
 
-**Business Rules:**
-- User A sends request to User B → status = PENDING
-- User B accepts → status = ACCEPTED
-- User B rejects → status = REJECTED
-- Only addressee can accept/reject
-- Either party can remove (delete) an ACCEPTED friendship
+### Story S21: Docker Compose Environment
 
-**Files to Create:**
-- `user-service/src/main/java/com/splitz/user/service/FriendshipService.java`
-- `user-service/src/main/java/com/splitz/user/dto/FriendshipDTO.java`
-- `user-service/src/main/java/com/splitz/user/mapper/FriendshipMapper.java`
-- `user-service/src/test/java/com/splitz/user/service/FriendshipServiceTest.java`
+**Why:** Enable developers to run the full stack with one command.
 
----
+- T21.1 Create `docker-compose.yml` with `user-service`, `expense-service`, and `postgres`.
+- T21.2 Add healthchecks and service dependencies.
 
-### Story S06: Friendship REST API ✅
-> Branch: `feature/S06-friendship-api`
+### Story S22: Dockerfile Optimization & Image Hardening
 
-**Why:** Expose friendship features to clients.
+**Why:** Secure, minimal production-ready images.
 
-**Acceptance Criteria:**
-- [x] POST /users/{id}/friends — send friend request
-- [x] GET /users/{id}/friends — list accepted friends
-- [x] GET /users/{id}/friends/requests — list pending incoming requests  
-- [x] PUT /users/{id}/friends/{friendshipId}/accept — accept request
-- [x] PUT /users/{id}/friends/{friendshipId}/reject — reject request
-- [x] DELETE /users/{id}/friends/{friendId} — remove friend
-- [x] All endpoints require authentication
-- [x] Users can only manage their own friendships
-- [x] Integration tests pass
+- T22.1 Optimize multi-stage builds for both services.
+- T22.2 Implementation of non-root users in all containers.
 
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T06.1 | Write FriendshipController integration tests | 2h | ✅ Test-first |
-| T06.2 | Implement FriendshipController | 2h | ✅ |
-| T06.3 | Add security expressions for ownership check | 30m | ✅ |
-| T06.4 | Add exception handling for friendship errors | 30m | ✅ |
+### Story S23: Developer Tooling (Makefile/dotenv)
 
-**Files to Create:**
-- `user-service/src/main/java/com/splitz/user/controller/FriendshipController.java`
-- `user-service/src/main/java/com/splitz/user/exception/FriendshipException.java`
-- `user-service/src/test/java/com/splitz/user/controller/FriendshipControllerTest.java`
-- `user-service/src/test/java/com/splitz/user/integration/FriendshipIntegrationTest.java`
+**Why:** Improve developer ergonomics and local config management.
+
+- T23.1 Add `Makefile` for common commands (`dev-up`, `test-e2e`).
+- T23.2 Add `.env.example` with default JWT secrets and DB URLs.
+
+### Story S24: CI Smoke Testing (Sanity Check)
+
+**Why:** Early warning if images or compose settings break.
+
+- T24.1 Add GitHub Action job to run `docker-compose up` and curl `/actuator/health`.
+
+**Estimated total:** 7–11 hours.
 
 ---
 
-### Story S07: User Service OpenAPI Documentation ✅
-> Branch: `feature/S07-openapi-docs`
+## Future Phases (kept short)
 
-**Why:** Self-documenting API for testing and future clients.
-
-**Acceptance Criteria:**
-- [x] SpringDoc OpenAPI dependency added
-- [x] Swagger UI available at /swagger-ui.html
-- [x] All endpoints documented with descriptions
-- [x] Request/response examples included
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T07.1 | Add springdoc-openapi dependency | 30m | ✅ |
-| T07.2 | Configure OpenAPI info (title, version, description) | 30m | ✅ |
-| T07.3 | Annotate controllers with @Operation, @ApiResponse | 2h | ✅ |
-| T07.4 | Verify Swagger UI loads correctly | 30m | ✅ |
-
-**Files to Modify:**
-- `user-service/pom.xml`
-- All controllers (add annotations)
-- `user-service/src/main/java/com/splitz/user/config/OpenApiConfig.java` (new)
+- Phase 6: Enhanced Features (PERCENTAGE splits, recurring, exports) — planned after integration tests pass.
+- Phase 7: Production Readiness (logging, metrics, hardening) — planned for final release.
 
 ---
 
-## Phase 2: Common Security Module ✅
-> **Goal:** Shared JWT validation for all services  
-> **Duration:** ~1 day  
-> **Status:** Complete
+## Clarifying Questions (please answer before I implement)
 
-**Decision:** Extracted common module to avoid code duplication between user-service and expense-service.
-
-### Story S08: Extract common-security Module ✅
-> Branch: `feature/S08-common-security`
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T08.1 | Create `common-security` Maven module | 1h | ✅ |
-| T08.2 | Move JwtUtil, JwtRequestFilter, security exceptions | 2h | ✅ |
-| T08.3 | Update both services to depend on common-security | 1h | ✅ |
-| T08.4 | Verify both services still work | 1h | ✅ |
-
----
-
-### Story S08a: Common Security Unit Tests ✅
-> Branch: `feature/S08a-common-security-tests`
-
-**Why:** Ensure shared security components are robust and bug-free.
-
-**Acceptance Criteria:**
-- [x] JwtUtil has unit tests (generate, validate, extract)
-- [x] JwtRequestFilter has unit tests (mocked chain)
-- [x] SecurityExceptions are tested
-- [x] Coverage for common-security module > 80%
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T08a.1 | Add test dependencies to common-security pom.xml | 30m | ✅ JUnit 5, Mockito |
-| T08a.2 | Write JwtUtilTest | 2h | ✅ Test token generation & validation |
-| T08a.3 | Write JwtRequestFilterTest | 2h | ✅ Mock FilterChain and UserDetailsService |
-| T08a.4 | Configure JaCoCo for common-security | 30m | ✅ |
-
-**Files to Create:**
-- `common-security/src/test/java/com/splitz/security/JwtUtilTest.java`
-- `common-security/src/test/java/com/splitz/security/JwtRequestFilterTest.java`
-
----
-
-## Phase 3: Expense Service Foundation ✅
-> **Goal:** Bootable expense service with core entities and CRUD  
-> **Duration:** ~5 days
-
-### Story S09: Expense Service Bootstrap ✅
-> Branch: `feature/S09-expense-service-bootstrap`
-
-**Why:** Need a running Spring Boot app before adding features.
-
-**Acceptance Criteria:**
-- [x] Spring Boot app starts on port 8081
-- [x] H2 console available in dev mode
-- [x] Flyway runs migrations
-- [x] Actuator health endpoint responds
-- [x] JWT authentication works (using common-security)
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T09.1 | Update expense-service pom.xml with dependencies | 1h | ✅ web, security, jpa, flyway, h2, etc. |
-| T09.2 | Create ExpenseServiceApplication main class | 30m | ✅ |
-| T09.3 | Create application.properties (dev profile) | 30m | ✅ Port 8081, H2, Flyway |
-| T09.4 | Configure SecurityConfig using common-security | 1h | ✅ Use JwtUtil, JwtRequestFilter from common |
-| T09.5 | Create V1 Flyway migration (empty baseline) | 15m | ✅ |
-| T09.6 | Verify app starts and health endpoint works | 30m | ✅ |
-
-**Files to Create:**
-- `expense-service/src/main/java/com/splitz/expense/ExpenseServiceApplication.java`
-- `expense-service/src/main/resources/application.properties`
-- `expense-service/src/main/resources/application-dev.properties`
-- `expense-service/src/main/java/com/splitz/expense/config/SecurityConfig.java`
-- `expense-service/src/main/java/com/splitz/expense/security/JwtUtil.java`
-- `expense-service/src/main/java/com/splitz/expense/security/JwtRequestFilter.java`
-- `expense-service/src/main/resources/db/migration/V1__baseline.sql`
-
----
-
-### Story S10: Category Entity & Seeding ✅
-> Branch: `feature/S10-category-entity`
-
-**Why:** Expenses need categories. Seed defaults so users can start immediately.
-
-**Acceptance Criteria:**
-- [x] Category entity: id, name, icon, color, defaultCategory, createdAt
-- [x] Flyway migration creates table and seeds defaults
-- [x] Default categories: Food, Transport, Entertainment, Utilities, Shopping, Other
-- [x] GET /categories returns all categories
-- [x] Default categories cannot be deleted
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T10.1 | Write Category entity test | 30m | ✅ |
-| T10.2 | Create Category entity and repository | 1h | ✅ |
-| T10.3 | Create Flyway migration with seed data | 30m | ✅ |
-| T10.4 | Create CategoryService (read-only for MVP) | 1h | ✅ |
-| T10.5 | Create CategoryController with GET endpoint | 1h | ✅ |
-| T10.6 | Write controller tests | 1h | ✅ |
-
-**Files to Create:**
-- `expense-service/src/main/java/com/splitz/expense/model/Category.java`
-- `expense-service/src/main/java/com/splitz/expense/repository/CategoryRepository.java`
-- `expense-service/src/main/java/com/splitz/expense/service/CategoryService.java`
-- `expense-service/src/main/java/com/splitz/expense/controller/CategoryController.java`
-- `expense-service/src/main/java/com/splitz/expense/dto/CategoryDTO.java`
-- `expense-service/src/main/resources/db/migration/V2__create_category_table.sql`
-- Tests for all above
-
----
-
-### Story S11: Group Entity & CRUD ✅
-> Branch: `feature/S11-group-entity`
-
-**Why:** Groups are containers for shared expenses.
-
-**Acceptance Criteria:**
-- [x] Group entity: id, name, description, imageUrl, createdBy, isActive, timestamps
-- [x] GroupMember entity: id, groupId, userId, role (ADMIN/MEMBER), joinedAt
-- [x] Group creator automatically becomes ADMIN member
-- [x] CRUD endpoints: create, get, list (user's groups), update, soft-delete
-- [x] Only group ADMINs can update/delete group
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T11.1 | Write Group and GroupMember entity tests | 1h | ✅ |
-| T11.2 | Create entities, enums, repositories | 2h | ✅ |
-| T11.3 | Create Flyway migration | 30m | ✅ |
-| T11.4 | Write GroupService unit tests | 2h | ✅ |
-| T11.5 | Implement GroupService | 2h | ✅ |
-| T11.6 | Write GroupController tests | 1h | ✅ |
-| T11.7 | Implement GroupController | 1h | ✅ |
-
-**Entity Design:**
-```java
-Group {
-  id: Long
-  name: String (required)
-  description: String
-  imageUrl: String
-  createdBy: Long (userId)
-  isActive: boolean (default true)
-  createdAt, updatedAt: LocalDateTime
-}
-
-GroupMember {
-  id: Long
-  group: Group (ManyToOne)
-  userId: Long
-  role: GroupRole (ADMIN, MEMBER)
-  joinedAt: LocalDateTime
-}
-```
-
-**API Endpoints:**
-- POST /groups — create group
-- GET /groups — list user's groups
-- GET /groups/{id} — get group details with members
-- PUT /groups/{id} — update group (admin only)
-- DELETE /groups/{id} — soft delete (admin only)
-- POST /groups/{id}/members — add member (admin only)
-- DELETE /groups/{id}/members/{userId} — remove member
-
----
-
-### Story S12: Expense Entity & Basic CRUD ✅
-> Branch: `feature/S12-expense-entity`
-
-**Why:** Core feature — tracking who paid what.
-
-**Acceptance Criteria:**
-- [x] Expense entity with all fields per ERD
-- [x] Only group members can create expenses in that group
-- [x] Payer must be a group member
-- [x] CRUD: create, get, list by group, update, delete
-- [x] Only expense creator or group admin can update/delete
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T12.1 | Write Expense entity tests | 1h | ✅ |
-| T12.2 | Create Expense entity and repository | 1h | ✅ |
-| T12.3 | Create Flyway migration | 30m | ✅ |
-| T12.4 | Write ExpenseService unit tests | 2h | ✅ |
-| T12.5 | Implement ExpenseService | 2h | ✅ |
-| T12.6 | Write ExpenseController tests | 1h | ✅ |
-| T12.7 | Implement ExpenseController | 1h | ✅ |
-
-**Entity Design:**
-```java
-Expense {
-  id: Long
-  group: Group (ManyToOne)
-  description: String (required)
-  amount: BigDecimal (required, > 0)
-  currency: String (default "EUR")
-  paidBy: Long (userId)
-  category: Category (ManyToOne)
-  expenseDate: LocalDate
-  notes: String
-  receiptUrl: String
-  createdAt, updatedAt: LocalDateTime
-}
-```
-
----
-
-### Story S13: Expense Splits (EQUAL & EXACT) ✅
-> Branch: `feature/S13-expense-splits`
-
-**Why:** Core feature — tracking who owes what.
-
-**Acceptance Criteria:**
-- [x] ExpenseSplit entity: expenseId, userId, splitType, splitValue, shareAmount
-- [x] EQUAL split: divide amount equally among specified users
-- [x] EXACT split: specify exact amount per user (must sum to total)
-- [x] Splits created when expense is created
-- [x] GET /expenses/{id} includes splits
-- [x] Validation: split amounts must equal expense amount
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T13.1 | Write split calculation tests | 2h | ✅ Test EQUAL and EXACT scenarios |
-| T13.2 | Create ExpenseSplit entity | 1h | ✅ |
-| T13.3 | Implement split calculation in ExpenseService | 2h | ✅ |
-| T13.4 | Update expense creation to include splits | 1h | ✅ |
-| T13.5 | Create Flyway migration | 30m | ✅ |
-
-**Split Types:**
-```java
-// EQUAL: Split 90 among 3 people = 30 each
-// EXACT: { userId1: 50, userId2: 25, userId3: 15 } = 90 total
-```
-
----
-
-### Story S14: Balance Calculation ✅
-> Branch: `feature/S14-balance-calculation`
-
-**Why:** Users need to see who owes whom.
-
-**Acceptance Criteria:**
-- [x] GET /groups/{id}/balances — returns balance per member
-- [x] Balance = amount paid - amount owed
-- [x] Positive = others owe you, Negative = you owe others
-- [x] GET /users/{id}/balances — user's balances across all groups
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T14.1 | Write balance calculation tests | 2h | ✅ Various scenarios |
-| T14.2 | Implement BalanceService | 2h | ✅ |
-| T14.3 | Create BalanceController | 1h | ✅ |
-| T14.4 | Create BalanceDTO | 30m | ✅ |
-
-**Example:**
-```
-Group: Roommates
-Expense: Groceries $60, paid by Alice, split EQUAL (Alice, Bob, Carol)
-→ Alice: +40 (paid 60, owes 20)
-→ Bob: -20 (paid 0, owes 20)
-→ Carol: -20 (paid 0, owes 20)
-```
-
----
-
-### Story S15: Settlement Tracking ✅
-> Branch: `feature/S15-settlements`
-
-**Why:** Track when debts are paid off.
-
-**Acceptance Criteria:**
-- [x] Settlement entity: groupId, payerId, payeeId, amount, status, timestamps
-- [x] Status flow: PENDING → MARKED_PAID → COMPLETED
-- [x] Payer marks as paid, Payee confirms
-- [x] Settlements reduce calculated balances
-- [x] CRUD: create, list by group, update status
-
-**Tasks:**
-| ID | Task | Est | Notes |
-|----|------|-----|-------|
-| T15.1 | Write Settlement entity and status tests | 1h | ✅ |
-| T15.2 | Create Settlement entity and repository | 1h | ✅ |
-| T15.3 | Write SettlementService tests | 2h | ✅ |
-| T15.4 | Implement SettlementService | 2h | ✅ |
-| T15.5 | Implement SettlementController | 1h | ✅ |
-| T15.6 | Create Flyway migration | 30m | ✅ |
-
----
-
-## Phase 4-7: High-Level Overview
-
-> Detailed breakdown will be added when we reach these phases.
-
-### Phase 4: Integration & Polish (~3 days)
-- Wire user-service ↔ expense-service communication (REST client)
-- End-to-end integration tests with both services
-- OpenAPI documentation for expense-service
-- Error handling standardization
-- Performance baseline (response times)
-
-### Phase 5: Containerization (~3 days)
-- Dockerfile for expense-service
-- docker-compose.yml with both services + PostgreSQL
-- Environment-based configuration (.env files)
-- Health checks and startup ordering
-- Local development documentation
-
-### Phase 6: Enhanced Features (~5 days)
-- PERCENTAGE split type
-- Recurring expenses
-- User-defined categories
-- Export (CSV/PDF)
-- Basic analytics endpoints
-- Email notification stubs
-
-### Phase 7: Production Readiness (~5 days)
-- Structured logging with correlation IDs
-- Metrics (Micrometer/Prometheus)
-- Rate limiting
-- Security hardening (CORS, headers, input validation)
-- CI/CD for Docker builds
-- Deployment documentation
+1. Preferred client style for service-to-service calls: **WebClient/RestTemplate** or **OpenFeign**? (I recommend WebClient to start.)
+2. Preferred consumer contract tool: **Spring Cloud Contract** or **Pact**? (Spring Cloud Contract is JVM-native and integrates well with Spring tests.)
+3. Use Postgres as canonical runtime for dev and CI (recommended) — yes or no?
+4. Where should E2E tests live: a dedicated `integration-tests/` module, or within `ci`/`integration` folders? (I prefer a top-level `integration-tests/` for clarity.)
+5. Do you want a `Makefile` with dev commands, or only README instructions? (I can add both.)
 
 ---
 
@@ -752,5 +329,5 @@ git push
 
 ---
 
-*Roadmap maintained by: Asad Soomro*  
+*Roadmap maintained by: Abdul Moiz Soomro*  
 *Last major update: December 31, 2025*
