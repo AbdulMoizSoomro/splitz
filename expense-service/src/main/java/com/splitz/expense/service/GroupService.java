@@ -1,5 +1,6 @@
 package com.splitz.expense.service;
 
+import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
@@ -26,6 +27,7 @@ public class GroupService {
   private final GroupRepository groupRepository;
   private final GroupMemberRepository groupMemberRepository;
   private final GroupMapper groupMapper;
+  private final UserClient userClient;
 
   public GroupDTO createGroup(CreateGroupRequest request, Long currentUserId) {
     Group group =
@@ -88,6 +90,10 @@ public class GroupService {
 
     if (groupMemberRepository.existsByGroupIdAndUserId(groupId, request.getUserId())) {
       throw new IllegalArgumentException("User is already a member of this group");
+    }
+
+    if (!userClient.existsById(request.getUserId())) {
+      throw new ResourceNotFoundException("User not found with id: " + request.getUserId());
     }
 
     GroupRole role = Optional.ofNullable(request.getRole()).orElse(GroupRole.MEMBER);

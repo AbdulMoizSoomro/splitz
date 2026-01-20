@@ -1,6 +1,8 @@
 package com.splitz.expense.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -10,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.UpdateGroupRequest;
@@ -27,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -49,6 +53,8 @@ public class GroupControllerIntegrationTest {
 
   @Autowired private GroupMemberRepository groupMemberRepository;
 
+  @MockBean private UserClient userClient;
+
   private String tokenFor(long userId) {
     var user =
         User.withUsername(String.valueOf(userId)).password("").authorities(List.of()).build();
@@ -59,6 +65,7 @@ public class GroupControllerIntegrationTest {
   void before() {
     groupMemberRepository.deleteAll();
     groupRepository.deleteAll();
+    when(userClient.existsById(anyLong())).thenReturn(true);
   }
 
   @AfterEach
