@@ -1,9 +1,11 @@
 package com.splitz.expense.service;
 
+import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.BalanceDTO;
 import com.splitz.expense.dto.DebtDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
+import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
@@ -33,6 +35,7 @@ public class BalanceService {
   private final GroupMemberRepository groupMemberRepository;
   private final GroupRepository groupRepository;
   private final SettlementRepository settlementRepository;
+  private final UserClient userClient;
 
   @Transactional(readOnly = true)
   public GroupBalanceResponseDTO getGroupBalances(Long groupId) {
@@ -78,12 +81,28 @@ public class BalanceService {
       }
     }
 
+    // Fetch user details for enrichment
+    List<Long> userIds = new ArrayList<>(balances.keySet());
+    List<UserResponse> userResponses = userClient.getUsersByIds(userIds);
+    Map<Long, UserResponse> userMap = new HashMap<>();
+    userResponses.forEach(u -> userMap.put(u.getId(), u));
+
     List<BalanceDTO> balanceDTOs = new ArrayList<>();
     balances.forEach(
-        (userId, balance) ->
-            balanceDTOs.add(BalanceDTO.builder().userId(userId).balance(balance).build()));
+        (userId, balance) -> {
+          UserResponse user = userMap.get(userId);
+          balanceDTOs.add(
+              BalanceDTO.builder()
+                  .userId(userId)
+                  .username(user != null ? user.getUsername() : null)
+                  .email(user != null ? user.getEmail() : null)
+                  .firstName(user != null ? user.getFirstName() : null)
+                  .lastName(user != null ? user.getLastName() : null)
+                  .balance(balance)
+                  .build());
+        });
 
-    List<DebtDTO> simplifiedDebts = simplifyDebts(balances);
+    List<DebtDTO> simplifiedDebts = simplifyDebts(balances, userMap);
 
     return GroupBalanceResponseDTO.builder()
         .groupId(groupId)
@@ -121,14 +140,19 @@ public class BalanceService {
       totalBalance = totalBalance.add(userBalance);
     }
 
+    UserResponse user = userClient.getUserById(userId).orElse(null);
+
     return UserBalanceResponseDTO.builder()
         .userId(userId)
+        .username(user != null ? user.getUsername() : null)
+        .email(user != null ? user.getEmail() : null)
         .totalBalance(totalBalance)
         .groupBalances(groupBalances)
         .build();
   }
 
-  private List<DebtDTO> simplifyDebts(Map<Long, BigDecimal> balances) {
+  private List<DebtDTO> simplifyDebts(
+      Map<Long, BigDecimal> balances, Map<Long, UserResponse> userMap) {
     List<DebtDTO> debts = new ArrayList<>();
 
     // Creditors (balance > 0) and Debtors (balance < 0)
@@ -152,10 +176,15 @@ public class BalanceService {
 
       BigDecimal amountToSettle = creditor.amount.min(debtor.amount.abs());
 
+      UserResponse fromUser = userMap.get(debtor.userId);
+      UserResponse toUser = userMap.get(creditor.userId);
+
       debts.add(
           DebtDTO.builder()
               .from(debtor.userId)
+              .fromUsername(fromUser != null ? fromUser.getUsername() : null)
               .to(creditor.userId)
+              .toUsername(toUser != null ? toUser.getUsername() : null)
               .amount(amountToSettle.setScale(2, RoundingMode.HALF_UP))
               .build());
 

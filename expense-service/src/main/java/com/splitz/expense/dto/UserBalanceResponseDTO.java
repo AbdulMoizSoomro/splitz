@@ -14,6 +14,8 @@ import lombok.NoArgsConstructor;
 public class UserBalanceResponseDTO {
 
   private Long userId;
+  private String username;
+  private String email;
   private BigDecimal totalBalance;
   private List<GroupBalanceDTO> groupBalances;
 

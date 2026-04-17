@@ -73,6 +73,7 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ## User Journeys
 
 ### Journey 1: New User Registration
+
 ```
 1. User visits /users (POST) with email, username, password
 2. Account created with ROLE_USER
@@ -81,6 +82,7 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ```
 
 ### Journey 2: Adding a Friend
+
 ```
 1. User searches for friend via /users/search?query=john
 2. User sends friend request POST /users/{myId}/friends
@@ -90,6 +92,7 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ```
 
 ### Journey 3: Creating a Group Expense
+
 ```
 1. User creates group POST /groups { name: "Roommates" }
 2. User adds friends POST /groups/{id}/members { userId: 123 }
@@ -107,6 +110,7 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ```
 
 ### Journey 4: Settling Up
+
 ```
 1. User B owes User A $20
 2. User B pays User A (outside app - cash/Venmo/etc)
@@ -124,6 +128,7 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ### Authentication
 
 **POST /authenticate**
+
 ```json
 // Request
 { "username": "john", "password": "secret123" }
@@ -135,6 +140,7 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ### Groups
 
 **POST /groups**
+
 ```json
 // Request (Auth required)
 { 
@@ -156,6 +162,7 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ### Expenses
 
 **POST /groups/{groupId}/expenses**
+
 ```json
 // Request (Auth required, must be group member)
 {
@@ -187,6 +194,7 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ### Balances
 
 **GET /groups/{groupId}/balances**
+
 ```json
 // Response 200
 {
@@ -311,17 +319,20 @@ Settlement
 ## Technical Requirements
 
 ### Performance Targets
+
 - API response time: < 500ms (p95)
 - Concurrent users: 100 (dev/staging)
 - Database: H2 (dev), PostgreSQL (prod-ready)
 
 ### Security Requirements
+
 - All passwords BCrypt hashed
 - JWT tokens expire in 24 hours
 - HTTPS required in production
 - No sensitive data in logs
 
 ### Quality Requirements
+
 - Test coverage: ≥60%
 - All endpoints have integration tests
 - No critical/high security vulnerabilities
@@ -360,6 +371,7 @@ Before tagging v0.0.1:
 ## Post-MVP (v0.1.0 Preview)
 
 After MVP is stable, next priorities:
+
 1. PERCENTAGE split type
 2. Email notifications (welcome, expense added)
 3. Receipt URL handling

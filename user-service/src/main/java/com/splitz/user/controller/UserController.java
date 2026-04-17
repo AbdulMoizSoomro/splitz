@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -92,6 +93,22 @@ public class UserController {
       @Parameter(description = "ID of the user to retrieve") @PathVariable("id") Long id) {
     Optional<UserDTO> user = userService.getUserbyId(id);
     return user.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+  }
+
+  // Get multiple users by IDs
+  @Operation(
+      summary = "Get multiple users by IDs",
+      description = "Returns a list of users matching the provided IDs. Requires authentication.",
+      responses = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved users")
+      })
+  @GetMapping("/bulk")
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<List<UserDTO>> getUsersByIds(
+      @Parameter(description = "List of user IDs to retrieve") @RequestParam("ids") @Size(max = 100)
+          List<Long> ids) {
+    List<UserDTO> users = userService.getUsersByIds(ids);
+    return ResponseEntity.ok(users);
   }
 
   // Update user - only owner or admin

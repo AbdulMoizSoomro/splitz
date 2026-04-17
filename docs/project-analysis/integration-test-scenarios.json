@@ -1,0 +1,498 @@
+{
+  "testScenarios": [
+    {
+      "id": "SCENARIO-001",
+      "name": "User Registration & Authentication",
+      "description": "Validates user registration and JWT authentication flow",
+      "service": "user-service",
+      "metrics": ["User Journey Completion Success Rate"],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /users",
+          "description": "Register new user",
+          "payload": {
+            "username": "john_doe",
+            "email": "john@example.com",
+            "password": "SecurePass123!",
+            "firstName": "John",
+            "lastName": "Doe"
+          },
+          "expectedStatus": 201,
+          "expectedFields": ["id", "username", "email", "firstName", "enabled"]
+        },
+        {
+          "step": 2,
+          "action": "POST /authenticate",
+          "description": "Authenticate with credentials",
+          "payload": {
+            "username": "john_doe",
+            "password": "SecurePass123!"
+          },
+          "expectedStatus": 200,
+          "expectedFields": ["token"]
+        },
+        {
+          "step": 3,
+          "action": "GET /users/{id}",
+          "description": "Retrieve registered user (requires authentication)",
+          "headers": {
+            "Authorization": "Bearer {token_from_step_2}"
+          },
+          "expectedStatus": 200,
+          "expectedFields": ["id", "username", "email", "firstName"]
+        }
+      ],
+      "successCriteria": "All 3 steps return expected status codes and contain required fields"
+    },
+    {
+      "id": "SCENARIO-002",
+      "name": "Friendship Management Workflow",
+      "description": "Tests complete friendship lifecycle (request → accept)",
+      "service": "user-service",
+      "metrics": ["User Journey Completion Success Rate"],
+      "prerequisites": [
+        "User 1 must be registered (john_doe)",
+        "User 2 must be registered (jane_smith)"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /users/{userId}/friends",
+          "description": "User 1 sends friend request to User 2",
+          "variables": {
+            "userId": "{user1_id}",
+            "targetUserId": "{user2_id}"
+          },
+          "payload": {
+            "targetUserId": "{user2_id}"
+          },
+          "expectedStatus": 201,
+          "expectedFields": ["id", "status"]
+        },
+        {
+          "step": 2,
+          "action": "GET /users/{userId}/friends/requests",
+          "description": "User 2 checks pending friend requests",
+          "variables": {
+            "userId": "{user2_id}"
+          },
+          "expectedStatus": 200,
+          "expectedFields": ["content"],
+          "validation": "Response contains User 1's friend request with status PENDING"
+        },
+        {
+          "step": 3,
+          "action": "PUT /users/{userId}/friends/{friendshipId}/accept",
+          "description": "User 2 accepts friend request",
+          "variables": {
+            "userId": "{user2_id}",
+            "friendshipId": "{friendship_id_from_step_1}"
+          },
+          "expectedStatus": 200,
+          "expectedFields": ["status"],
+          "validation": "Status changed from PENDING to ACCEPTED"
+        },
+        {
+          "step": 4,
+          "action": "GET /users/{userId}/friends",
+          "description": "Verify users are now friends",
+          "variables": {
+            "userId": "{user1_id}"
+          },
+          "expectedStatus": 200,
+          "validation": "User 2 appears in User 1's friends list"
+        }
+      ],
+      "successCriteria": "All 4 steps complete and friendship status transitions from PENDING to ACCEPTED"
+    },
+    {
+      "id": "SCENARIO-003",
+      "name": "Group Expense Creation & Balance Calculation",
+      "description": "Full integration test: create group → add members → create expense → verify balances",
+      "services": ["user-service", "expense-service"],
+      "metrics": [
+        "User Journey Completion Success Rate",
+        "Service-to-Service Communication Success"
+      ],
+      "prerequisites": [
+        "User 1 (john_doe) registered and authenticated",
+        "User 2 (jane_smith) registered and authenticated",
+        "User 3 (bob_jones) registered and authenticated",
+        "All users are friends with each other"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /groups",
+          "service": "expense-service",
+          "description": "User 1 creates a new group",
+          "payload": {
+            "name": "Apartment Expenses",
+            "description": "Monthly shared expenses for apartment 4B"
+          },
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 201,
+          "expectedFields": ["id", "name", "createdBy", "members"]
+        },
+        {
+          "step": 2,
+          "action": "POST /groups/{groupId}/members",
+          "service": "expense-service",
+          "description": "Add User 2 to the group (triggers User Service lookup)",
+          "variables": {
+            "groupId": "{group_id_from_step_1}"
+          },
+          "payload": {
+            "userId": "{user2_id}"
+          },
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 201,
+          "crossServiceCall": {
+            "target": "user-service",
+            "operation": "GET /users/{user2_id}",
+            "validation": "User Service validates user exists"
+          }
+        },
+        {
+          "step": 3,
+          "action": "POST /groups/{groupId}/members",
+          "service": "expense-service",
+          "description": "Add User 3 to the group",
+          "variables": {
+            "groupId": "{group_id_from_step_1}"
+          },
+          "payload": {
+            "userId": "{user3_id}"
+          },
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 201
+        },
+        {
+          "step": 4,
+          "action": "POST /groups/{groupId}/expenses",
+          "service": "expense-service",
+          "description": "Create expense: User 1 paid 90 EUR for groceries (split equally among 3 users)",
+          "variables": {
+            "groupId": "{group_id_from_step_1}"
+          },
+          "payload": {
+            "description": "Groceries shopping",
+            "amount": 90.0,
+            "currency": "EUR",
+            "paidBy": "{user1_id}",
+            "categoryId": 1,
+            "expenseDate": "2026-01-20",
+            "splitType": "EQUAL",
+            "splitAmong": ["{user1_id}", "{user2_id}", "{user3_id}"]
+          },
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 201,
+          "expectedFields": ["id", "amount", "splits"]
+        },
+        {
+          "step": 5,
+          "action": "GET /groups/{groupId}/balances",
+          "service": "expense-service",
+          "description": "Calculate group balances",
+          "variables": {
+            "groupId": "{group_id_from_step_1}"
+          },
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 200,
+          "validation": {
+            "user1_balance": 60.0,
+            "user2_balance": -30.0,
+            "user3_balance": -30.0
+          }
+        }
+      ],
+      "successCriteria": "All steps succeed and balance calculation is correct (User 1: +60, User 2: -30, User 3: -30)"
+    },
+    {
+      "id": "SCENARIO-004",
+      "name": "Settlement Workflow & Data Consistency",
+      "description": "Tests settlement creation, payment marking, and data consistency across services",
+      "services": ["user-service", "expense-service"],
+      "metrics": [
+        "User Journey Completion Success Rate",
+        "Data Consistency Across Services"
+      ],
+      "prerequisites": [
+        "Group created with 3 members (from SCENARIO-003)",
+        "Expense created with balances: User 1: +60, User 2: -30, User 3: -30"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /settlements",
+          "service": "expense-service",
+          "description": "User 2 creates settlement to pay User 1 30 EUR",
+          "payload": {
+            "groupId": "{group_id}",
+            "payerId": "{user2_id}",
+            "payeeId": "{user1_id}",
+            "amount": 30.0
+          },
+          "headers": {
+            "Authorization": "Bearer {user2_token}"
+          },
+          "expectedStatus": 201,
+          "expectedFields": ["id", "status"],
+          "validation": "Status is PENDING"
+        },
+        {
+          "step": 2,
+          "action": "PUT /settlements/{settlementId}/mark-paid",
+          "service": "expense-service",
+          "description": "User 2 marks settlement as paid",
+          "variables": {
+            "settlementId": "{settlement_id_from_step_1}"
+          },
+          "headers": {
+            "Authorization": "Bearer {user2_token}"
+          },
+          "expectedStatus": 200,
+          "validation": "Status changed from PENDING to MARKED_PAID"
+        },
+        {
+          "step": 3,
+          "action": "PUT /settlements/{settlementId}/confirm",
+          "service": "expense-service",
+          "description": "User 1 confirms payment received",
+          "variables": {
+            "settlementId": "{settlement_id_from_step_1}"
+          },
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 200,
+          "validation": "Status changed from MARKED_PAID to COMPLETED"
+        },
+        {
+          "step": 4,
+          "action": "GET /groups/{groupId}/balances",
+          "service": "expense-service",
+          "description": "Verify updated balances after settlement",
+          "variables": {
+            "groupId": "{group_id}"
+          },
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 200,
+          "validation": {
+            "user1_balance": 30.0,
+            "user2_balance": 0.0,
+            "user3_balance": -30.0
+          }
+        },
+        {
+          "step": 5,
+          "action": "GET /users/{userId}",
+          "service": "user-service",
+          "description": "Verify User Service data consistency (should still have complete user data)",
+          "variables": {
+            "userId": "{user2_id}"
+          },
+          "headers": {
+            "Authorization": "Bearer {user2_token}"
+          },
+          "expectedStatus": 200,
+          "validation": "User data is intact and accessible"
+        }
+      ],
+      "successCriteria": "Settlement completes successfully and balances update correctly"
+    },
+    {
+      "id": "SCENARIO-005",
+      "name": "Multiple Expenses & Debt Simplification",
+      "description": "Tests complex balance calculations with multiple expenses and debt simplification",
+      "services": ["expense-service"],
+      "metrics": ["User Journey Completion Success Rate"],
+      "prerequisites": ["Group with 4 members created", "All members active"],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /groups/{groupId}/expenses",
+          "service": "expense-service",
+          "description": "User 1 pays 100 EUR for dinner (split equally among 4)",
+          "payload": {
+            "description": "Restaurant dinner",
+            "amount": 100.0,
+            "paidBy": "{user1_id}",
+            "splitType": "EQUAL",
+            "splitAmong": [
+              "{user1_id}",
+              "{user2_id}",
+              "{user3_id}",
+              "{user4_id}"
+            ]
+          },
+          "expectedStatus": 201
+        },
+        {
+          "step": 2,
+          "action": "POST /groups/{groupId}/expenses",
+          "service": "expense-service",
+          "description": "User 2 pays 80 EUR for drinks (split equally among 4)",
+          "payload": {
+            "description": "Drinks and beverages",
+            "amount": 80.0,
+            "paidBy": "{user2_id}",
+            "splitType": "EQUAL",
+            "splitAmong": [
+              "{user1_id}",
+              "{user2_id}",
+              "{user3_id}",
+              "{user4_id}"
+            ]
+          },
+          "expectedStatus": 201
+        },
+        {
+          "step": 3,
+          "action": "POST /groups/{groupId}/expenses",
+          "service": "expense-service",
+          "description": "User 3 pays 60 EUR for dessert (split equally among 4)",
+          "payload": {
+            "description": "Dessert and coffee",
+            "amount": 60.0,
+            "paidBy": "{user3_id}",
+            "splitType": "EQUAL",
+            "splitAmong": [
+              "{user1_id}",
+              "{user2_id}",
+              "{user3_id}",
+              "{user4_id}"
+            ]
+          },
+          "expectedStatus": 201
+        },
+        {
+          "step": 4,
+          "action": "GET /groups/{groupId}/balances",
+          "service": "expense-service",
+          "description": "Get simplified debt settlement suggestions",
+          "variables": {
+            "groupId": "{group_id}"
+          },
+          "expectedStatus": 200,
+          "validation": {
+            "simplifiedDebts": "Should contain minimal number of transactions to settle all debts",
+            "balanceConsistency": "Sum of all balances should equal zero"
+          }
+        }
+      ],
+      "successCriteria": "Multiple expenses are correctly tracked and debt simplification reduces settlement transactions"
+    },
+    {
+      "id": "SCENARIO-006",
+      "name": "Error Handling: Invalid Data & Authorization",
+      "description": "Tests error handling for invalid inputs and unauthorized access",
+      "services": ["user-service", "expense-service"],
+      "metrics": ["User Journey Completion Success Rate"],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /users",
+          "description": "Attempt to register with invalid email",
+          "payload": {
+            "username": "invalid_user",
+            "email": "not-an-email",
+            "password": "SecurePass123!",
+            "firstName": "Invalid"
+          },
+          "expectedStatus": 400,
+          "expectedFields": ["detail", "title"],
+          "validation": "Returns validation error"
+        },
+        {
+          "step": 2,
+          "action": "POST /authenticate",
+          "description": "Attempt authentication with wrong password",
+          "payload": {
+            "username": "john_doe",
+            "password": "WrongPassword"
+          },
+          "expectedStatus": 401,
+          "validation": "Returns authentication error"
+        },
+        {
+          "step": 3,
+          "action": "POST /groups/{groupId}/members",
+          "service": "expense-service",
+          "description": "User 2 attempts to add member to group created by User 1 (unauthorized)",
+          "variables": {
+            "groupId": "{group_id_owned_by_user1}"
+          },
+          "payload": {
+            "userId": "{user3_id}"
+          },
+          "headers": {
+            "Authorization": "Bearer {user2_token}"
+          },
+          "expectedStatus": 403,
+          "validation": "Returns access denied error"
+        },
+        {
+          "step": 4,
+          "action": "GET /groups/999999",
+          "service": "expense-service",
+          "description": "Attempt to access non-existent group",
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 404,
+          "validation": "Returns not found error"
+        },
+        {
+          "step": 5,
+          "action": "POST /groups/{groupId}/members",
+          "service": "expense-service",
+          "description": "Attempt to add non-existent user to group (cross-service error)",
+          "variables": {
+            "groupId": "{group_id}"
+          },
+          "payload": {
+            "userId": 999999
+          },
+          "headers": {
+            "Authorization": "Bearer {user1_token}"
+          },
+          "expectedStatus": 404,
+          "crossServiceCall": {
+            "target": "user-service",
+            "operation": "GET /users/999999",
+            "expectedResponse": 404
+          },
+          "validation": "Returns user not found error from User Service"
+        }
+      ],
+      "successCriteria": "All error scenarios return appropriate HTTP status codes and error messages"
+    }
+  ],
+  "metadata": {
+    "generatedDate": "2026-01-20",
+    "totalScenarios": 6,
+    "totalSteps": 28,
+    "services": ["user-service", "expense-service"],
+    "mvpJourneysCovered": [
+      "Journey 1: New User Registration",
+      "Journey 2: Adding Friends",
+      "Journey 3: Creating Group Expenses",
+      "Journey 4: Settling Payments"
+    ],
+    "notes": "These scenarios cover MVP functionality and cross-service integration. Variables in curly braces (e.g., {user1_id}) should be replaced with actual values during test execution."
+  }
+}

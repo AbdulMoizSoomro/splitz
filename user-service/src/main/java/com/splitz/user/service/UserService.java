@@ -50,6 +50,10 @@ public class UserService implements UserDetailsService {
     return userRepository.findById(id).map(userMapper::toDTO);
   }
 
+  public List<UserDTO> getUsersByIds(List<Long> ids) {
+    return userRepository.findAllById(ids).stream().map(userMapper::toDTO).toList();
+  }
+
   public Optional<User> findByusername(String username) throws UsernameNotFoundException {
     return userRepository.findByusername(username);
   }

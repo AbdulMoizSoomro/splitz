@@ -184,6 +184,194 @@ class ExpenseServiceTest {
   }
 
   @Test
+  void createExpense_PercentageSplit_Success() {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Dinner")
+            .amount(new BigDecimal("100.00"))
+            .paidBy(100L)
+            .splitType(SplitType.PERCENTAGE)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).splitValue(new BigDecimal("50.00")).build(),
+                    SplitRequest.builder().userId(101L).splitValue(new BigDecimal("30.00")).build(),
+                    SplitRequest.builder()
+                        .userId(102L)
+                        .splitValue(new BigDecimal("20.00"))
+                        .build()))
+            .build();
+
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+    when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
+    when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
+
+    ExpenseDTO result = expenseService.createExpense(1L, request);
+
+    assertNotNull(result);
+    verify(expenseRepository).save(any(Expense.class));
+  }
+
+  @Test
+  void createExpense_PercentageSplit_InvalidSum_ThrowsException() {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Dinner")
+            .amount(new BigDecimal("100.00"))
+            .paidBy(100L)
+            .splitType(SplitType.PERCENTAGE)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).splitValue(new BigDecimal("50.00")).build(),
+                    SplitRequest.builder()
+                        .userId(101L)
+                        .splitValue(new BigDecimal("40.00"))
+                        .build()))
+            .build();
+
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+
+    assertThrows(IllegalArgumentException.class, () -> expenseService.createExpense(1L, request));
+  }
+
+  @Test
+  void createExpense_SharesSplit_Success() {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Dinner")
+            .amount(new BigDecimal("100.00"))
+            .paidBy(100L)
+            .splitType(SplitType.SHARES)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).splitValue(new BigDecimal("2")).build(),
+                    SplitRequest.builder().userId(101L).splitValue(new BigDecimal("1")).build(),
+                    SplitRequest.builder().userId(102L).splitValue(new BigDecimal("1")).build()))
+            .build();
+
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+    when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
+    when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
+
+    ExpenseDTO result = expenseService.createExpense(1L, request);
+
+    assertNotNull(result);
+    verify(expenseRepository).save(any(Expense.class));
+  }
+
+  @Test
+  void createExpense_SharesSplit_ZeroShares_ThrowsException() {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Dinner")
+            .amount(new BigDecimal("100.00"))
+            .paidBy(100L)
+            .splitType(SplitType.SHARES)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).splitValue(new BigDecimal("0")).build()))
+            .build();
+
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+
+    assertThrows(IllegalArgumentException.class, () -> expenseService.createExpense(1L, request));
+  }
+
+  @Test
+  void createExpense_AdjustmentSplit_Success() {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Dinner")
+            .amount(new BigDecimal("100.00"))
+            .paidBy(100L)
+            .splitType(SplitType.ADJUSTMENT)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).splitValue(new BigDecimal("10.00")).build(),
+                    SplitRequest.builder()
+                        .userId(101L)
+                        .splitValue(new BigDecimal("-10.00"))
+                        .build(),
+                    SplitRequest.builder().userId(102L).splitValue(new BigDecimal("0.00")).build(),
+                    SplitRequest.builder().userId(103L).splitValue(null).build()))
+            .build();
+
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+    when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
+    when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
+
+    ExpenseDTO result = expenseService.createExpense(1L, request);
+
+    assertNotNull(result);
+    verify(expenseRepository).save(any(Expense.class));
+  }
+
+  @Test
+  void createExpense_AdjustmentSplit_InvalidSum_ThrowsException() {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Dinner")
+            .amount(new BigDecimal("100.00"))
+            .paidBy(100L)
+            .splitType(SplitType.ADJUSTMENT)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).splitValue(new BigDecimal("10.00")).build(),
+                    SplitRequest.builder().userId(101L).splitValue(new BigDecimal("5.00")).build()))
+            .build();
+
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+
+    assertThrows(IllegalArgumentException.class, () -> expenseService.createExpense(1L, request));
+  }
+
+  @Test
+  void createExpense_EqualSplit_Rounding_Success() {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Rounding Test")
+            .amount(new BigDecimal("100.00"))
+            .paidBy(100L)
+            .splitType(SplitType.EQUAL)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).build(),
+                    SplitRequest.builder().userId(101L).build(),
+                    SplitRequest.builder().userId(102L).build()))
+            .build();
+
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+    when(expenseRepository.save(any(Expense.class)))
+        .thenAnswer(
+            invocation -> {
+              Expense savedExpense = invocation.getArgument(0);
+              assertEquals(3, savedExpense.getSplits().size());
+              BigDecimal sum =
+                  savedExpense.getSplits().stream()
+                      .map(ExpenseSplit::getShareAmount)
+                      .reduce(BigDecimal.ZERO, BigDecimal::add);
+              assertEquals(new BigDecimal("100.00"), sum);
+              // First person should get 33.34, others 33.33
+              assertEquals(
+                  new BigDecimal("33.34"), savedExpense.getSplits().get(0).getShareAmount());
+              assertEquals(
+                  new BigDecimal("33.33"), savedExpense.getSplits().get(1).getShareAmount());
+              assertEquals(
+                  new BigDecimal("33.33"), savedExpense.getSplits().get(2).getShareAmount());
+              return savedExpense;
+            });
+    when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
+
+    expenseService.createExpense(1L, request);
+  }
+
+  @Test
   void createExpense_GroupNotFound_ThrowsException() {
     CreateExpenseRequest request = CreateExpenseRequest.builder().build();
     when(groupRepository.findById(1L)).thenReturn(Optional.empty());
