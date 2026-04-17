@@ -68,13 +68,13 @@ class BalanceControllerTest {
             .groupId(1L)
             .balances(
                 Arrays.asList(
-                    new BalanceDTO(101L, new BigDecimal("40.00")),
-                    new BalanceDTO(102L, new BigDecimal("-20.00")),
-                    new BalanceDTO(103L, new BigDecimal("-20.00"))))
+                    BalanceDTO.builder().userId(101L).balance(new BigDecimal("40.00")).build(),
+                    BalanceDTO.builder().userId(102L).balance(new BigDecimal("-20.00")).build(),
+                    BalanceDTO.builder().userId(103L).balance(new BigDecimal("-20.00")).build()))
             .simplifiedDebts(
                 Arrays.asList(
-                    new DebtDTO(102L, 101L, new BigDecimal("20.00")),
-                    new DebtDTO(103L, 101L, new BigDecimal("20.00"))))
+                    DebtDTO.builder().from(102L).to(101L).amount(new BigDecimal("20.00")).build(),
+                    DebtDTO.builder().from(103L).to(101L).amount(new BigDecimal("20.00")).build()))
             .build();
 
     when(balanceService.getGroupBalances(1L)).thenReturn(response);

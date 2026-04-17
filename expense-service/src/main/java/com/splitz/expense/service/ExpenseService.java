@@ -79,57 +79,189 @@ public class ExpenseService {
   }
 
   private List<ExpenseSplit> calculateSplits(Expense expense, CreateExpenseRequest request) {
-    List<ExpenseSplit> splits = new ArrayList<>();
-    BigDecimal totalAmount = expense.getAmount();
-    SplitType splitType = request.getSplitType();
     List<SplitRequest> splitRequests = request.getSplits();
 
     if (splitRequests == null || splitRequests.isEmpty()) {
       throw new IllegalArgumentException("At least one split is required");
     }
 
-    if (splitType == SplitType.EQUAL) {
-      BigDecimal count = BigDecimal.valueOf(splitRequests.size());
-      BigDecimal shareAmount = totalAmount.divide(count, 2, RoundingMode.HALF_UP);
-      BigDecimal remainder = totalAmount.subtract(shareAmount.multiply(count));
+    BigDecimal totalAmount = expense.getAmount();
+    SplitType splitType = request.getSplitType();
 
-      for (int i = 0; i < splitRequests.size(); i++) {
-        SplitRequest sr = splitRequests.get(i);
-        BigDecimal amount = shareAmount;
-        if (i == 0) {
-          amount = amount.add(remainder);
-        }
-        splits.add(
-            ExpenseSplit.builder()
-                .expense(expense)
-                .userId(sr.getUserId())
-                .splitType(SplitType.EQUAL)
-                .shareAmount(amount)
-                .build());
-      }
-    } else if (splitType == SplitType.EXACT) {
-      BigDecimal sum = BigDecimal.ZERO;
-      for (SplitRequest sr : splitRequests) {
-        if (sr.getSplitValue() == null) {
-          throw new IllegalArgumentException("Split value is required for EXACT split");
-        }
-        sum = sum.add(sr.getSplitValue());
-        splits.add(
-            ExpenseSplit.builder()
-                .expense(expense)
-                .userId(sr.getUserId())
-                .splitType(SplitType.EXACT)
-                .splitValue(sr.getSplitValue())
-                .shareAmount(sr.getSplitValue())
-                .build());
-      }
+    switch (splitType) {
+      case EQUAL:
+        return calculateEqualSplits(expense, totalAmount, splitRequests);
+      case EXACT:
+        return calculateExactSplits(expense, totalAmount, splitRequests);
+      case PERCENTAGE:
+        return calculatePercentageSplits(expense, totalAmount, splitRequests);
+      case SHARES:
+        return calculateSharesSplits(expense, totalAmount, splitRequests);
+      case ADJUSTMENT:
+        return calculateAdjustmentSplits(expense, totalAmount, splitRequests);
+      default:
+        throw new IllegalArgumentException("Unsupported split type: " + splitType);
+    }
+  }
 
-      if (sum.compareTo(totalAmount) != 0) {
-        throw new IllegalArgumentException("Sum of splits must equal total amount");
+  private List<ExpenseSplit> calculateEqualSplits(
+      Expense expense, BigDecimal totalAmount, List<SplitRequest> splitRequests) {
+    List<ExpenseSplit> splits = new ArrayList<>();
+    BigDecimal count = BigDecimal.valueOf(splitRequests.size());
+    BigDecimal shareAmount = totalAmount.divide(count, 2, RoundingMode.HALF_UP);
+    BigDecimal remainder = totalAmount.subtract(shareAmount.multiply(count));
+
+    for (int i = 0; i < splitRequests.size(); i++) {
+      SplitRequest sr = splitRequests.get(i);
+      BigDecimal amount = shareAmount;
+      if (i == 0) {
+        amount = amount.add(remainder);
+      }
+      splits.add(
+          ExpenseSplit.builder()
+              .expense(expense)
+              .userId(sr.getUserId())
+              .splitType(SplitType.EQUAL)
+              .shareAmount(amount)
+              .build());
+    }
+    return splits;
+  }
+
+  private List<ExpenseSplit> calculateExactSplits(
+      Expense expense, BigDecimal totalAmount, List<SplitRequest> splitRequests) {
+    List<ExpenseSplit> splits = new ArrayList<>();
+    BigDecimal sum = BigDecimal.ZERO;
+    for (SplitRequest sr : splitRequests) {
+      if (sr.getSplitValue() == null) {
+        throw new IllegalArgumentException("Split value is required for EXACT split");
+      }
+      sum = sum.add(sr.getSplitValue());
+      splits.add(
+          ExpenseSplit.builder()
+              .expense(expense)
+              .userId(sr.getUserId())
+              .splitType(SplitType.EXACT)
+              .splitValue(sr.getSplitValue())
+              .shareAmount(sr.getSplitValue())
+              .build());
+    }
+
+    if (sum.compareTo(totalAmount) != 0) {
+      throw new IllegalArgumentException("Sum of splits must equal total amount");
+    }
+    return splits;
+  }
+
+  private List<ExpenseSplit> calculatePercentageSplits(
+      Expense expense, BigDecimal totalAmount, List<SplitRequest> splitRequests) {
+    List<ExpenseSplit> splits = new ArrayList<>();
+    BigDecimal totalPercentage = BigDecimal.ZERO;
+    BigDecimal sumShares = BigDecimal.ZERO;
+
+    for (SplitRequest sr : splitRequests) {
+      if (sr.getSplitValue() == null) {
+        throw new IllegalArgumentException("Percentage is required for PERCENTAGE split");
+      }
+      totalPercentage = totalPercentage.add(sr.getSplitValue());
+
+      BigDecimal shareAmount =
+          totalAmount
+              .multiply(sr.getSplitValue())
+              .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+      sumShares = sumShares.add(shareAmount);
+
+      splits.add(
+          ExpenseSplit.builder()
+              .expense(expense)
+              .userId(sr.getUserId())
+              .splitType(SplitType.PERCENTAGE)
+              .splitValue(sr.getSplitValue())
+              .shareAmount(shareAmount)
+              .build());
+    }
+
+    if (totalPercentage.compareTo(new BigDecimal("100")) != 0) {
+      throw new IllegalArgumentException("Sum of percentages must equal 100");
+    }
+
+    handleRemainder(totalAmount, sumShares, splits);
+    return splits;
+  }
+
+  private List<ExpenseSplit> calculateSharesSplits(
+      Expense expense, BigDecimal totalAmount, List<SplitRequest> splitRequests) {
+    List<ExpenseSplit> splits = new ArrayList<>();
+    BigDecimal totalShares = BigDecimal.ZERO;
+    for (SplitRequest sr : splitRequests) {
+      if (sr.getSplitValue() == null || sr.getSplitValue().compareTo(BigDecimal.ZERO) <= 0) {
+        throw new IllegalArgumentException("Shares must be positive for SHARES split");
+      }
+      totalShares = totalShares.add(sr.getSplitValue());
+    }
+
+    BigDecimal sumShares = BigDecimal.ZERO;
+    for (SplitRequest sr : splitRequests) {
+      BigDecimal shareAmount =
+          totalAmount.multiply(sr.getSplitValue()).divide(totalShares, 2, RoundingMode.HALF_UP);
+      sumShares = sumShares.add(shareAmount);
+      splits.add(
+          ExpenseSplit.builder()
+              .expense(expense)
+              .userId(sr.getUserId())
+              .splitType(SplitType.SHARES)
+              .splitValue(sr.getSplitValue())
+              .shareAmount(shareAmount)
+              .build());
+    }
+
+    handleRemainder(totalAmount, sumShares, splits);
+    return splits;
+  }
+
+  private List<ExpenseSplit> calculateAdjustmentSplits(
+      Expense expense, BigDecimal totalAmount, List<SplitRequest> splitRequests) {
+    List<ExpenseSplit> splits = new ArrayList<>();
+    BigDecimal totalAdjustment = BigDecimal.ZERO;
+    for (SplitRequest sr : splitRequests) {
+      if (sr.getSplitValue() != null) {
+        totalAdjustment = totalAdjustment.add(sr.getSplitValue());
       }
     }
 
+    if (totalAdjustment.compareTo(BigDecimal.ZERO) != 0) {
+      throw new IllegalArgumentException("Sum of adjustments must be zero");
+    }
+
+    BigDecimal count = BigDecimal.valueOf(splitRequests.size());
+    BigDecimal baseShare = totalAmount.divide(count, 2, RoundingMode.HALF_UP);
+    BigDecimal sumShares = BigDecimal.ZERO;
+
+    for (SplitRequest sr : splitRequests) {
+      BigDecimal adjustment = sr.getSplitValue() != null ? sr.getSplitValue() : BigDecimal.ZERO;
+      BigDecimal shareAmount = baseShare.add(adjustment);
+      sumShares = sumShares.add(shareAmount);
+      splits.add(
+          ExpenseSplit.builder()
+              .expense(expense)
+              .userId(sr.getUserId())
+              .splitType(SplitType.ADJUSTMENT)
+              .splitValue(adjustment)
+              .shareAmount(shareAmount)
+              .build());
+    }
+
+    handleRemainder(totalAmount, sumShares, splits);
     return splits;
+  }
+
+  private void handleRemainder(
+      BigDecimal totalAmount, BigDecimal sumShares, List<ExpenseSplit> splits) {
+    BigDecimal remainder = totalAmount.subtract(sumShares);
+    if (remainder.compareTo(BigDecimal.ZERO) != 0 && !splits.isEmpty()) {
+      ExpenseSplit firstSplit = splits.get(0);
+      firstSplit.setShareAmount(firstSplit.getShareAmount().add(remainder));
+    }
   }
 
   @Transactional(readOnly = true)

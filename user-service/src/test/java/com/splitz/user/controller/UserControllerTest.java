@@ -26,6 +26,7 @@ import com.splitz.user.exception.ResourceNotFoundException;
 import com.splitz.user.exception.UserAlreadyExistsException;
 import com.splitz.user.service.UserService;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -360,6 +361,46 @@ class UserControllerTest {
           .andExpect(status().isInternalServerError());
 
       verify(userService, times(1)).getUserbyId(userId);
+    }
+  }
+
+  // ============ GET USERS BY IDS (BULK) TESTS ============
+
+  @Nested
+  @DisplayName("GET /users/bulk - Get Multiple Users By IDs")
+  class GetUsersByIdsTests {
+
+    @Test
+    @DisplayName("Should return matching users with 200 OK")
+    void testGetUsersByIds_WhenUsersExist_ThenReturnsListOfUsers() throws Exception {
+      // Arrange
+      List<Long> ids = Arrays.asList(1L, 2L);
+      List<UserDTO> users = new ArrayList<>();
+      users.add(createValidUserDTO(1L));
+      users.add(createValidUserDTO(2L));
+
+      when(userService.getUsersByIds(ids)).thenReturn(users);
+
+      // Act & Assert
+      mockMvc
+          .perform(
+              get("/users/bulk").param("ids", "1", "2").contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)))
+          .andExpect(jsonPath("$[0].id", is(1)))
+          .andExpect(jsonPath("$[1].id", is(2)));
+
+      verify(userService, times(1)).getUsersByIds(ids);
+    }
+
+    @Test
+    @DisplayName("Should return empty list with 200 OK when no IDs provided")
+    void testGetUsersByIds_WhenNoIds_ThenReturnsEmptyList() throws Exception {
+      // Act & Assert
+      mockMvc
+          .perform(get("/users/bulk").param("ids", "").contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(0)));
     }
   }
 

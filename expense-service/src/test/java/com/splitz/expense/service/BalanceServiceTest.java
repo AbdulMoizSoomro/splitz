@@ -3,10 +3,12 @@ package com.splitz.expense.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.BalanceDTO;
 import com.splitz.expense.dto.DebtDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
+import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
@@ -21,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +38,7 @@ class BalanceServiceTest {
   @Mock private GroupMemberRepository groupMemberRepository;
   @Mock private GroupRepository groupRepository;
   @Mock private SettlementRepository settlementRepository;
+  @Mock private UserClient userClient;
 
   @InjectMocks private BalanceService balanceService;
 
@@ -94,10 +98,15 @@ class BalanceServiceTest {
             .build();
     expense.setSplits(Arrays.asList(split1, split2, split3));
 
+    UserResponse user101 = UserResponse.builder().id(101L).username("user101").build();
+    UserResponse user102 = UserResponse.builder().id(102L).username("user102").build();
+    UserResponse user103 = UserResponse.builder().id(103L).username("user103").build();
+
     when(groupRepository.existsById(1L)).thenReturn(true);
     when(groupMemberRepository.findByGroupId(1L))
         .thenReturn(Arrays.asList(member1, member2, member3));
     when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(expense));
+    when(userClient.getUsersByIds(anyList())).thenReturn(Arrays.asList(user101, user102, user103));
 
     GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
 
@@ -111,13 +120,17 @@ class BalanceServiceTest {
     BalanceDTO b3 = findBalance(response.getBalances(), 103L);
 
     assertEquals(0, new BigDecimal("40.00").compareTo(b1.getBalance()));
+    assertEquals("user101", b1.getUsername());
     assertEquals(0, new BigDecimal("-20.00").compareTo(b2.getBalance()));
+    assertEquals("user102", b2.getUsername());
     assertEquals(0, new BigDecimal("-20.00").compareTo(b3.getBalance()));
+    assertEquals("user103", b3.getUsername());
 
     assertEquals(2, response.getSimplifiedDebts().size());
     // Debts: 102 -> 101 (20), 103 -> 101 (20)
     assertTrue(hasDebt(response.getSimplifiedDebts(), 102L, 101L, new BigDecimal("20.00")));
-    assertTrue(hasDebt(response.getSimplifiedDebts(), 103L, 101L, new BigDecimal("20.00")));
+    assertEquals("user102", response.getSimplifiedDebts().get(0).getFromUsername());
+    assertEquals("user101", response.getSimplifiedDebts().get(0).getToUsername());
   }
 
   @Test
@@ -298,10 +311,17 @@ class BalanceServiceTest {
                 .build()));
     when(expenseRepository.findByGroupId(2L)).thenReturn(Collections.singletonList(e3));
 
+    UserResponse user101 =
+        UserResponse.builder().id(101L).username("user101").email("user101@example.com").build();
+    when(userClient.getUserById(101L)).thenReturn(Optional.of(user101));
+    when(userClient.getUsersByIds(anyList())).thenReturn(Collections.singletonList(user101));
+
     UserBalanceResponseDTO response = balanceService.getUserBalances(101L);
 
     assertNotNull(response);
     assertEquals(101L, response.getUserId());
+    assertEquals("user101", response.getUsername());
+    assertEquals("user101@example.com", response.getEmail());
     assertEquals(0, new BigDecimal("15.00").compareTo(response.getTotalBalance())); // 25 - 10 = 15
     assertEquals(2, response.getGroupBalances().size());
 

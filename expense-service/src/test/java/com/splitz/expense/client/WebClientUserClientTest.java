@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.expense.dto.UserResponse;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -84,5 +86,23 @@ class WebClientUserClientTest {
     boolean result = userClient.existsById(1L);
 
     assertThat(result).isFalse();
+  }
+
+  @Test
+  void getUsersByIds_WhenUsersExist_ReturnsUsers() throws Exception {
+    UserResponse user1 = UserResponse.builder().id(1L).username("user1").build();
+    UserResponse user2 = UserResponse.builder().id(2L).username("user2").build();
+    List<UserResponse> mockResponse = Arrays.asList(user1, user2);
+
+    mockBackEnd.enqueue(
+        new MockResponse()
+            .setBody(objectMapper.writeValueAsString(mockResponse))
+            .addHeader("Content-Type", "application/json"));
+
+    List<UserResponse> result = userClient.getUsersByIds(Arrays.asList(1L, 2L));
+
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getUsername()).isEqualTo("user1");
+    assertThat(result.get(1).getUsername()).isEqualTo("user2");
   }
 }

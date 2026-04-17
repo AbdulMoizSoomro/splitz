@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 public class DebtDTO {
 
   private Long from;
+  private String fromUsername;
   private Long to;
+  private String toUsername;
   private BigDecimal amount;
 }

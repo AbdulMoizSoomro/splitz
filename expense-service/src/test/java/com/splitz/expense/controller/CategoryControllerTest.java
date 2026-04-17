@@ -2,12 +2,18 @@ package com.splitz.expense.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.expense.dto.CategoryDTO;
 import com.splitz.expense.service.CategoryService;
 import com.splitz.security.JwtRequestFilter;
@@ -31,6 +37,8 @@ import org.springframework.test.web.servlet.MockMvc;
 class CategoryControllerTest {
 
   @Autowired private MockMvc mockMvc;
+
+  @Autowired private ObjectMapper objectMapper;
 
   @MockBean private CategoryService categoryService;
 
@@ -68,5 +76,53 @@ class CategoryControllerTest {
         .andExpect(jsonPath("$.size()").value(2))
         .andExpect(jsonPath("$[0].name").value("Food"))
         .andExpect(jsonPath("$[1].name").value("Transport"));
+  }
+
+  @Test
+  @WithMockUser
+  void createCategory_ShouldReturnCreatedCategory() throws Exception {
+    CategoryDTO request =
+        CategoryDTO.builder().name("Utilities").icon("💡").color("#96CEB4").build();
+    CategoryDTO response =
+        CategoryDTO.builder().id(3L).name("Utilities").icon("💡").color("#96CEB4").build();
+
+    when(categoryService.createCategory(any(CategoryDTO.class))).thenReturn(response);
+
+    mockMvc
+        .perform(
+            post("/categories")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id").value(3))
+        .andExpect(jsonPath("$.name").value("Utilities"));
+  }
+
+  @Test
+  @WithMockUser
+  void updateCategory_ShouldReturnUpdatedCategory() throws Exception {
+    CategoryDTO request = CategoryDTO.builder().name("Updated Food").build();
+    CategoryDTO response = CategoryDTO.builder().id(1L).name("Updated Food").build();
+
+    when(categoryService.updateCategory(any(Long.class), any(CategoryDTO.class)))
+        .thenReturn(response);
+
+    mockMvc
+        .perform(
+            put("/categories/1")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.name").value("Updated Food"));
+  }
+
+  @Test
+  @WithMockUser
+  void deleteCategory_ShouldReturnNoContent() throws Exception {
+    mockMvc.perform(delete("/categories/1").with(csrf())).andExpect(status().isNoContent());
+
+    verify(categoryService).deleteCategory(1L);
   }
 }

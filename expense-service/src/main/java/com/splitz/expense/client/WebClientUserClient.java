@@ -1,7 +1,10 @@
 package com.splitz.expense.client;
 
 import com.splitz.expense.dto.UserResponse;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -28,6 +31,22 @@ public class WebClientUserClient implements UserClient {
         .onStatus(status -> status.equals(HttpStatus.NOT_FOUND), response -> Mono.empty())
         .bodyToMono(UserResponse.class)
         .blockOptional();
+  }
+
+  @Override
+  public List<UserResponse> getUsersByIds(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return Collections.emptyList();
+    }
+    log.info("Fetching users with ids: {}", ids);
+    String idsParam = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+    return userWebClient
+        .get()
+        .uri(uriBuilder -> uriBuilder.path("/users/bulk").queryParam("ids", idsParam).build())
+        .retrieve()
+        .bodyToFlux(UserResponse.class)
+        .collectList()
+        .block();
   }
 
   @Override
