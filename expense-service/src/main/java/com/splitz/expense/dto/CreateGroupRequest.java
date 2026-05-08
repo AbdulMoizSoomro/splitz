@@ -2,6 +2,7 @@ package com.splitz.expense.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -15,4 +16,6 @@ public class CreateGroupRequest {
 
   @Size(max = 512, message = "imageUrl must be at most 512 characters")
   private String imageUrl;
+
+  private List<Long> memberUserIds;
 }

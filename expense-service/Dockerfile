@@ -1,69 +1,65 @@
 # =============================================================================
 # SPLITZ Expense Service Dockerfile
-# Multi-stage build for minimal, secure production image
+# Optimized for Development and Production
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Stage 1: Build
-# Uses Maven to compile the application and create the JAR
+# Stage 1: Base / Dependency Cache
 # -----------------------------------------------------------------------------
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS deps
 
 WORKDIR /build
 
-# Install Maven
-RUN apk add --no-cache maven
+# Copy parent POM and config
+COPY pom.xml /build/
+COPY config /build/config
 
-# Copy parent POM
-COPY pom.xml /build/pom.xml
+# Copy common-security (internal dependency)
+COPY common-security/pom.xml /build/common-security/
+COPY common-security/src /build/common-security/src
 
-# Copy common-security (required dependency)
-COPY common-security /build/common-security
+# Copy expense-service POM
+COPY expense-service/pom.xml /build/expense-service/
 
-# Create stub user-service pom to satisfy parent module list
+# Create stub for user-service to satisfy parent module list
 RUN mkdir -p /build/user-service && \
     echo '<?xml version="1.0"?><project><modelVersion>4.0.0</modelVersion><parent><groupId>com.splitz</groupId><artifactId>splitz</artifactId><version>1.0-SNAPSHOT</version></parent><artifactId>user-service</artifactId></project>' > /build/user-service/pom.xml
 
-# Copy expense-service POM and source
-COPY expense-service/pom.xml /build/expense-service/pom.xml
-COPY expense-service/src /build/expense-service/src
-
-# Build the application
-WORKDIR /build/expense-service
-RUN mvn package -DskipTests -B \
-    && cp target/*.jar /build/app.jar \
-    && java -Djarmode=layertools -jar /build/app.jar extract --destination /build/extracted
+# Install common-security and cache dependencies
+RUN mvn install -pl common-security -am -DskipTests -B
 
 # -----------------------------------------------------------------------------
-# Stage 2: Runtime
+# Stage 2: Development (For live-reloading with bind mounts)
+# -----------------------------------------------------------------------------
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS dev
+WORKDIR /app
+COPY --from=deps /root/.m2 /root/.m2
+COPY --from=deps /build /build
+WORKDIR /build/expense-service
+CMD ["sh", "-c", "mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE:-dev} -DskipTests -Dcheckstyle.skip -Dspotless.skip"]
+
+# -----------------------------------------------------------------------------
+# Stage 3: Builder (For production JAR)
+# -----------------------------------------------------------------------------
+FROM deps AS builder
+COPY expense-service/src /build/expense-service/src
+WORKDIR /build/expense-service
+RUN mvn package -DskipTests -Dcheckstyle.skip -Dspotless.skip -B && \
+    cp target/*.jar /build/app.jar && \
+    java -Djarmode=layertools -jar /build/app.jar extract --destination /build/extracted
+
+# -----------------------------------------------------------------------------
+# Stage 4: Runtime
 # -----------------------------------------------------------------------------
 FROM eclipse-temurin:21-jre-alpine AS runtime
-
-# Security: Create non-root user
-RUN addgroup --system --gid 1001 splitz \
-    && adduser --system --uid 1001 --ingroup splitz splitz
-
+RUN addgroup --system --gid 1001 splitz && adduser --system --uid 1001 --ingroup splitz splitz
 WORKDIR /app
-
-# Copy layered JAR components
 COPY --from=builder /build/extracted/dependencies/ ./
 COPY --from=builder /build/extracted/spring-boot-loader/ ./
 COPY --from=builder /build/extracted/snapshot-dependencies/ ./
 COPY --from=builder /build/extracted/application/ ./
-
-# Security: Set ownership and switch to non-root user
 RUN chown -R splitz:splitz /app
 USER splitz
-
-# Expose the service port
 EXPOSE 8081
-
-# Health check using Spring Actuator
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
-
-# JVM tuning for containers
-ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
-
-# Run the application
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]

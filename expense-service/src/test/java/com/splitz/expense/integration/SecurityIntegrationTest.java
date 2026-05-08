@@ -18,8 +18,8 @@ public class SecurityIntegrationTest {
   @Autowired private MockMvc mockMvc;
 
   @Test
-  void whenAccessingProtectedEndpointWithoutToken_thenForbidden() throws Exception {
-    mockMvc.perform(get("/categories")).andExpect(status().isForbidden());
+  void whenAccessingProtectedEndpointWithoutToken_thenUnauthorized() throws Exception {
+    mockMvc.perform(get("/categories")).andExpect(status().isUnauthorized());
   }
 
   @Test

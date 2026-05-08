@@ -6,5 +6,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Add Pagination to getAllUsers() and List Endpoints**
+- [~] **Track: Add Pagination to getAllUsers() and List Endpoints**
 *Link: [./tracks/pagination_20260417/](./tracks/pagination_20260417/)*

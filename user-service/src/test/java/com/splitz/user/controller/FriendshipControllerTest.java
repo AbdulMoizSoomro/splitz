@@ -15,13 +15,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.JwtUtil;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import com.splitz.user.config.CryptoConfig;
 import com.splitz.user.config.SecurityConfig;
 import com.splitz.user.dto.FriendshipDTO;
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.model.FriendshipStatus;
 import com.splitz.user.model.User;
-import com.splitz.user.security.SecurityExpressions;
 import com.splitz.user.service.FriendshipService;
 import com.splitz.user.service.UserService;
 import jakarta.servlet.FilterChain;
@@ -40,7 +40,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(FriendshipController.class)
-@Import({SecurityConfig.class, CryptoConfig.class, SecurityExpressions.class})
+@Import({SecurityConfig.class, CryptoConfig.class, SharedSecurityAuthorizer.class})
 public class FriendshipControllerTest {
 
   @Autowired private MockMvc mockMvc;
@@ -78,7 +78,7 @@ public class FriendshipControllerTest {
   }
 
   @Test
-  @WithMockUser(username = "user1", roles = "USER")
+  @WithMockUser(username = "1", roles = "USER")
   public void sendFriendRequest_ShouldReturnCreated() throws Exception {
     FriendshipDTO friendshipDTO = new FriendshipDTO();
     friendshipDTO.setId(1L);
@@ -95,7 +95,7 @@ public class FriendshipControllerTest {
   }
 
   @Test
-  @WithMockUser(username = "user1", roles = "USER")
+  @WithMockUser(username = "1", roles = "USER")
   public void getFriends_ShouldReturnList() throws Exception {
     UserDTO userDTO = new UserDTO();
     userDTO.setId(2L);
@@ -111,23 +111,41 @@ public class FriendshipControllerTest {
   }
 
   @Test
-  @WithMockUser(username = "user1", roles = "USER")
+  @WithMockUser(username = "1", roles = "USER")
   public void getPendingRequests_ShouldReturnList() throws Exception {
     FriendshipDTO friendshipDTO = new FriendshipDTO();
     friendshipDTO.setId(1L);
     friendshipDTO.setStatus(FriendshipStatus.PENDING);
 
-    when(friendshipService.getPendingRequests(any())).thenReturn(List.of(friendshipDTO));
+    when(friendshipService.getPendingRequests(any(), eq("INCOMING")))
+        .thenReturn(List.of(friendshipDTO));
 
     mockMvc
-        .perform(get("/users/1/friends/requests").with(csrf()))
+        .perform(get("/users/1/friends/requests").param("direction", "INCOMING").with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].id").value(1))
         .andExpect(jsonPath("$[0].status").value("PENDING"));
   }
 
   @Test
-  @WithMockUser(username = "user1", roles = "USER")
+  @WithMockUser(username = "1", roles = "USER")
+  public void getPendingRequests_Outgoing_ShouldReturnList() throws Exception {
+    FriendshipDTO friendshipDTO = new FriendshipDTO();
+    friendshipDTO.setId(1L);
+    friendshipDTO.setStatus(FriendshipStatus.PENDING);
+
+    when(friendshipService.getPendingRequests(any(), eq("OUTGOING")))
+        .thenReturn(List.of(friendshipDTO));
+
+    mockMvc
+        .perform(get("/users/1/friends/requests").param("direction", "OUTGOING").with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(1))
+        .andExpect(jsonPath("$[0].status").value("PENDING"));
+  }
+
+  @Test
+  @WithMockUser(username = "1", roles = "USER")
   public void acceptFriendRequest_ShouldReturnAccepted() throws Exception {
     FriendshipDTO friendshipDTO = new FriendshipDTO();
     friendshipDTO.setId(1L);
@@ -142,7 +160,7 @@ public class FriendshipControllerTest {
   }
 
   @Test
-  @WithMockUser(username = "user1", roles = "USER")
+  @WithMockUser(username = "1", roles = "USER")
   public void rejectFriendRequest_ShouldReturnRejected() throws Exception {
     FriendshipDTO friendshipDTO = new FriendshipDTO();
     friendshipDTO.setId(1L);
@@ -157,7 +175,7 @@ public class FriendshipControllerTest {
   }
 
   @Test
-  @WithMockUser(username = "user1", roles = "USER")
+  @WithMockUser(username = "1", roles = "USER")
   public void removeFriend_ShouldReturnNoContent() throws Exception {
     doNothing().when(friendshipService).removeFriend(eq(1L), eq(2L));
 

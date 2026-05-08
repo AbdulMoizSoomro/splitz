@@ -1,5 +1,10 @@
 -- V4__Seed_default_roles.sql
--- Insert default roles using MERGE for H2 compatibility
--- MERGE works in both H2 and PostgreSQL
-MERGE INTO roles (name) KEY(name) VALUES ('ROLE_USER');
-MERGE INTO roles (name) KEY(name) VALUES ('ROLE_ADMIN');
+-- Insert default roles using portable syntax for H2 and PostgreSQL compatibility
+
+INSERT INTO roles (name)
+SELECT 'ROLE_USER'
+WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'ROLE_USER');
+
+INSERT INTO roles (name)
+SELECT 'ROLE_ADMIN'
+WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name = 'ROLE_ADMIN');

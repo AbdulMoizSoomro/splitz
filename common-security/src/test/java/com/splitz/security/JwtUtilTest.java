@@ -66,6 +66,27 @@ class JwtUtilTest {
   }
 
   @Test
+  void extractUserId_ShouldReturnCorrectUserId() {
+    UserDetails userDetails = new User("123", "password", new ArrayList<>());
+    String token = jwtUtil.generateToken(userDetails);
+    Long userId = jwtUtil.extractUserId(token);
+    assertEquals(123L, userId);
+  }
+
+  @Test
+  void extractRoles_ShouldReturnCorrectRoles() {
+    java.util.List<org.springframework.security.core.GrantedAuthority> authorities =
+        new ArrayList<>();
+    authorities.add(
+        new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"));
+    UserDetails userDetails = new User("testuser", "password", authorities);
+    String token = jwtUtil.generateToken(userDetails);
+    java.util.List<String> roles = jwtUtil.extractRoles(token);
+    assertEquals(1, roles.size());
+    assertEquals("ROLE_USER", roles.get(0));
+  }
+
+  @Test
   void isTokenExpired_ShouldReturnFalseForNewToken() {
     UserDetails userDetails = new User("testuser", "password", new ArrayList<>());
     String token = jwtUtil.generateToken(userDetails);

@@ -223,34 +223,43 @@ class FriendshipServiceTest {
   class GetPendingRequestsTests {
 
     @Test
-    @DisplayName("returns pending incoming requests")
-    void returnsPendingIncomingRequests() {
+    @DisplayName("returns pending incoming requests by default")
+    void returnsPendingIncomingRequestsByDefault() {
       when(userRepository.findById(2L)).thenReturn(Optional.of(bob));
 
       Friendship f1 = Friendship.createRequest(alice, bob);
-      Friendship f2 =
-          Friendship.createRequest(
-              new User() {
-                {
-                  setId(3L);
-                }
-              },
-              bob);
-
-      List<Friendship> pending = List.of(f1, f2);
+      List<Friendship> pending = List.of(f1);
       List<FriendshipDTO> pendingDtos =
-          List.of(
-              new FriendshipDTO(1L, 1L, 2L, FriendshipStatus.PENDING, null, null),
-              new FriendshipDTO(2L, 3L, 2L, FriendshipStatus.PENDING, null, null));
+          List.of(new FriendshipDTO(1L, 1L, 2L, FriendshipStatus.PENDING, null, null));
 
       when(friendshipRepository.findByAddresseeAndStatus(bob, FriendshipStatus.PENDING))
           .thenReturn(pending);
       when(friendshipMapper.toDTOs(pending)).thenReturn(pendingDtos);
 
-      List<FriendshipDTO> result = friendshipService.getPendingRequests(2L);
+      List<FriendshipDTO> result = friendshipService.getPendingRequests(2L, "INCOMING");
 
-      assertThat(result).hasSize(2);
-      assertThat(result.get(0).getStatus()).isEqualTo(FriendshipStatus.PENDING);
+      assertThat(result).hasSize(1);
+      assertThat(result.get(0).getAddresseeId()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("returns pending outgoing requests")
+    void returnsPendingOutgoingRequests() {
+      when(userRepository.findById(1L)).thenReturn(Optional.of(alice));
+
+      Friendship f1 = Friendship.createRequest(alice, bob);
+      List<Friendship> pending = List.of(f1);
+      List<FriendshipDTO> pendingDtos =
+          List.of(new FriendshipDTO(1L, 1L, 2L, FriendshipStatus.PENDING, null, null));
+
+      when(friendshipRepository.findByRequesterAndStatus(alice, FriendshipStatus.PENDING))
+          .thenReturn(pending);
+      when(friendshipMapper.toDTOs(pending)).thenReturn(pendingDtos);
+
+      List<FriendshipDTO> result = friendshipService.getPendingRequests(1L, "OUTGOING");
+
+      assertThat(result).hasSize(1);
+      assertThat(result.get(0).getRequesterId()).isEqualTo(1L);
     }
   }
 
@@ -303,33 +312,12 @@ class FriendshipServiceTest {
   class RemoveFriendTests {
 
     @Test
-    @DisplayName("either party can remove an ACCEPTED friendship")
-    void canRemoveAcceptedFriendship() {
+    @DisplayName("either party can remove a PENDING or ACCEPTED friendship")
+    void canRemovePendingOrAcceptedFriendship() {
       when(userRepository.findById(1L)).thenReturn(Optional.of(alice));
       when(userRepository.findById(2L)).thenReturn(Optional.of(bob));
 
-      Friendship friendship =
-          Friendship.builder()
-              .id(200L)
-              .requester(alice)
-              .addressee(bob)
-              .status(FriendshipStatus.ACCEPTED)
-              .build();
-
-      when(friendshipRepository.findBetweenUsers(alice, bob)).thenReturn(Optional.of(friendship));
-
-      friendshipService.removeFriend(1L, 2L);
-
-      verify(friendshipRepository).delete(eq(friendship));
-    }
-
-    @Test
-    @DisplayName("cannot remove non-accepted friendships")
-    void cannotRemoveNonAccepted() {
-      when(userRepository.findById(1L)).thenReturn(Optional.of(alice));
-      when(userRepository.findById(2L)).thenReturn(Optional.of(bob));
-
-      Friendship friendship =
+      Friendship pending =
           Friendship.builder()
               .id(200L)
               .requester(alice)
@@ -337,11 +325,32 @@ class FriendshipServiceTest {
               .status(FriendshipStatus.PENDING)
               .build();
 
-      when(friendshipRepository.findBetweenUsers(alice, bob)).thenReturn(Optional.of(friendship));
+      when(friendshipRepository.findBetweenUsers(alice, bob)).thenReturn(Optional.of(pending));
+
+      friendshipService.removeFriend(1L, 2L);
+
+      verify(friendshipRepository).delete(eq(pending));
+    }
+
+    @Test
+    @DisplayName("cannot remove BLOCKED or REJECTED friendships")
+    void cannotRemoveBlockedOrRejected() {
+      when(userRepository.findById(1L)).thenReturn(Optional.of(alice));
+      when(userRepository.findById(2L)).thenReturn(Optional.of(bob));
+
+      Friendship rejected =
+          Friendship.builder()
+              .id(200L)
+              .requester(alice)
+              .addressee(bob)
+              .status(FriendshipStatus.REJECTED)
+              .build();
+
+      when(friendshipRepository.findBetweenUsers(alice, bob)).thenReturn(Optional.of(rejected));
 
       assertThatThrownBy(() -> friendshipService.removeFriend(1L, 2L))
           .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("not accepted");
+          .hasMessageContaining("neither accepted nor pending");
 
       verify(friendshipRepository, never()).delete(any(Friendship.class));
     }

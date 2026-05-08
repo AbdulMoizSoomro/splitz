@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,8 +48,9 @@ public class AuthController {
       throw new Exception("Invalid username/password"); // Consider more specific exception
     }
 
-    final UserDetails userDetails = userService.loadUserByUsername(request.username());
-    final String jwt = jwtUtil.generateToken(userDetails);
+    final com.splitz.user.model.User user =
+        (com.splitz.user.model.User) userService.loadUserByUsername(request.username());
+    final String jwt = jwtUtil.generateToken(user);
     return ResponseEntity.ok(new JwtResponse(jwt));
   }
 

@@ -61,8 +61,10 @@ class JwtRequestFilterTest {
 
     var auth = SecurityContextHolder.getContext().getAuthentication();
     assertThat(auth).isNotNull();
-    assertThat(auth.getPrincipal()).isInstanceOf(User.class);
-    User principal = (User) auth.getPrincipal();
-    assertThat(principal.getId()).isEqualTo(saved.getId());
+    assertThat(auth.getPrincipal())
+        .isInstanceOf(org.springframework.security.core.userdetails.UserDetails.class);
+    org.springframework.security.core.userdetails.UserDetails principal =
+        (org.springframework.security.core.userdetails.UserDetails) auth.getPrincipal();
+    assertThat(principal.getUsername()).isEqualTo(String.valueOf(saved.getId()));
   }
 }

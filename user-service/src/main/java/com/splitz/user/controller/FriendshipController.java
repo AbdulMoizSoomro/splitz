@@ -52,7 +52,7 @@ public class FriendshipController {
             content = @Content)
       })
   @PostMapping
-  @PreAuthorize("@security.isOwnerOrAdmin(#userId)")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
   public ResponseEntity<FriendshipDTO> sendFriendRequest(
       @Parameter(description = "ID of the user sending the request") @PathVariable Long userId,
       @Parameter(description = "ID of the user to friend") @RequestParam Long friendId) {
@@ -75,7 +75,7 @@ public class FriendshipController {
             content = @Content)
       })
   @GetMapping
-  @PreAuthorize("@security.isOwnerOrAdmin(#userId)")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
   public ResponseEntity<List<UserDTO>> getFriends(
       @Parameter(description = "ID of the user whose friends to list") @PathVariable Long userId) {
     return ResponseEntity.ok(friendshipService.getAcceptedFriends(userId));
@@ -84,8 +84,8 @@ public class FriendshipController {
   @Operation(
       summary = "List pending requests",
       description =
-          "Returns a list of all pending incoming friend requests for a user. "
-              + "Only the user themselves or an ADMIN can perform this action.",
+          "Returns a list of pending friend requests for a user. "
+              + "Defaults to INCOMING (requests received). Use OUTGOING to see requests sent.",
       responses = {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved pending requests"),
         @ApiResponse(
@@ -94,11 +94,14 @@ public class FriendshipController {
             content = @Content)
       })
   @GetMapping("/requests")
-  @PreAuthorize("@security.isOwnerOrAdmin(#userId)")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
   public ResponseEntity<List<FriendshipDTO>> getPendingRequests(
       @Parameter(description = "ID of the user whose pending requests to list") @PathVariable
-          Long userId) {
-    return ResponseEntity.ok(friendshipService.getPendingRequests(userId));
+          Long userId,
+      @Parameter(description = "Direction of requests: INCOMING or OUTGOING")
+          @RequestParam(defaultValue = "INCOMING")
+          String direction) {
+    return ResponseEntity.ok(friendshipService.getPendingRequests(userId, direction));
   }
 
   @Operation(
@@ -117,7 +120,7 @@ public class FriendshipController {
             content = @Content)
       })
   @PutMapping("/{friendshipId}/accept")
-  @PreAuthorize("@security.isOwnerOrAdmin(#userId)")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
   public ResponseEntity<FriendshipDTO> acceptFriendRequest(
       @Parameter(description = "ID of the user accepting the request") @PathVariable Long userId,
       @Parameter(description = "ID of the friendship request to accept") @PathVariable
@@ -145,7 +148,7 @@ public class FriendshipController {
             content = @Content)
       })
   @PutMapping("/{friendshipId}/reject")
-  @PreAuthorize("@security.isOwnerOrAdmin(#userId)")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
   public ResponseEntity<FriendshipDTO> rejectFriendRequest(
       @Parameter(description = "ID of the user rejecting the request") @PathVariable Long userId,
       @Parameter(description = "ID of the friendship request to reject") @PathVariable
@@ -170,7 +173,7 @@ public class FriendshipController {
             content = @Content)
       })
   @DeleteMapping("/{friendId}")
-  @PreAuthorize("@security.isOwnerOrAdmin(#userId)")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
   public ResponseEntity<Void> removeFriend(
       @Parameter(description = "ID of the user performing the removal") @PathVariable Long userId,
       @Parameter(description = "ID of the friend to remove") @PathVariable Long friendId) {

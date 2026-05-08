@@ -65,6 +65,32 @@ class JwtRequestFilterTest {
   }
 
   @Test
+  void doFilter_ShouldAuthenticateStatelessly_WhenTokenHasClaims()
+      throws ServletException, IOException {
+    String token = "stateless.token.here";
+    String username = "123";
+    Long userId = 123L;
+    java.util.List<String> roles = java.util.List.of("ROLE_USER");
+
+    when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn("Bearer " + token);
+    when(jwtUtil.extractUsername(token)).thenReturn(username);
+    when(jwtUtil.extractUserId(token)).thenReturn(userId);
+    when(jwtUtil.extractRoles(token)).thenReturn(roles);
+    // isTokenValid is called with a new User object, so we use any() or match attributes
+    when(jwtUtil.isTokenValid(
+            org.mockito.ArgumentMatchers.eq(token),
+            org.mockito.ArgumentMatchers.any(UserDetails.class)))
+        .thenReturn(true);
+
+    jwtRequestFilter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(jwtUtil).extractUserId(token);
+    verify(jwtUtil).extractRoles(token);
+    assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+  }
+
+  @Test
   void doFilter_ShouldAuthenticate_WhenTokenIsValid() throws ServletException, IOException {
     String token = "valid.token.here";
     String username = "testuser";
@@ -72,6 +98,8 @@ class JwtRequestFilterTest {
 
     when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn("Bearer " + token);
     when(jwtUtil.extractUsername(token)).thenReturn(username);
+    // Return null for userId to trigger fallback
+    when(jwtUtil.extractUserId(token)).thenReturn(null);
     when(userDetailsService.loadUserByUsername(username)).thenReturn(userDetails);
     when(jwtUtil.isTokenValid(token, userDetails)).thenReturn(true);
 
@@ -91,6 +119,8 @@ class JwtRequestFilterTest {
 
     when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn("Bearer " + token);
     when(jwtUtil.extractUsername(token)).thenReturn(username);
+    // Return null for userId to trigger fallback
+    when(jwtUtil.extractUserId(token)).thenReturn(null);
     when(userDetailsService.loadUserByUsername(username)).thenReturn(userDetails);
     when(jwtUtil.isTokenValid(token, userDetails)).thenReturn(false);
 

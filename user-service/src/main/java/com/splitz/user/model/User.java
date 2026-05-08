@@ -93,6 +93,14 @@ public class User implements UserDetails {
 
   @Override
   public String getUsername() {
+    return this.id != null ? String.valueOf(this.id) : null;
+  }
+
+  /**
+   * Returns the actual username string (not the numeric ID). Use this for display or internal logic
+   * that requires the username field.
+   */
+  public String getActualUsername() {
     return this.username;
   }
 

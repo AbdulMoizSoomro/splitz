@@ -32,11 +32,11 @@ A user can register, login, create a group with friends, add expenses, and see c
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| Categories | Predefined expense categories | ⬜ Not Started |
-| Groups | Create/manage expense groups | ⬜ Not Started |
-| Group Members | Add/remove members from groups | ⬜ Not Started |
-| Expenses | Create/edit/delete expenses | ⬜ Not Started |
-| Split Types | EQUAL and EXACT splits | ⬜ Not Started |
+| Categories | Predefined expense categories | ✅ Done |
+| Groups | Create/manage expense groups | ✅ Done |
+| Group Members | Add/remove members from groups | ✅ Done |
+| Expenses | Create/edit/delete expenses | ✅ Done |
+| Split Types | EQUAL and EXACT splits | ✅ Done |
 | Balances | Calculate who owes whom | ⬜ Not Started |
 | Settlements | Record debt payments (manual) | ⬜ Not Started |
 
@@ -328,6 +328,8 @@ Settlement
 
 - All passwords BCrypt hashed
 - JWT tokens expire in 24 hours
+- Stateless Identity: userId and roles included in JWT claims for DB-less authorization ✅
+- Shared Security Authorizer: Centralized logic for role and owner-based checks in common-security ✅
 - HTTPS required in production
 - No sensitive data in logs
 

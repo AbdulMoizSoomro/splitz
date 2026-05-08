@@ -314,11 +314,13 @@ class UserControllerIntegrationTest {
     HttpEntity<Void> request = new HttpEntity<>(headers);
 
     // Act
-    ResponseEntity<Void> response =
-        restTemplate.exchange(baseUrl + "/users", HttpMethod.GET, request, Void.class);
+    ResponseEntity<String> response =
+        restTemplate.exchange(baseUrl + "/users", HttpMethod.GET, request, String.class);
 
     // Assert
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(response.getBody()).contains("content");
+    assertThat(response.getBody()).contains("totalElements");
   }
 
   // ======================== GET USER BY ID TESTS ========================

@@ -52,7 +52,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @DisplayName("UserController Unit Tests")
 @org.springframework.test.context.ActiveProfiles("test")
-@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
+@org.springframework.security.test.context.support.WithMockUser(username = "1", roles = "ADMIN")
 class UserControllerTest {
 
   @Autowired private MockMvc mockMvc;
@@ -254,40 +254,68 @@ class UserControllerTest {
   class GetAllUsersTests {
 
     @Test
-    @DisplayName("Should return all users with 200 OK")
-    void testGetAllUsers_WhenUsersExist_ThenReturnsListOfUsers() throws Exception {
+    @DisplayName("Should return paginated users with 200 OK")
+    void testGetAllUsers_WhenUsersExist_ThenReturnsPageOfUsers() throws Exception {
       // Arrange
-      List<UserDTO> users = new ArrayList<>();
-      users.add(createValidUserDTO(1L));
-      users.add(createValidUserDTO(2L));
+      Pageable pageable = PageRequest.of(0, 20);
+      List<UserDTO> userList = new ArrayList<>();
+      userList.add(createValidUserDTO(1L));
+      userList.add(createValidUserDTO(2L));
+      Page<UserDTO> page = new PageImpl<>(userList, pageable, 2);
 
-      when(userService.getAllUsers()).thenReturn(users);
+      when(userService.getAllUsers(any(Pageable.class))).thenReturn(page);
 
       // Act & Assert
       mockMvc
-          .perform(get("/users").contentType(MediaType.APPLICATION_JSON))
+          .perform(
+              get("/users")
+                  .param("page", "0")
+                  .param("size", "20")
+                  .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$", hasSize(2)))
-          .andExpect(jsonPath("$[0].id", is(1)))
-          .andExpect(jsonPath("$[0].username", is("johndoe")))
-          .andExpect(jsonPath("$[1].id", is(2)));
+          .andExpect(jsonPath("$.totalElements", is(2)))
+          .andExpect(jsonPath("$.content", hasSize(2)))
+          .andExpect(jsonPath("$[0].id").doesNotExist()) // Root is object now, not list
+          .andExpect(jsonPath("$.content[0].id", is(1)))
+          .andExpect(jsonPath("$.content[1].id", is(2)));
 
-      verify(userService, times(1)).getAllUsers();
+      verify(userService, times(1)).getAllUsers(any(Pageable.class));
     }
 
     @Test
-    @DisplayName("Should return empty list with 200 OK when no users exist")
-    void testGetAllUsers_WhenNoUsers_ThenReturnsEmptyList() throws Exception {
+    @DisplayName("Should cap page size at hard limit")
+    void testGetAllUsers_WhenSizeExceedsLimit_ThenCapsSize() throws Exception {
       // Arrange
-      when(userService.getAllUsers()).thenReturn(new ArrayList<>());
+      Pageable cappedPageable = PageRequest.of(0, 100);
+      Page<UserDTO> emptyPage = new PageImpl<>(new ArrayList<>(), cappedPageable, 0);
+
+      when(userService.getAllUsers(any(Pageable.class))).thenReturn(emptyPage);
+
+      // Act & Assert
+      mockMvc
+          .perform(get("/users").param("size", "500").contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+
+      // Capture and verify the pageable size was capped at 100 in the controller
+      verify(userService)
+          .getAllUsers(org.mockito.ArgumentMatchers.argThat(p -> p.getPageSize() == 100));
+    }
+
+    @Test
+    @DisplayName("Should return empty page with 200 OK when no users exist")
+    void testGetAllUsers_WhenNoUsers_ThenReturnsEmptyPage() throws Exception {
+      // Arrange
+      Pageable pageable = PageRequest.of(0, 20);
+      Page<UserDTO> emptyPage = new PageImpl<>(new ArrayList<>(), pageable, 0);
+      when(userService.getAllUsers(any(Pageable.class))).thenReturn(emptyPage);
 
       // Act & Assert
       mockMvc
           .perform(get("/users").contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$", hasSize(0)));
+          .andExpect(jsonPath("$.content", hasSize(0)));
 
-      verify(userService, times(1)).getAllUsers();
+      verify(userService, times(1)).getAllUsers(any(Pageable.class));
     }
 
     @Test
@@ -295,14 +323,15 @@ class UserControllerTest {
     void testGetAllUsers_WhenServiceThrowsException_ThenReturnsInternalServerError()
         throws Exception {
       // Arrange
-      when(userService.getAllUsers()).thenThrow(new RuntimeException("Database connection failed"));
+      when(userService.getAllUsers(any(Pageable.class)))
+          .thenThrow(new RuntimeException("Database connection failed"));
 
       // Act & Assert
       mockMvc
           .perform(get("/users").contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isInternalServerError());
 
-      verify(userService, times(1)).getAllUsers();
+      verify(userService, times(1)).getAllUsers(any(Pageable.class));
     }
   }
 

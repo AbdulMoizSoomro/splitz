@@ -42,9 +42,9 @@ public class GlobalExceptionHandler {
   public ProblemDetail handleUnauthorizedException(
       UnauthorizedException ex, HttpServletRequest request) {
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
-    problem.setTitle("Unauthorized");
+    problem.setTitle("Forbidden");
     problem.setDetail(ex.getMessage());
-    problem.setType(Objects.requireNonNull(create("https://example.com/errors/unauthorized")));
+    problem.setType(Objects.requireNonNull(create("https://example.com/errors/forbidden")));
     problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
     return problem;
   }

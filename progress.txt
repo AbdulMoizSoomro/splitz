@@ -1,0 +1,13 @@
+- Implemented Dashboard and User Search in the frontend (#7)
+- Implemented Friend Request Management (send, accept, reject) and Friends List (#8)
+- Improved Group Management by implementing atomic group creation with members in both frontend and backend (#9)
+- Standardized Cross-Service JWT Identity to use numeric userId in 'sub' claim (#13)
+- Implemented Frontend Expense Creation with Equal Split (#10)
+- Enhanced Friend Request Management with sent request visibility and cancellation support (#15)
+- Implemented Stateless Identity Propagation by including userId and roles in JWT claims, enabling DB-less authorization (#28)
+- Implemented SharedSecurityAuthorizer in common-security with full unit and integration test coverage (#29)
+- Migrated user-service to Stateless Auth using SharedSecurityAuthorizer and standardized numeric userIds (#30)
+
+- Implemented E2E tests for Exact Split UI and validation (#25)
+- Implemented E2E tests for real-time balance validation during exact splits (#26)
+- Implemented E2E tests for submission guard and API payload integration for exact splits (#27)
