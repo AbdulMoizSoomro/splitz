@@ -2,6 +2,7 @@ package com.splitz.expense.service;
 
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.AddMemberRequest;
+import com.splitz.expense.dto.BulkAddMembersRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
@@ -115,6 +116,27 @@ public class GroupService {
     GroupRole role = Optional.ofNullable(request.getRole()).orElse(GroupRole.MEMBER);
     GroupMember member = GroupMember.builder().userId(request.getUserId()).role(role).build();
     group.addMember(member);
+
+    Group saved = groupRepository.save(group);
+    return groupMapper.toDTO(saved);
+  }
+
+  public GroupDTO bulkAddMembers(Long groupId, BulkAddMembersRequest request, Long userId) {
+    Group group = getGroupWithMembers(groupId);
+    requireAdmin(group, userId);
+
+    for (Long memberUserId : request.getUserIds()) {
+      // Skip users already in the group
+      if (groupMemberRepository.existsByGroupIdAndUserId(groupId, memberUserId)) {
+        continue;
+      }
+      if (!userClient.existsById(memberUserId)) {
+        throw new ResourceNotFoundException("User not found with id: " + memberUserId);
+      }
+      GroupMember member =
+          GroupMember.builder().userId(memberUserId).role(GroupRole.MEMBER).build();
+      group.addMember(member);
+    }
 
     Group saved = groupRepository.save(group);
     return groupMapper.toDTO(saved);

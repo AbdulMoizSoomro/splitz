@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.AddMemberRequest;
+import com.splitz.expense.dto.BulkAddMembersRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.model.Group;
@@ -238,5 +239,55 @@ public class GroupControllerIntegrationTest {
 
     Group persisted = groupRepository.findById(saved.getId()).orElseThrow();
     assertThat(persisted.isAllowMembersToManageMembers()).isFalse();
+  }
+
+  @Test
+  void bulkAddMembers_addsNewMembersAndIgnoresExisting() throws Exception {
+    Group g = Group.builder().name("BulkTest").createdBy(100L).active(true).build();
+    g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
+    g.addMember(GroupMember.builder().userId(200L).role(GroupRole.MEMBER).build());
+    Group saved = groupRepository.save(g);
+
+    // 200 is already a member, 300 is new — should add 300, silently ignore 200
+    BulkAddMembersRequest bulk = new BulkAddMembersRequest();
+    bulk.setUserIds(List.of(200L, 300L));
+
+    mockMvc
+        .perform(
+            post("/groups/" + saved.getId() + "/members/bulk")
+                .header("Authorization", tokenFor(100L))
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.members").isArray());
+
+    assertThat(groupMemberRepository.existsByGroupIdAndUserId(saved.getId(), 300L)).isTrue();
+    // 200 still present (not duplicated)
+    assertThat(groupMemberRepository.existsByGroupIdAndUserId(saved.getId(), 200L)).isTrue();
+    assertThat(
+            groupMemberRepository.findAll().stream()
+                .filter(m -> m.getGroup().getId().equals(saved.getId()))
+                .count())
+        .isEqualTo(3L); // owner(100) + existing(200) + new(300)
+  }
+
+  @Test
+  void bulkAddMembers_memberForbidden() throws Exception {
+    Group g = Group.builder().name("BulkForbidden").createdBy(100L).active(true).build();
+    g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
+    g.addMember(GroupMember.builder().userId(200L).role(GroupRole.MEMBER).build());
+    Group saved = groupRepository.save(g);
+
+    BulkAddMembersRequest bulk = new BulkAddMembersRequest();
+    bulk.setUserIds(List.of(300L));
+
+    // User 200 (MEMBER) cannot use bulk add
+    mockMvc
+        .perform(
+            post("/groups/" + saved.getId() + "/members/bulk")
+                .header("Authorization", tokenFor(200L))
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(bulk)))
+        .andExpect(status().isForbidden());
   }
 }
