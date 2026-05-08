@@ -4,6 +4,7 @@ import Register from './features/auth/Register';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Dashboard from './features/dashboard/Dashboard';
 import GroupsPage from './features/groups/GroupsPage';
+import GroupDetails from './features/groups/GroupDetails';
 import FriendsPage from './features/users/FriendsPage';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/friends" element={<FriendsPage />} />
         <Route path="/groups" element={<GroupsPage />} />
+        <Route path="/groups/:id" element={<GroupDetails />} />
       </Route>
     </Routes>
   );

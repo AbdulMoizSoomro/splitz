@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import GroupList from './GroupList';
 import { groupService } from './groupService';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,7 +25,9 @@ describe('GroupList', () => {
     vi.mocked(groupService.getGroups).mockReturnValue(new Promise(() => {}));
     render(
       <QueryClientProvider client={queryClient}>
-        <GroupList />
+        <MemoryRouter>
+          <GroupList />
+        </MemoryRouter>
       </QueryClientProvider>
     );
     expect(screen.getByTestId('loader')).toBeInTheDocument();
@@ -34,7 +37,9 @@ describe('GroupList', () => {
     vi.mocked(groupService.getGroups).mockResolvedValue([]);
     render(
       <QueryClientProvider client={queryClient}>
-        <GroupList />
+        <MemoryRouter>
+          <GroupList />
+        </MemoryRouter>
       </QueryClientProvider>
     );
     await waitFor(() => {
@@ -51,7 +56,9 @@ describe('GroupList', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <GroupList />
+        <MemoryRouter>
+          <GroupList />
+        </MemoryRouter>
       </QueryClientProvider>
     );
 

@@ -1,5 +1,5 @@
 import { expenseApi } from '../../lib/axios';
-import type { Group, CreateGroupRequest, AddMemberRequest } from '../../types/group';
+import type { Group, CreateGroupRequest, AddMemberRequest, GroupBalanceResponse } from '../../types/group';
 
 export const groupService = {
   getGroups: async (): Promise<Group[]> => {
@@ -24,5 +24,10 @@ export const groupService = {
 
   removeMember: async (groupId: number, userId: number): Promise<void> => {
     await expenseApi.delete(`/groups/${groupId}/members/${userId}`);
+  },
+
+  getBalances: async (groupId: number): Promise<GroupBalanceResponse> => {
+    const response = await expenseApi.get<GroupBalanceResponse>(`/groups/${groupId}/balances`);
+    return response.data;
   },
 };
