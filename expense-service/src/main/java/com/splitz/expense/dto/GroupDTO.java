@@ -18,6 +18,7 @@ public class GroupDTO {
   private String imageUrl;
   private Long createdBy;
   private boolean active;
+  private boolean allowMembersToManageMembers;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
   private List<GroupMemberDTO> members;

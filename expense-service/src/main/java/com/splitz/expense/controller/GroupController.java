@@ -4,6 +4,7 @@ import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
+import com.splitz.expense.dto.UpdateMemberRoleRequest;
 import com.splitz.expense.service.GroupService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -69,6 +70,16 @@ public class GroupController {
       @PathVariable("groupId") Long groupId, @PathVariable("memberUserId") Long memberUserId) {
     groupService.removeMember(groupId, memberUserId, currentUserId());
     return ResponseEntity.noContent().build();
+  }
+
+  @PutMapping("/{groupId}/members/{memberUserId}/role")
+  public ResponseEntity<GroupDTO> updateMemberRole(
+      @PathVariable("groupId") Long groupId,
+      @PathVariable("memberUserId") Long memberUserId,
+      @Valid @RequestBody UpdateMemberRoleRequest request) {
+    GroupDTO result =
+        groupService.updateMemberRole(groupId, memberUserId, request, currentUserId());
+    return ResponseEntity.ok(result);
   }
 
   private Long currentUserId() {

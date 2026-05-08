@@ -48,6 +48,10 @@ public class Group {
   @Column(name = "is_active", nullable = false)
   private boolean active;
 
+  @Builder.Default
+  @Column(name = "allow_members_to_manage_members", nullable = false)
+  private boolean allowMembersToManageMembers = true;
+
   @CreationTimestamp
   @Column(name = "created_at", updatable = false)
   private LocalDateTime createdAt;

@@ -13,6 +13,7 @@ export interface Group {
   description?: string;
   createdBy: number;
   active: boolean;
+  allowMembersToManageMembers: boolean;
   createdAt: string;
   updatedAt: string;
   members: GroupMember[];
@@ -40,7 +41,9 @@ export interface Balance {
 
 export interface Debt {
   from: number;
+  fromUsername?: string;
   to: number;
+  toUsername?: string;
   amount: number;
 }
 

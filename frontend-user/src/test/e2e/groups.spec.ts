@@ -69,4 +69,93 @@ test.describe('Group Management', () => {
     await expect(page.getByText(groupName)).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(/testing group creation/i)).toBeVisible();
   });
+
+  test('should display member roles in group details', async ({ page }) => {
+    const timestamp = Date.now();
+    const username = `role_tester_${timestamp}`;
+    const email = `role_tester_${timestamp}@example.com`;
+    const password = 'Password123!';
+
+    // 1. Register and Login
+    await page.goto('/register');
+    await page.getByLabel(/first name/i).fill('Role');
+    await page.getByLabel(/last name/i).fill('Tester');
+    await page.getByLabel(/username/i).fill(username);
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByLabel(/password/i).fill(password);
+    await page.getByRole('button', { name: /register/i }).click();
+
+    await expect(page).toHaveURL(/\/login/);
+    await page.getByLabel(/username/i).fill(username);
+    await page.getByLabel(/password/i).fill(password);
+    await page.getByRole('button', { name: /login/i }).click();
+    await expect(page).toHaveURL(/\/$/);
+
+    // 2. Go to Groups page and create a group
+    await page.goto('/groups');
+    await page.getByRole('button', { name: /create group/i }).click();
+    const groupName = `Role Group ${timestamp}`;
+    const modal = page.getByRole('dialog');
+    await modal.getByLabel(/group name/i).fill(groupName);
+    await modal.getByRole('button', { name: /create group/i }).click();
+    
+    // 3. Wait for group to appear and click it
+    const groupLink = page.getByText(groupName);
+    await expect(groupLink).toBeVisible();
+    await groupLink.click();
+
+    // 4. Verify we are on details page
+    await expect(page).toHaveURL(/\/groups\/\d+/);
+    await expect(page.getByText(groupName)).toBeVisible();
+
+    // 5. Verify "Owner" badge is visible for the creator
+    await expect(page.getByText('Members', { exact: true })).toBeVisible();
+    await expect(page.getByText(/role tester/i)).toBeVisible();
+    const ownerBadge = page.locator('span', { hasText: 'Owner' });
+    await expect(ownerBadge).toBeVisible();
+  });
+
+  test('should allow owner to promote a member to admin', async ({ page }) => {
+    const timestamp = Date.now();
+    const ownerUser = `owner_${timestamp}`;
+    const memberUser = `member_${timestamp}`;
+    const password = 'Password123!';
+
+    // 1. Register Member User
+    await page.goto('/register');
+    await page.getByLabel(/first name/i).fill('Member');
+    await page.getByLabel(/last name/i).fill('User');
+    await page.getByLabel(/username/i).fill(memberUser);
+    await page.getByLabel(/email/i).fill(`${memberUser}@example.com`);
+    await page.getByLabel(/password/i).fill(password);
+    await page.getByRole('button', { name: /register/i }).click();
+    await expect(page).toHaveURL(/\/login/);
+
+    // 2. Register and Login Owner User
+    await page.goto('/register');
+    await page.getByLabel(/first name/i).fill('Owner');
+    await page.getByLabel(/last name/i).fill('User');
+    await page.getByLabel(/username/i).fill(ownerUser);
+    await page.getByLabel(/email/i).fill(`${ownerUser}@example.com`);
+    await page.getByLabel(/password/i).fill(password);
+    await page.getByRole('button', { name: /register/i }).click();
+    await expect(page).toHaveURL(/\/login/);
+
+    await page.getByLabel(/username/i).fill(ownerUser);
+    await page.getByLabel(/password/i).fill(password);
+    await page.getByRole('button', { name: /login/i }).click();
+    await expect(page).toHaveURL(/\/$/);
+
+    // 3. Create Group and invite member
+    await page.goto('/groups');
+    await page.getByRole('button', { name: /create group/i }).first().click();
+    const modal = page.getByRole('dialog');
+    await modal.getByLabel(/group name/i).fill(`Role Group ${timestamp}`);
+    await modal.getByRole('button', { name: /create group/i }).click();
+    await page.getByText(`Role Group ${timestamp}`).click();
+
+    // Verify "Manage role" is NOT visible for self (Owner cannot demote self)
+    await expect(page.getByText('Owner User')).toBeVisible();
+    await expect(page.getByLabel('Manage role')).not.toBeVisible();
+  });
 });

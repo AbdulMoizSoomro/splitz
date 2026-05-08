@@ -16,6 +16,7 @@ import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.GroupMemberDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
+import com.splitz.expense.dto.UpdateMemberRoleRequest;
 import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.JwtRequestFilter;
@@ -156,5 +157,30 @@ class GroupControllerTest {
   @WithMockUser(username = "5")
   void deleteGroup_ShouldReturnNoContent() throws Exception {
     mockMvc.perform(delete("/groups/9")).andExpect(status().isNoContent());
+  }
+
+  @Test
+  @WithMockUser(username = "1")
+  void updateMemberRole_ShouldReturnUpdatedGroup() throws Exception {
+    UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
+    request.setRole(GroupRole.ADMIN);
+
+    GroupDTO response =
+        GroupDTO.builder()
+            .id(1L)
+            .members(List.of(GroupMemberDTO.builder().userId(2L).role(GroupRole.ADMIN).build()))
+            .build();
+
+    when(groupService.updateMemberRole(
+            Mockito.eq(1L), Mockito.eq(2L), any(UpdateMemberRoleRequest.class), Mockito.eq(1L)))
+        .thenReturn(response);
+
+    mockMvc
+        .perform(
+            put("/groups/1/members/2/role")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.members[0].role").value("ADMIN"));
   }
 }

@@ -5,6 +5,7 @@ import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
+import com.splitz.expense.dto.UpdateMemberRoleRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.mapper.GroupMapper;
 import com.splitz.expense.model.Group;
@@ -86,6 +87,9 @@ public class GroupService {
     if (request.getImageUrl() != null) {
       group.setImageUrl(request.getImageUrl());
     }
+    if (request.getAllowMembersToManageMembers() != null) {
+      group.setAllowMembersToManageMembers(request.getAllowMembersToManageMembers());
+    }
     return groupMapper.toDTO(groupRepository.save(group));
   }
 
@@ -125,8 +129,40 @@ public class GroupService {
             .findByGroupIdAndUserId(groupId, memberUserId)
             .orElseThrow(() -> new ResourceNotFoundException("Member not found in this group"));
 
+    // Owner protection
+    if (member.getUserId().equals(group.getCreatedBy())) {
+      throw new AccessDeniedException("The group owner cannot be removed from the group");
+    }
+
     group.removeMember(member);
     groupMemberRepository.delete(member);
+  }
+
+  public GroupDTO updateMemberRole(
+      Long groupId, Long memberUserId, UpdateMemberRoleRequest request, Long userId) {
+    Group group = getGroupWithMembers(groupId);
+    requireAdmin(group, userId);
+
+    GroupMember member =
+        groupMemberRepository
+            .findByGroupIdAndUserId(groupId, memberUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("Member not found in this group"));
+
+    // Owner protection: The owner cannot be demoted or have their role changed by others.
+    if (member.getUserId().equals(group.getCreatedBy())) {
+      throw new AccessDeniedException("The group owner role cannot be modified");
+    }
+
+    // Admin wars protection: Only owner can demote an Admin (unless self-demoting)
+    if (member.getRole() == GroupRole.ADMIN
+        && request.getRole() == GroupRole.MEMBER
+        && !userId.equals(group.getCreatedBy())
+        && !userId.equals(memberUserId)) {
+      throw new AccessDeniedException("Only the group owner can demote another admin");
+    }
+
+    member.setRole(request.getRole());
+    return groupMapper.toDTO(groupRepository.save(group));
   }
 
   private Group getGroupWithMembers(Long groupId) {

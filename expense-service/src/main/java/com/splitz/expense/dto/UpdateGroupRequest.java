@@ -14,4 +14,6 @@ public class UpdateGroupRequest {
 
   @Size(max = 512, message = "imageUrl must be at most 512 characters")
   private String imageUrl;
+
+  private Boolean allowMembersToManageMembers;
 }

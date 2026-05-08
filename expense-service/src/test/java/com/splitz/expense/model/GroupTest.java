@@ -51,4 +51,16 @@ class GroupTest {
     assertEquals(100L, group.getCreatedBy());
     assertTrue(group.isActive());
   }
+
+  @Test
+  void shouldHaveAllowMembersToManageMembersDefaultToTrue() {
+    Group group = new Group();
+    assertTrue(group.isAllowMembersToManageMembers(), "Default should be true");
+  }
+
+  @Test
+  void builderShouldSupportAllowMembersToManageMembers() {
+    Group group = Group.builder().allowMembersToManageMembers(false).build();
+    assertFalse(group.isAllowMembersToManageMembers());
+  }
 }

@@ -49,8 +49,8 @@ describe('GroupList', () => {
 
   it('renders list of groups', async () => {
     const mockGroups = [
-      { id: 1, name: 'Group 1', description: 'Desc 1', members: [], createdBy: 1, active: true, createdAt: '', updatedAt: '' },
-      { id: 2, name: 'Group 2', description: 'Desc 2', members: [], createdBy: 1, active: true, createdAt: '', updatedAt: '' },
+      { id: 1, name: 'Group 1', description: 'Desc 1', members: [], createdBy: 1, active: true, allowMembersToManageMembers: true, createdAt: '', updatedAt: '' },
+      { id: 2, name: 'Group 2', description: 'Desc 2', members: [], createdBy: 1, active: true, allowMembersToManageMembers: true, createdAt: '', updatedAt: '' },
     ];
     vi.mocked(groupService.getGroups).mockResolvedValue(mockGroups);
 

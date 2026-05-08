@@ -14,3 +14,11 @@
 - Implemented E2E tests for real-time balance validation during exact splits (#26)
 - Implemented E2E tests for submission guard and API payload integration for exact splits (#27)
 - Validated atomic group creation flow in containerized production environment (Docker) with E2E coverage and DB persistence verification (#14)
+- Implemented visual role indicators (badges) for group members in GroupDetails UI (#15)
+- Implemented group role management (promote/demote) with Owner protection and UI feedback (#16)
+- Implemented Group Settings with 'Allow members to manage members' toggle, Owner-only visibility, and backend persistence (#17)
+- Implemented 'Temp Friend' badge for non-friends in group member lists with dedicated UI styling and service integration (#19)
+
+- Implemented 'Temp Friend' tracking on global Friends page with balance-based pinning and auto-dismissal (#20)
+
+Issue 24 blocked by #22 (CLOSED) and #23 (OPEN). Issue 23 is the next candidate.

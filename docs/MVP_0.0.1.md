@@ -34,7 +34,7 @@ A user can register, login, create a group with friends, add expenses, and see c
 |---------|-------------|--------|
 | Categories | Predefined expense categories | ✅ Done |
 | Groups | Create/manage expense groups | ✅ Done |
-| Group Members | Add/remove members from groups (Leave Group with debt blocking) | ✅ Done |
+| Group Members | Add/remove members from groups (Leave Group with debt blocking), role visualization and management | ✅ Done |
 | Expenses | Create/edit/delete expenses | ✅ Done |
 | Split Types | EQUAL and EXACT splits | ✅ Done |
 | Balances | Calculate who owes whom | ⬜ Not Started |
@@ -249,6 +249,7 @@ Group
 ├── description: String
 ├── createdBy: Long (userId)
 ├── isActive: boolean
+├── allowMembersToManageMembers: boolean
 ├── createdAt: DateTime
 └── updatedAt: DateTime
 

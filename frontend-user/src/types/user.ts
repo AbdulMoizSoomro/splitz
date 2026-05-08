@@ -24,3 +24,17 @@ export interface Friendship {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface GroupBalance {
+  groupId: number;
+  groupName: string;
+  balance: number;
+}
+
+export interface UserBalanceResponse {
+  userId: number;
+  username: string;
+  email: string;
+  totalBalance: number;
+  groupBalances: GroupBalance[];
+}
