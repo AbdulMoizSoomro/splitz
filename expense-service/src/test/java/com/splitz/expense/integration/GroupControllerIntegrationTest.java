@@ -215,4 +215,28 @@ public class GroupControllerIntegrationTest {
         .perform(delete("/groups/" + saved.getId()).header("Authorization", tokenFor(200L)))
         .andExpect(status().isForbidden());
   }
+
+  @Test
+  void updateGroup_shouldUpdateAllowMembersToManageMembers() throws Exception {
+    Group g = Group.builder().name("SettingsTest").createdBy(100L).active(true).build();
+    g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
+    Group saved = groupRepository.save(g);
+
+    // Default should be true in response (once we update GroupDTO)
+    // But first, let's just try to update it to false
+    UpdateGroupRequest update = new UpdateGroupRequest();
+    update.setAllowMembersToManageMembers(false);
+
+    mockMvc
+        .perform(
+            put("/groups/" + saved.getId())
+                .header("Authorization", tokenFor(100L))
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(update)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.allowMembersToManageMembers").value(false));
+
+    Group persisted = groupRepository.findById(saved.getId()).orElseThrow();
+    assertThat(persisted.isAllowMembersToManageMembers()).isFalse();
+  }
 }

@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import GroupDetails from './GroupDetails';
 import { groupService } from './groupService';
+import { friendService } from '../users/friendService';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { Group } from '../../types/group';
@@ -15,10 +16,10 @@ const queryClient = new QueryClient({
 });
 
 vi.mock('./groupService');
+vi.mock('../users/friendService');
+const mockUseAuthStore = vi.fn();
 vi.mock('../../store/authStore', () => ({
-  useAuthStore: () => ({
-    user: { id: '1', username: 'testuser' }
-  })
+  useAuthStore: () => mockUseAuthStore()
 }));
 
 const mockGroup: Group = {
@@ -28,6 +29,7 @@ const mockGroup: Group = {
   members: [{ id: 1, userId: 1, role: 'ADMIN', joinedAt: '2025-01-01T10:00:00Z' }],
   createdBy: 1,
   active: true,
+  allowMembersToManageMembers: true,
   createdAt: '2025-01-01T10:00:00Z',
   updatedAt: '2025-01-01T10:00:00Z'
 };
@@ -36,6 +38,9 @@ describe('GroupDetails', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
+    mockUseAuthStore.mockReturnValue({
+      user: { id: '1', username: 'testuser' }
+    });
     // Default mock for balances (zero balance)
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 1,
@@ -44,6 +49,7 @@ describe('GroupDetails', () => {
       ],
       simplifiedDebts: []
     });
+    vi.mocked(friendService.getFriends).mockResolvedValue([]);
   });
 
   it('renders group details correctly', async () => {
@@ -155,4 +161,220 @@ describe('GroupDetails', () => {
       expect(within(modal).getByRole('button', { name: /^leave group$/i })).toBeDisabled();
     });
   });
+
+  it('renders member list with roles and names', async () => {
+    const groupWithMembers: Group = {
+      ...mockGroup,
+      createdBy: 1,
+      members: [
+        { id: 1, userId: 1, role: 'ADMIN', joinedAt: '2025-01-01T10:00:00Z' },
+        { id: 2, userId: 2, role: 'ADMIN', joinedAt: '2025-01-01T10:00:00Z' },
+        { id: 3, userId: 3, role: 'MEMBER', joinedAt: '2025-01-01T10:00:00Z' }
+      ]
+    };
+    vi.mocked(groupService.getGroup).mockResolvedValue(groupWithMembers);
+    vi.mocked(groupService.getBalances).mockResolvedValue({
+      groupId: 1,
+      balances: [
+        { userId: 1, username: 'owneruser', email: 'o@e.com', firstName: 'Owner', lastName: 'User', balance: 0 },
+        { userId: 2, username: 'adminuser', email: 'a@e.com', firstName: 'Admin', lastName: 'User', balance: 0 },
+        { userId: 3, username: 'memberuser', email: 'm@e.com', firstName: 'Member', lastName: 'User', balance: 0 }
+      ],
+      simplifiedDebts: []
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/groups/1']}>
+          <Routes>
+            <Route path="/groups/:id" element={<GroupDetails />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Owner User')).toBeInTheDocument();
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+      expect(screen.getByText('Member User')).toBeInTheDocument();
+      
+      // Role badges
+      expect(screen.getByText('Owner')).toBeInTheDocument();
+      expect(screen.getByText('Admin')).toBeInTheDocument();
+      expect(screen.getByText('Member')).toBeInTheDocument();
+    });
+  });
+
+  it('renders Temp Friend badge for non-friends', async () => {
+    const groupWithMembers: Group = {
+      ...mockGroup,
+      createdBy: 1,
+      members: [
+        { id: 1, userId: 1, role: 'ADMIN', joinedAt: '2025-01-01T10:00:00Z' },
+        { id: 2, userId: 2, role: 'MEMBER', joinedAt: '2025-01-01T10:00:00Z' },
+        { id: 3, userId: 3, role: 'MEMBER', joinedAt: '2025-01-01T10:00:00Z' }
+      ]
+    };
+    vi.mocked(groupService.getGroup).mockResolvedValue(groupWithMembers);
+    vi.mocked(groupService.getBalances).mockResolvedValue({
+      groupId: 1,
+      balances: [
+        { userId: 1, username: 'owneruser', email: 'o@e.com', firstName: 'Owner', lastName: 'User', balance: 0 },
+        { userId: 2, username: 'adminuser', email: 'a@e.com', firstName: 'Admin', lastName: 'User', balance: 0 },
+        { userId: 3, username: 'memberuser', email: 'm@e.com', firstName: 'Member', lastName: 'User', balance: 0 }
+      ],
+      simplifiedDebts: []
+    });
+
+    vi.mocked(friendService.getFriends).mockResolvedValue([
+      { id: 2, username: 'adminuser', email: 'a@e.com', firstName: 'Admin', lastName: 'User' }
+    ]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/groups/1']}>
+          <Routes>
+            <Route path="/groups/:id" element={<GroupDetails />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Owner User')).toBeInTheDocument();
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+      expect(screen.getByText('Member User')).toBeInTheDocument();
+      
+      // User 3 should have Temp Friend badge
+      const userThreeContainer = screen.getByText('Member User').closest('div.flex.items-center.justify-between');
+      expect(within(userThreeContainer as HTMLElement).getByText('Temp Friend')).toBeInTheDocument();
+      
+      // User 2 should NOT have Temp Friend badge
+      const userTwoContainer = screen.getByText('Admin User').closest('div.flex.items-center.justify-between');
+      expect(within(userTwoContainer as HTMLElement).queryByText('Temp Friend')).not.toBeInTheDocument();
+    });
+  });
+
+  it('calls updateMemberRole when promoting a member', async () => {
+    const groupWithMembers: Group = {
+      ...mockGroup,
+      createdBy: 1, // Current user is Admin (ID 1)
+      members: [
+        { id: 1, userId: 1, role: 'ADMIN', joinedAt: '2025-01-01T10:00:00Z' },
+        { id: 3, userId: 3, role: 'MEMBER', joinedAt: '2025-01-01T10:00:00Z' }
+      ]
+    };
+    vi.mocked(groupService.getGroup).mockResolvedValue(groupWithMembers);
+    vi.mocked(groupService.getBalances).mockResolvedValue({
+      groupId: 1,
+      balances: [
+        { userId: 1, username: 'owneruser', email: 'o@e.com', firstName: 'Owner', lastName: 'User', balance: 0 },
+        { userId: 3, username: 'memberuser', email: 'm@e.com', firstName: 'Member', lastName: 'User', balance: 0 }
+      ],
+      simplifiedDebts: []
+    });
+    vi.mocked(groupService.updateMemberRole).mockResolvedValue({ ...groupWithMembers });
+
+    const { fireEvent } = await import('@testing-library/react');
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/groups/1']}>
+          <Routes>
+            <Route path="/groups/:id" element={<GroupDetails />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    // Wait for member list
+    await screen.findByText('Member User');
+
+    // Find and click dropdown trigger for Member User
+    // Note: The Owner (ID 1) doesn't have a dropdown because they are the Owner.
+    // Member User (ID 3) should have one.
+    const dropdownTrigger = screen.getByLabelText('Manage role');
+    fireEvent.click(dropdownTrigger);
+
+    // Click "Promote to Admin"
+    const promoteButton = await screen.findByText('Promote to Admin');
+    fireEvent.click(promoteButton);
+await waitFor(() => {
+  expect(groupService.updateMemberRole).toHaveBeenCalledWith(1, 3, 'ADMIN');
+});
+});
+
+it('shows Group Settings only to the Owner', async () => {
+// Current user is ID 1 (Owner)
+vi.mocked(groupService.getGroup).mockResolvedValue(mockGroup);
+
+render(
+  <QueryClientProvider client={queryClient}>
+    <MemoryRouter initialEntries={['/groups/1']}>
+      <Routes>
+        <Route path="/groups/:id" element={<GroupDetails />} />
+      </Routes>
+    </MemoryRouter>
+  </QueryClientProvider>
+);
+
+await waitFor(() => {
+  expect(screen.getByText('Group Settings')).toBeInTheDocument();
+});
+});
+
+it('hides Group Settings from non-Owner members', async () => {
+  mockUseAuthStore.mockReturnValue({
+    user: { id: '2', username: 'otheruser' }
+  });
+
+  const groupWithOwner1 = { ...mockGroup, createdBy: 1 };vi.mocked(groupService.getGroup).mockResolvedValue(groupWithOwner1);
+
+render(
+  <QueryClientProvider client={queryClient}>
+    <MemoryRouter initialEntries={['/groups/1']}>
+      <Routes>
+        <Route path="/groups/:id" element={<GroupDetails />} />
+      </Routes>
+    </MemoryRouter>
+  </QueryClientProvider>
+);
+
+await waitFor(() => {
+  expect(screen.queryByText('Group Settings')).not.toBeInTheDocument();
+});
+});
+
+it('calls updateGroup when toggling allowMembersToManageMembers', async () => {
+vi.mocked(groupService.getGroup).mockResolvedValue(mockGroup);
+vi.mocked(groupService.updateGroup).mockResolvedValue({ 
+  ...mockGroup, 
+  allowMembersToManageMembers: false 
+});
+
+const { fireEvent } = await import('@testing-library/react');
+
+render(
+  <QueryClientProvider client={queryClient}>
+    <MemoryRouter initialEntries={['/groups/1']}>
+      <Routes>
+        <Route path="/groups/:id" element={<GroupDetails />} />
+      </Routes>
+    </MemoryRouter>
+  </QueryClientProvider>
+);
+
+// Wait for Group Settings
+await screen.findByText('Group Settings');
+
+const groupSettingsCard = screen.getByText('Group Settings').closest('.rounded-lg');
+const toggleButton = within(groupSettingsCard as HTMLElement).getByRole('button');
+
+fireEvent.click(toggleButton);
+await waitFor(() => {
+  expect(groupService.updateGroup).toHaveBeenCalledWith(1, {
+    allowMembersToManageMembers: false
+  });
+});
+});
 });

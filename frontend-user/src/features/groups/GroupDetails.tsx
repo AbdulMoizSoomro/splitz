@@ -1,20 +1,28 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { groupService } from './groupService';
+import { friendService } from '../users/friendService';
 import { useAuthStore } from '../../store/authStore';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/core/Card/Card';
 import Button from '../../components/core/Button/Button';
 import Modal from '../../components/core/Modal/Modal';
-import { Loader2, ArrowLeft, LogOut } from 'lucide-react';
+import Badge from '../../components/core/Badge/Badge';
+import type { BadgeVariant } from '../../components/core/Badge/Badge';
+import Dropdown from '../../components/core/Dropdown/Dropdown';
+import { useToastStore } from '../../store/toastStore';
+import { Loader2, ArrowLeft, LogOut, Users, MoreVertical, ShieldAlert, Settings } from 'lucide-react';
 
 const GroupDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const { addToast } = useToastStore();
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isSelfDemoteModalOpen, setIsSelfDemoteModalOpen] = useState(false);
 
   const { data: group, isLoading } = useQuery({
     queryKey: ['group', id],
@@ -25,25 +33,83 @@ const GroupDetails = () => {
   const { data: balancesResponse, isLoading: isBalancesLoading } = useQuery({
     queryKey: ['group-balances', id],
     queryFn: () => groupService.getBalances(Number(id)),
-    enabled: !!id && isLeaveModalOpen,
+    enabled: !!id,
+  });
+
+  const { data: friends, isLoading: isFriendsLoading } = useQuery({
+    queryKey: ['friends', user?.id],
+    queryFn: () => friendService.getFriends(Number(user?.id)),
+    enabled: !!user?.id,
   });
 
   const leaveMutation = useMutation({
     mutationFn: () => groupService.removeMember(Number(id), Number(user?.id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+      addToast('Left group successfully', 'success');
       navigate('/groups');
     },
+    onError: () => {
+      addToast('Failed to leave group', 'error');
+    }
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: number; role: 'ADMIN' | 'MEMBER' }) =>
+      groupService.updateMemberRole(Number(id), userId, role),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['group', id] });
+      addToast('Role updated successfully', 'success');
+      if (variables.userId === Number(user?.id) && variables.role === 'MEMBER') {
+        setIsSelfDemoteModalOpen(false);
+      }
+    },
+    onError: (error) => {
+      let message = 'Failed to update role';
+      if (axios.isAxiosError(error)) {
+        message = error.response?.data?.message || message;
+      }
+      addToast(message, 'error');
+      setIsSelfDemoteModalOpen(false);
+    }
+  });
+
+  const updateGroupMutation = useMutation({
+    mutationFn: (data: Partial<import('../../types/group').Group>) =>
+      groupService.updateGroup(Number(id), data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group', id] });
+      addToast('Group settings updated', 'success');
+    },
+    onError: () => {
+      addToast('Failed to update group settings', 'error');
+    }
   });
 
   const handleLeave = () => {
     leaveMutation.mutate();
   };
 
+  const handleRoleUpdate = (userId: number, newRole: 'ADMIN' | 'MEMBER') => {
+    if (userId === Number(user?.id) && newRole === 'MEMBER') {
+      setIsSelfDemoteModalOpen(true);
+      return;
+    }
+    updateRoleMutation.mutate({ userId, role: newRole });
+  };
+
+  const confirmSelfDemote = () => {
+    updateRoleMutation.mutate({ userId: Number(user?.id), role: 'MEMBER' });
+  };
+
   const currentUserBalance = balancesResponse?.balances.find(b => b.userId === Number(user?.id))?.balance ?? 0;
+  const currentUserRole = group?.members.find(m => m.userId === Number(user?.id))?.role;
+  const isOwner = group?.createdBy === Number(user?.id);
+  const isAdmin = currentUserRole === 'ADMIN';
+
   const canLeave = currentUserBalance === 0;
 
-  if (isLoading) {
+  if (isLoading || isFriendsLoading) {
     return (
       <DashboardLayout>
         <div className="flex justify-center py-12">
@@ -86,9 +152,116 @@ const GroupDetails = () => {
                 <p className="text-gray-600">{group.description || 'No description provided.'}</p>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="flex items-center gap-2">
+                  <Users size={20} />
+                  <span>Members</span>
+                </CardTitle>
+                <span className="text-sm text-gray-500">{group.members.length} members</span>
+              </CardHeader>
+              <CardContent>
+                <div className="divide-y divide-gray-100">
+                  {group.members.map((member) => {
+                    const balanceInfo = balancesResponse?.balances.find(b => b.userId === member.userId);
+                    const displayName = balanceInfo 
+                      ? `${balanceInfo.firstName} ${balanceInfo.lastName}`
+                      : `User ${member.userId}`;
+                    
+                    let roleVariant: BadgeVariant = 'member';
+                    let roleLabel = 'Member';
+                    
+                    if (member.userId === group.createdBy) {
+                      roleVariant = 'owner';
+                      roleLabel = 'Owner';
+                    } else if (member.role === 'ADMIN') {
+                      roleVariant = 'admin';
+                      roleLabel = 'Admin';
+                    }
+                    
+                    const isCurrentUser = member.userId === Number(user?.id);
+                    const isFriend = friends?.some(f => f.id === member.userId);
+                    const isTempFriend = !isCurrentUser && friends && !isFriend;
+
+                    return (
+                      <div key={member.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium text-sm">
+                            {displayName.charAt(0)}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-gray-900">{displayName}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isTempFriend && (
+                            <Badge variant="temp">Temp Friend</Badge>
+                          )}
+                          <Badge variant={roleVariant}>{roleLabel}</Badge>
+                          
+                          {/* Role Management Dropdown */}
+                          {(isAdmin || isOwner) && member.userId !== group.createdBy && (
+                            <Dropdown
+                              trigger={
+                                <button 
+                                  aria-label="Manage role"
+                                  className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                                >
+                                  <MoreVertical size={16} />
+                                </button>
+                              }
+                              items={[
+                                {
+                                  label: member.role === 'ADMIN' ? 'Demote to Member' : 'Promote to Admin',
+                                  onClick: () => handleRoleUpdate(
+                                    member.userId, 
+                                    member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN'
+                                  ),
+                                  disabled: updateRoleMutation.isPending
+                                }
+                              ]}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="space-y-6">
+            {isOwner && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings size={20} />
+                    <span>Group Settings</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900">Manage Members</span>
+                        <span className="text-xs text-gray-500">Allow members to add/remove others</span>
+                      </div>
+                      <button 
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${group.allowMembersToManageMembers ? 'bg-blue-600' : 'bg-gray-200'} ${updateGroupMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => updateGroupMutation.mutate({ allowMembersToManageMembers: !group.allowMembersToManageMembers })}
+                        disabled={updateGroupMutation.isPending}
+                        aria-label="Toggle allow members to manage members"
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${group.allowMembersToManageMembers ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>Actions</CardTitle>
@@ -137,6 +310,33 @@ const GroupDetails = () => {
               disabled={leaveMutation.isPending || isBalancesLoading || !canLeave}
             >
               {leaveMutation.isPending ? 'Leaving...' : 'Leave Group'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isSelfDemoteModalOpen}
+        onClose={() => setIsSelfDemoteModalOpen(false)}
+        title="Confirm Self-Demotion"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+            <ShieldAlert className="shrink-0" size={20} />
+            <p>
+              Are you sure you want to demote yourself to a Member? You will lose all administrative privileges in this group.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setIsSelfDemoteModalOpen(false)} disabled={updateRoleMutation.isPending}>
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={confirmSelfDemote} 
+              disabled={updateRoleMutation.isPending}
+            >
+              {updateRoleMutation.isPending ? 'Updating...' : 'Confirm Demotion'}
             </Button>
           </div>
         </div>

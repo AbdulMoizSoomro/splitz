@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/core/
 import UserSearch from './UserSearch';
 import FriendRequestsList from './FriendRequestsList';
 import FriendsList from './FriendsList';
+import TempFriendsList from './TempFriendsList';
 
 const FriendsPage = () => {
   return (
@@ -24,6 +25,8 @@ const FriendsPage = () => {
                 <UserSearch />
               </CardContent>
             </Card>
+
+            <TempFriendsList />
 
             <Card>
               <CardHeader>

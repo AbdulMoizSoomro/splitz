@@ -31,6 +31,7 @@ public class GroupMapper {
         .imageUrl(group.getImageUrl())
         .createdBy(group.getCreatedBy())
         .active(group.isActive())
+        .allowMembersToManageMembers(group.isAllowMembersToManageMembers())
         .createdAt(group.getCreatedAt())
         .updatedAt(group.getUpdatedAt())
         .members(mapMembers(group.getMembers()))
