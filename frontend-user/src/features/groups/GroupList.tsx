@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Folder, Users, ReceiptText } from 'lucide-react';
 import { groupService } from './groupService';
 import Button from '../../components/core/Button/Button';
@@ -9,6 +10,7 @@ import type { Group } from '../../types/group';
 const GroupList = () => {
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ['groups'],
@@ -45,6 +47,7 @@ const GroupList = () => {
         {groups.map((group) => (
           <div
             key={group.id}
+            onClick={() => navigate(`/groups/${group.id}`)}
             className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
           >
             <div className="flex justify-between items-start mb-3">

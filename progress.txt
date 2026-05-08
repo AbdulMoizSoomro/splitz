@@ -7,7 +7,10 @@
 - Implemented Stateless Identity Propagation by including userId and roles in JWT claims, enabling DB-less authorization (#28)
 - Implemented SharedSecurityAuthorizer in common-security with full unit and integration test coverage (#29)
 - Migrated user-service to Stateless Auth using SharedSecurityAuthorizer and standardized numeric userIds (#30)
+- Implemented 'Leave Group' functionality with UI workflow and confirmation dialog (#21)
+- Implemented Debt-Based Blocking Logic for leaving a group (#22)
 
 - Implemented E2E tests for Exact Split UI and validation (#25)
 - Implemented E2E tests for real-time balance validation during exact splits (#26)
 - Implemented E2E tests for submission guard and API payload integration for exact splits (#27)
+- Validated atomic group creation flow in containerized production environment (Docker) with E2E coverage and DB persistence verification (#14)

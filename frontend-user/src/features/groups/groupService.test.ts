@@ -69,4 +69,21 @@ describe('groupService', () => {
 
     expect(expenseApi.delete).toHaveBeenCalledWith(`/groups/${groupId}/members/${userId}`);
   });
+
+  it('fetches balances for a group', async () => {
+    const groupId = 1;
+    const mockBalances = {
+      groupId,
+      balances: [
+        { userId: 1, username: 'user1', email: 'u1@ex.com', firstName: 'U1', lastName: 'L1', balance: 10.0 }
+      ],
+      simplifiedDebts: []
+    };
+    vi.mocked(expenseApi.get).mockResolvedValueOnce({ data: mockBalances });
+
+    const result = await groupService.getBalances(groupId);
+
+    expect(expenseApi.get).toHaveBeenCalledWith(`/groups/${groupId}/balances`);
+    expect(result).toEqual(mockBalances);
+  });
 });

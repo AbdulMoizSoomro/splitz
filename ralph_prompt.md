@@ -71,7 +71,7 @@ Assign an overall confidence: **High / Medium / Low**.
 - Checkout or create `feature/issue-<id>` from the latest `main`/`develop`.
 - Never reuse a branch from a previous failed attempt without a clean reset.
 
-### 4. TDD Execution
+### 4. TDD Execution (Use `/tdd` skill)
 
 - **RED**: Write a failing test that captures the acceptance criteria exactly.
 - **GREEN**: Write the minimal code to make it pass — no speculative additions.
@@ -79,6 +79,8 @@ Assign an overall confidence: **High / Medium / Low**.
 - On failure → apply **Escalating Recovery Protocol**.
 
 ### 5. Quality Gates (hard stop on failure)
+
+Use Grep aggressively to *limit* the LOGS.
 
 **Java**: `mvn -q -B spotless:apply && mvn -q -B verify`
 
@@ -122,8 +124,8 @@ update the the Issue to `ready-for-human` using gh and DO NOT CLOSE THE ISSUE   
 
 ### 9. Single Task Policy
 
-clear the chat with `/clear`
 One task per iteration. No scope creep. If a related bug or improvement surfaces during work, log it as a new issue — do not fix it now.
+Repeat the loop untill all tasks labeled `ready-for-agent` are done.
 
 ---
 
