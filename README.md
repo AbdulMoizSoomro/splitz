@@ -9,6 +9,7 @@ A **Splitwise-like expense splitting application** for friends and roommates, bu
 ## 🚀 Features
 
 ### Current (MVP 0.0.1)
+
 - **User Management**: Registration, authentication, profile management
 - **JWT Authentication**: Stateless, secure token-based auth with BCrypt password hashing
 - **Role-Based Access Control**: ADMIN and USER roles with method-level security
@@ -16,6 +17,7 @@ A **Splitwise-like expense splitting application** for friends and roommates, bu
 - **Friend Management**: Send, accept, reject friend requests
 
 ### Planned
+
 - **Expense Tracking**: Create, update, delete expenses with multiple split types
 - **Groups**: Manage expense groups with members
 - **Settlements**: Track and settle balances between users
@@ -133,6 +135,7 @@ mvn -pl user-service test -Dtest=UserControllerTest
 ### Example Requests
 
 **Register a new user:**
+
 ```bash
 curl -X POST http://localhost:8080/users \
   -H "Content-Type: application/json" \
@@ -146,6 +149,7 @@ curl -X POST http://localhost:8080/users \
 ```
 
 **Login:**
+
 ```bash
 curl -X POST http://localhost:8080/authenticate \
   -H "Content-Type: application/json" \
@@ -156,6 +160,7 @@ curl -X POST http://localhost:8080/authenticate \
 ```
 
 **Access protected endpoint:**
+
 ```bash
 curl http://localhost:8080/users/1 \
   -H "Authorization: Bearer <your-jwt-token>"
@@ -176,12 +181,14 @@ curl http://localhost:8080/users/1 \
 ### Database Configuration
 
 **Development (H2):**
+
 ```properties
 spring.datasource.url=jdbc:h2:mem:splitzdb
 spring.jpa.hibernate.ddl-auto=create-drop
 ```
 
 **Production (PostgreSQL):**
+
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/splitz
 spring.datasource.username=${DB_USERNAME}
@@ -231,13 +238,14 @@ spring.jpa.hibernate.ddl-auto=validate
 | API Gateway | 📋 Planned | 0% |
 | Notifications | 📋 Planned | 0% |
 
-See [./docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) for detailed plans. These plans are updated regularly with each development implemenationtation. 
+See [./docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) for detailed plans. These plans are updated regularly with each development implemenationtation.
 
 ---
 
 ## 🧪 Testing
 
 The project includes:
+
 - **Unit Tests**: Service and controller layer tests with Mockito
 - **Integration Tests**: Full API flow tests with Spring Boot Test
 - **Security Tests**: JWT validation and authorization tests

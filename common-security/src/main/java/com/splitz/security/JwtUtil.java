@@ -35,6 +35,23 @@ public class JwtUtil {
     return extractClaim(token, Claims::getSubject);
   }
 
+  public Long extractUserId(String token) {
+    return extractClaim(
+        token,
+        claims -> {
+          Object userId = claims.get("userId");
+          if (userId instanceof Number) {
+            return ((Number) userId).longValue();
+          }
+          return null;
+        });
+  }
+
+  @SuppressWarnings("unchecked")
+  public java.util.List<String> extractRoles(String token) {
+    return extractClaim(token, claims -> claims.get("roles", java.util.List.class));
+  }
+
   public Date extractExpiration(String token) {
     return extractClaim(token, Claims::getExpiration);
   }
@@ -71,7 +88,25 @@ public class JwtUtil {
 
   public String generateToken(UserDetails userDetails) {
     Map<String, Object> claims = new HashMap<>();
+    // Try to extract userId from username if it's numeric (backward compatibility)
+    try {
+      claims.put("userId", Long.parseLong(userDetails.getUsername()));
+    } catch (NumberFormatException e) {
+      // Not a numeric ID, skip userId claim or handle as needed
+    }
+    claims.put(
+        "roles",
+        userDetails.getAuthorities().stream()
+            .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+            .collect(java.util.stream.Collectors.toList()));
     return createToken(claims, userDetails.getUsername());
+  }
+
+  public String generateToken(String username, Long userId, java.util.List<String> roles) {
+    Map<String, Object> claims = new HashMap<>();
+    claims.put("userId", userId);
+    claims.put("roles", roles);
+    return createToken(claims, username);
   }
 
   public Boolean isTokenValid(String token, UserDetails userDetails) {

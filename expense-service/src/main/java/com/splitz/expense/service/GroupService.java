@@ -43,6 +43,18 @@ public class GroupService {
         GroupMember.builder().userId(currentUserId).role(GroupRole.ADMIN).build();
     group.addMember(creatorMembership);
 
+    if (request.getMemberUserIds() != null) {
+      for (Long memberUserId : request.getMemberUserIds()) {
+        if (!memberUserId.equals(currentUserId)) {
+          if (!userClient.existsById(memberUserId)) {
+            throw new ResourceNotFoundException("User not found with id: " + memberUserId);
+          }
+          group.addMember(
+              GroupMember.builder().userId(memberUserId).role(GroupRole.MEMBER).build());
+        }
+      }
+    }
+
     Group saved = groupRepository.save(group);
     return groupMapper.toDTO(saved);
   }

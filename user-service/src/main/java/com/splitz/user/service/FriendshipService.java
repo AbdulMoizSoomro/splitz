@@ -90,12 +90,17 @@ public class FriendshipService {
     return friendshipMapper.toDTO(saved);
   }
 
-  /** List pending incoming requests for a user (where the user is the addressee). */
-  public List<FriendshipDTO> getPendingRequests(Long userId) {
+  /** List pending requests for a user. */
+  public List<FriendshipDTO> getPendingRequests(Long userId, String direction) {
     Objects.requireNonNull(userId, "userId");
     User user = getUserOrThrow(userId);
-    List<Friendship> pending =
-        friendshipRepository.findByAddresseeAndStatus(user, FriendshipStatus.PENDING);
+
+    List<Friendship> pending;
+    if ("OUTGOING".equalsIgnoreCase(direction)) {
+      pending = friendshipRepository.findByRequesterAndStatus(user, FriendshipStatus.PENDING);
+    } else {
+      pending = friendshipRepository.findByAddresseeAndStatus(user, FriendshipStatus.PENDING);
+    }
     return friendshipMapper.toDTOs(pending);
   }
 
@@ -117,7 +122,7 @@ public class FriendshipService {
         .toList();
   }
 
-  /** Remove an accepted friendship. Either party may remove. */
+  /** Remove a friendship or cancel a pending request. Either party may remove/cancel. */
   public void removeFriend(Long userId, Long friendId) {
     Objects.requireNonNull(userId, "userId");
     Objects.requireNonNull(friendId, "friendId");
@@ -136,8 +141,9 @@ public class FriendshipService {
                     new ResourceNotFoundException(
                         "Friendship not found between user " + userId + " and user " + friendId));
 
-    if (!friendship.isActive()) {
-      throw new IllegalStateException("Cannot remove friendship: friendship is not accepted");
+    if (!friendship.isActive() && !friendship.isPending()) {
+      throw new IllegalStateException(
+          "Cannot remove friendship: friendship is neither accepted nor pending");
     }
 
     friendshipRepository.delete(friendship);

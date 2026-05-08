@@ -451,10 +451,35 @@ See [ARCHITECTURE_ANALYSIS.md](project-analysis/ARCHITECTURE_ANALYSIS.md) for fu
 
 ---
 
-## Future Phases (kept short)
+## Phase 6: Frontend Development (React/TypeScript) ⬜
 
-- Phase 6: Enhanced Features (PERCENTAGE splits, recurring, exports) — planned after integration tests pass.
-- Phase 7: Production Readiness (logging, metrics, hardening) — planned for final release.
+**Goal:** Build a responsive, intuitive web interface for the Splitz platform.
+**Tech Stack:** React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, Zustand, Axios.
+
+### Story F01: Foundation & Auth ⬜
+
+- F01.1 Initialize Vite project in `frontend-user`.
+- F01.2 Set up Tailwind CSS, React Router, and Axios.
+- F01.3 Implement Registration and Login flows with JWT persistence (Zustand).
+- F01.4 Create protected route logic.
+
+### Story F02: Social & Group Management ⬜
+
+- F02.1 Implement user search and friend request UI.
+- F02.2 Build group list and group creation wizard.
+- F02.3 Implement group member management.
+
+### Story F03: Expense Tracking & Settlements ⬜
+
+- F03.1 Create expense entry form with Equal/Exact split logic.
+- F03.2 Implement group balance visualization.
+- F03.3 Build settlement recording and confirmation workflow.
+
+**Estimated total:** 10–14 days.
+
+---
+
+## Phase 7: Enhanced Features (v0.1.0) ⬜
 
 ---
 
@@ -655,3 +680,31 @@ git push
 
 *Roadmap maintained by: Abdul Moiz Soomro*  
 *Last major update: January 20, 2026 (Architecture Audit - Phase 4.5 Added)*
+
+---
+
+## Phase 6: Frontend Development (React/TypeScript) ⬜
+
+**Goal:** Build a responsive, intuitive web interface for the Splitz platform.
+**Tech Stack:** React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, Zustand, Axios.
+
+### Story F01: Foundation & Auth ⬜
+
+- F01.1 Initialize Vite project in `frontend-user`.
+- F01.2 Set up Tailwind CSS, React Router, and Axios.
+- F01.3 Implement Registration and Login flows with JWT persistence (Zustand).
+- F01.4 Create protected route logic.
+
+### Story F02: Social & Group Management ⬜
+
+- F02.1 Implement user search and friend request UI.
+- F02.2 Build group list and group creation wizard.
+- F02.3 Implement group member management.
+
+### Story F03: Expense Tracking & Settlements ⬜
+
+- F03.1 Create expense entry form with Equal/Exact split logic.
+- F03.2 Implement group balance visualization.
+- F03.3 Build settlement recording and confirmation workflow.
+
+**Estimated total:** 10–14 days.

@@ -1,0 +1,81 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: splitz-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+      target: dev
+    container_name: user-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - POSTGRES_URL=jdbc:postgresql://db:5432/user_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://frontend-user:5173
+    volumes:
+      - .:/build
+      - m2_cache:/root/.m2
+    depends_on:
+      db:
+        condition: service_healthy
+
+  expense-service:
+    build:
+      context: .
+      dockerfile: expense-service/Dockerfile
+      target: dev
+    container_name: expense-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - POSTGRES_URL=jdbc:postgresql://db:5432/expense_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://frontend-user:5173
+    volumes:
+      - .:/build
+      - m2_cache:/root/.m2
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend-user:
+    build:
+      context: .
+      dockerfile: frontend-user/Dockerfile
+      target: dev
+    container_name: frontend-user
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_USER_SERVICE_URL=/api/user
+      - VITE_EXPENSE_SERVICE_URL=/api/expense
+    volumes:
+      - ./frontend-user:/app
+      - /app/node_modules
+    depends_on:
+      - user-service
+      - expense-service
+
+volumes:
+  postgres_data:
+  m2_cache:

@@ -40,14 +40,16 @@ public class UserService implements UserDetailsService {
     this.passwordEncoder = passwordEncoder;
   }
 
-  public List<UserDTO> getAllUsers() {
-    return userRepository.findAll().stream()
-        .map(userMapper::toDTO)
-        .collect(java.util.stream.Collectors.toList());
+  public Page<UserDTO> getAllUsers(Pageable pageable) {
+    return userRepository.findAll(pageable).map(userMapper::toDTO);
   }
 
   public Optional<UserDTO> getUserbyId(long id) {
     return userRepository.findById(id).map(userMapper::toDTO);
+  }
+
+  public Optional<UserDTO> getUserByUsername(String username) {
+    return userRepository.findByusername(username).map(userMapper::toDTO);
   }
 
   public List<UserDTO> getUsersByIds(List<Long> ids) {
@@ -128,6 +130,19 @@ public class UserService implements UserDetailsService {
 
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    // Try to parse as ID first if it's numeric to support standardized JWTs
+    if (username != null && username.matches("\\d+")) {
+      try {
+        Long id = Long.parseLong(username);
+        Optional<User> userById = userRepository.findById(id);
+        if (userById.isPresent()) {
+          return userById.get();
+        }
+      } catch (NumberFormatException ignored) {
+        // Fall back to username search
+      }
+    }
+
     Optional<User> optionalUser = userRepository.findByusername(username);
     return optionalUser.orElseThrow(
         () -> new UsernameNotFoundException("User not found: " + username));

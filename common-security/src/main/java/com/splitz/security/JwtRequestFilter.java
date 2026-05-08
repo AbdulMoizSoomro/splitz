@@ -52,13 +52,38 @@ public class JwtRequestFilter implements Filter {
 
     if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
       try {
-        UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-        if (jwtUtil.isTokenValid(jwt, userDetails)) {
-          UsernamePasswordAuthenticationToken authToken =
-              new UsernamePasswordAuthenticationToken(
-                  userDetails, jwt, userDetails.getAuthorities());
-          authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-          SecurityContextHolder.getContext().setAuthentication(authToken);
+        Long userId = jwtUtil.extractUserId(jwt);
+        java.util.List<String> roles = jwtUtil.extractRoles(jwt);
+
+        if (userId != null && roles != null) {
+          // Stateless authentication using claims from the JWT
+          java.util.List<org.springframework.security.core.authority.SimpleGrantedAuthority>
+              authorities =
+                  roles.stream()
+                      .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                      .collect(java.util.stream.Collectors.toList());
+
+          UserDetails userDetails =
+              new org.springframework.security.core.userdetails.User(
+                  String.valueOf(userId), "", authorities);
+
+          if (jwtUtil.isTokenValid(jwt, userDetails)) {
+            UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(userDetails, jwt, authorities);
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+          }
+        } else {
+          // Fallback to UserDetailsService for backward compatibility (tokens without userId/roles
+          // claims)
+          UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+          if (jwtUtil.isTokenValid(jwt, userDetails)) {
+            UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(
+                    userDetails, jwt, userDetails.getAuthorities());
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+          }
         }
       } catch (Exception e) {
         // Failed to validate token - just continue without authentication

@@ -6,7 +6,8 @@
 
 # Ignore IDE files (VS Code)
 .vscode/**
-
+.agents/
+.gemini/
 # Ignore IDE files (IntelliJ IDEA)
 .idea/
 *.iml
