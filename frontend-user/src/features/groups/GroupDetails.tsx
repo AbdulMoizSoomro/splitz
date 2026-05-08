@@ -13,7 +13,8 @@ import Badge from '../../components/core/Badge/Badge';
 import type { BadgeVariant } from '../../components/core/Badge/Badge';
 import Dropdown from '../../components/core/Dropdown/Dropdown';
 import { useToastStore } from '../../store/toastStore';
-import { Loader2, ArrowLeft, LogOut, Users, MoreVertical, ShieldAlert, Settings } from 'lucide-react';
+import AddMemberModal from './AddMemberModal';
+import { Loader2, ArrowLeft, LogOut, Users, MoreVertical, ShieldAlert, Settings, UserPlus } from 'lucide-react';
 
 const GroupDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,7 @@ const GroupDetails = () => {
   const { addToast } = useToastStore();
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isSelfDemoteModalOpen, setIsSelfDemoteModalOpen] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
 
   const { data: group, isLoading } = useQuery({
     queryKey: ['group', id],
@@ -159,7 +161,19 @@ const GroupDetails = () => {
                   <Users size={20} />
                   <span>Members</span>
                 </CardTitle>
-                <span className="text-sm text-gray-500">{group.members.length} members</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">{group.members.length} members</span>
+                  {(isOwner || isAdmin) && (
+                    <button
+                      aria-label="Add member"
+                      onClick={() => setIsAddMemberModalOpen(true)}
+                      className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                      title="Add Member"
+                    >
+                      <UserPlus size={16} />
+                    </button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="divide-y divide-gray-100">
@@ -341,6 +355,14 @@ const GroupDetails = () => {
           </div>
         </div>
       </Modal>
+
+      {group && (
+        <AddMemberModal
+          isOpen={isAddMemberModalOpen}
+          onClose={() => setIsAddMemberModalOpen(false)}
+          group={group}
+        />
+      )}
     </DashboardLayout>
   );
 };

@@ -23,6 +23,11 @@ export const groupService = {
     return response.data;
   },
 
+  bulkAddMembers: async (groupId: number, userIds: number[]): Promise<Group> => {
+    const response = await expenseApi.post<Group>(`/groups/${groupId}/members/bulk`, { userIds });
+    return response.data;
+  },
+
   removeMember: async (groupId: number, userId: number): Promise<void> => {
     await expenseApi.delete(`/groups/${groupId}/members/${userId}`);
   },

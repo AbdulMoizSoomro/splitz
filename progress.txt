@@ -22,3 +22,11 @@
 - Implemented 'Temp Friend' tracking on global Friends page with balance-based pinning and auto-dismissal (#20)
 
 Issue 24 blocked by #22 (CLOSED) and #23 (OPEN). Issue 23 is the next candidate.
+
+- Implemented E2E test suite: Group Roles and Permissions — 3 tests covering promotion/demotion/governance (#23). Confidence: Medium (AC#2 adapted: no Add Member button exists in GroupDetails; tested governance toggle behaviour and member role-gate instead). 13/13 E2E tests green.
+
+- Implemented E2E test suite: Social Discovery and Group Exit — 3 tests covering Temp Friend badge, non-zero balance leave block, and zero balance leave (#24). Confidence: High. 16/16 E2E tests green.
+
+- Implemented Bulk Add Members: POST /groups/{id}/members/bulk backend endpoint (transactional, ignores existing members) + AddMemberModal frontend component + Add Member button in GroupDetails Members card header (#32). Confidence: Medium. Backend: 2 new integration tests green. Frontend: lint + build + 16/16 E2E green.
+
+- Enhanced Member Selection: Added search bar to AddMemberModal, integrated useTempFriends hook to list non-friends with shared debts for selection, and improved empty state with link to Friends Page (#33). Confidence: High. Frontend: lint + build green. Reused Temp Friend tracking logic (#20/24).

@@ -1,6 +1,7 @@
 package com.splitz.expense.controller;
 
 import com.splitz.expense.dto.AddMemberRequest;
+import com.splitz.expense.dto.BulkAddMembersRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
@@ -63,6 +64,13 @@ public class GroupController {
       @PathVariable("groupId") Long groupId, @Valid @RequestBody AddMemberRequest request) {
     GroupDTO result = groupService.addMember(groupId, request, currentUserId());
     return ResponseEntity.status(HttpStatus.CREATED).body(result);
+  }
+
+  @PostMapping("/{groupId}/members/bulk")
+  public ResponseEntity<GroupDTO> bulkAddMembers(
+      @PathVariable("groupId") Long groupId, @Valid @RequestBody BulkAddMembersRequest request) {
+    GroupDTO result = groupService.bulkAddMembers(groupId, request, currentUserId());
+    return ResponseEntity.ok(result);
   }
 
   @DeleteMapping("/{groupId}/members/{memberUserId}")
