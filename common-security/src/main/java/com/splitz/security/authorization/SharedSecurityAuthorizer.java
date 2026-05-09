@@ -1,6 +1,11 @@
 package com.splitz.security.authorization;
 
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -8,54 +13,50 @@ import org.springframework.stereotype.Component;
 @Component("splitzAuthorizer")
 public class SharedSecurityAuthorizer {
 
-  /**
-   * Checks if the authenticated user is the owner of the resource or has an ADMIN role.
-   *
-   * @param targetUserId The ID of the user who owns the resource.
-   * @return true if authorized, false otherwise.
-   */
-  public boolean isSelfOrAdmin(Long targetUserId) {
+  private Optional<Long> resolveCurrentUserId() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication == null || !authentication.isAuthenticated()) {
-      return false;
+      return Optional.empty();
     }
 
     Object principal = authentication.getPrincipal();
     if (!(principal instanceof UserDetails userDetails)) {
-      return false;
+      return Optional.empty();
     }
 
-    // In our stateless system, the username is the userId (String)
     try {
-      Long currentUserId = Long.parseLong(userDetails.getUsername());
-      boolean isOwner = currentUserId.equals(targetUserId);
-      boolean isAdmin =
-          userDetails.getAuthorities().stream()
-              .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-      return isOwner || isAdmin;
+      return Optional.of(Long.parseLong(userDetails.getUsername()));
     } catch (NumberFormatException e) {
-      return false;
+      return Optional.empty();
     }
   }
 
-  /**
-   * Checks if the authenticated user has an ADMIN role.
-   *
-   * @return true if authorized, false otherwise.
-   */
-  public boolean isAdmin() {
+  public Long getCurrentUserId() {
+    return resolveCurrentUserId()
+        .orElseThrow(() -> new AccessDeniedException("No authenticated user found"));
+  }
+
+  public Set<String> getCurrentRoles() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication == null || !authentication.isAuthenticated()) {
+      throw new AccessDeniedException("No authenticated user found");
+    }
+    return authentication.getAuthorities().stream()
+        .map(GrantedAuthority::getAuthority)
+        .collect(Collectors.toSet());
+  }
+
+  public boolean isSelfOrAdmin(Long targetUserId) {
+    return resolveCurrentUserId()
+        .map(currentUserId -> currentUserId.equals(targetUserId) || isAdmin())
+        .orElse(false);
+  }
+
+  public boolean isAdmin() {
+    try {
+      return getCurrentRoles().contains("ROLE_ADMIN");
+    } catch (AccessDeniedException e) {
       return false;
     }
-
-    Object principal = authentication.getPrincipal();
-    if (!(principal instanceof UserDetails userDetails)) {
-      return false;
-    }
-
-    return userDetails.getAuthorities().stream()
-        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
   }
 }

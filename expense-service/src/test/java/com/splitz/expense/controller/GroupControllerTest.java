@@ -21,6 +21,7 @@ import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.JwtUtil;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
@@ -52,8 +53,19 @@ class GroupControllerTest {
 
   @MockBean private JwtUtil jwtUtil;
 
+  @MockBean private SharedSecurityAuthorizer splitzAuthorizer;
+
   @BeforeEach
   void setUp() throws ServletException, IOException {
+    when(splitzAuthorizer.getCurrentUserId())
+        .thenAnswer(
+            invocation -> {
+              String name =
+                  org.springframework.security.core.context.SecurityContextHolder.getContext()
+                      .getAuthentication()
+                      .getName();
+              return Long.parseLong(name);
+            });
     doAnswer(
             invocation -> {
               ServletRequest request = invocation.getArgument(0);

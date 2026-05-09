@@ -2,12 +2,12 @@
 
 ### Issue tracker
 
-Issues are tracked on GitHub. See `docs/agents/issue-tracker.md`.
+GitHub Issues. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Using canonical triage label vocabulary. See `docs/agents/triage-labels.md`.
+Canonical roles: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context layout with a root CONTEXT.md. See `docs/agents/domain.md`.
+Single-context layout (root `CONTEXT.md` + `docs/adr/`). See `docs/agents/domain.md`.

@@ -283,22 +283,15 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("Should cap page size at hard limit")
-    void testGetAllUsers_WhenSizeExceedsLimit_ThenCapsSize() throws Exception {
-      // Arrange
-      Pageable cappedPageable = PageRequest.of(0, 100);
-      Page<UserDTO> emptyPage = new PageImpl<>(new ArrayList<>(), cappedPageable, 0);
-
-      when(userService.getAllUsers(any(Pageable.class))).thenReturn(emptyPage);
-
+    @DisplayName("Should return 400 for page size exceeding limit")
+    void testGetAllUsers_WhenSizeExceedsLimit_ThenReturns400() throws Exception {
       // Act & Assert
       mockMvc
           .perform(get("/users").param("size", "500").contentType(MediaType.APPLICATION_JSON))
-          .andExpect(status().isOk());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.title", is("Invalid Pagination Parameters")));
 
-      // Capture and verify the pageable size was capped at 100 in the controller
-      verify(userService)
-          .getAllUsers(org.mockito.ArgumentMatchers.argThat(p -> p.getPageSize() == 100));
+      verify(userService, never()).getAllUsers(any(Pageable.class));
     }
 
     @Test
