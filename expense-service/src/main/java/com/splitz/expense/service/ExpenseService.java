@@ -1,5 +1,7 @@
 package com.splitz.expense.service;
 
+import com.splitz.expense.calculator.SplitCalculator;
+import com.splitz.expense.calculator.SplitResult;
 import com.splitz.expense.dto.CreateExpenseRequest;
 import com.splitz.expense.dto.ExpenseDTO;
 import com.splitz.expense.dto.SplitRequest;
@@ -35,6 +37,7 @@ public class ExpenseService {
   private final GroupMemberRepository groupMemberRepository;
   private final CategoryRepository categoryRepository;
   private final ExpenseMapper expenseMapper;
+  private final SplitCalculator splitCalculator;
 
   @Transactional
   public ExpenseDTO createExpense(Long groupId, CreateExpenseRequest request) {
@@ -88,20 +91,19 @@ public class ExpenseService {
     BigDecimal totalAmount = expense.getAmount();
     SplitType splitType = request.getSplitType();
 
-    switch (splitType) {
-      case EQUAL:
-        return calculateEqualSplits(expense, totalAmount, splitRequests);
-      case EXACT:
-        return calculateExactSplits(expense, totalAmount, splitRequests);
-      case PERCENTAGE:
-        return calculatePercentageSplits(expense, totalAmount, splitRequests);
-      case SHARES:
-        return calculateSharesSplits(expense, totalAmount, splitRequests);
-      case ADJUSTMENT:
-        return calculateAdjustmentSplits(expense, totalAmount, splitRequests);
-      default:
-        throw new IllegalArgumentException("Unsupported split type: " + splitType);
-    }
+    List<SplitResult> results =
+        splitCalculator.calculate(totalAmount, splitType, splitRequests, expense.getCurrency());
+    return results.stream()
+        .map(
+            r ->
+                ExpenseSplit.builder()
+                    .expense(expense)
+                    .userId(r.userId())
+                    .splitType(r.splitType())
+                    .splitValue(r.splitValue())
+                    .shareAmount(r.shareAmount())
+                    .build())
+        .collect(Collectors.toList());
   }
 
   private List<ExpenseSplit> calculateEqualSplits(

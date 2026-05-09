@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -52,6 +53,24 @@ class SharedSecurityAuthorizerTest {
   void isAdmin_ShouldReturnFalse_WhenUserIsNotAdmin() {
     setupAuthentication("123", List.of("ROLE_USER"));
     assertFalse(authorizer.isAdmin());
+  }
+
+  @Test
+  void getCurrentUserId_ShouldReturnUserId_WhenAuthenticated() {
+    setupAuthentication("123", List.of("ROLE_USER"));
+    assertEquals(123L, authorizer.getCurrentUserId());
+  }
+
+  @Test
+  void getCurrentUserId_ShouldThrowAccessDeniedException_WhenNotAuthenticated() {
+    SecurityContextHolder.clearContext();
+    assertThrows(AccessDeniedException.class, () -> authorizer.getCurrentUserId());
+  }
+
+  @Test
+  void getCurrentUserId_ShouldThrowAccessDeniedException_WhenInvalidUserIdFormat() {
+    setupAuthentication("abc", List.of("ROLE_USER"));
+    assertThrows(AccessDeniedException.class, () -> authorizer.getCurrentUserId());
   }
 
   private void setupAuthentication(String userId, List<String> roles) {

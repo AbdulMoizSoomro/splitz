@@ -85,6 +85,17 @@ public class GlobalExceptionHandler {
     return problem;
   }
 
+  @ExceptionHandler(InvalidPaginationException.class)
+  public ProblemDetail handleInvalidPagination(
+      InvalidPaginationException ex, HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    problem.setTitle("Invalid Pagination Parameters");
+    problem.setDetail(ex.getMessage());
+    problem.setType(create("https://example.com/errors/invalid-pagination"));
+    problem.setInstance(create(request.getRequestURI()));
+    return problem;
+  }
+
   @ExceptionHandler(Exception.class)
   public ProblemDetail handleGlobalException(Exception ex, HttpServletRequest request) {
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);

@@ -1,13 +1,8 @@
-# Domain Documentation
+# Domain Docs
 
-This repository uses a **single-context** layout for domain documentation.
+This repository uses a single-context layout.
 
-## Core Files
+- **CONTEXT.md**: Located at the root of the repository, serving as the single source of truth for domain language and architectural principles.
+- **ADRs**: Located in `docs/adr/`, containing all architectural decisions.
 
-- `CONTEXT.md`: The primary source of truth for the project's domain language, core concepts, and high-level architecture.
-- `docs/adr/`: Directory containing Architectural Decision Records (ADRs) that document past technical decisions and their rationale.
-
-## Reading Rules
-
-1. Always check `CONTEXT.md` first to understand the domain terminology.
-2. Refer to `docs/adr/` to understand the "why" behind existing architectural patterns.
+Engineering skills should always read `CONTEXT.md` and `docs/adr/` when exploring or refactoring code.

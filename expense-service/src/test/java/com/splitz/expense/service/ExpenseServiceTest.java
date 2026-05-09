@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.splitz.expense.calculator.SplitCalculator;
 import com.splitz.expense.dto.CreateExpenseRequest;
 import com.splitz.expense.dto.ExpenseDTO;
 import com.splitz.expense.dto.SplitRequest;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +50,8 @@ class ExpenseServiceTest {
   @Mock private CategoryRepository categoryRepository;
 
   @Mock private ExpenseMapper expenseMapper;
+
+  @Spy private SplitCalculator splitCalculator = new SplitCalculator();
 
   @InjectMocks private ExpenseService expenseService;
 

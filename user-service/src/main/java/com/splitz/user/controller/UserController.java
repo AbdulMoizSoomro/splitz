@@ -1,8 +1,10 @@
 package com.splitz.user.controller;
 
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import com.splitz.user.dto.UpdateUserDTO;
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.service.UserService;
+import com.splitz.user.validator.PaginationValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,9 +15,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,11 +39,19 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "User Management", description = "Endpoints for user profile and role management")
 public class UserController {
 
-  private static final int MAX_PAGE_SIZE = 100;
-  private final UserService userService;
+  private static final Set<String> ALLOWED_SORT_FIELDS =
+      Set.of("id", "username", "email", "firstName", "lastName", "createdAt");
 
-  public UserController(UserService userService) {
+  private final UserService userService;
+  private final SharedSecurityAuthorizer splitzAuthorizer;
+  private final PaginationValidator allUsersValidator =
+      new PaginationValidator(ALLOWED_SORT_FIELDS, 100, "id", Sort.Direction.ASC);
+  private final PaginationValidator searchUsersValidator =
+      new PaginationValidator(ALLOWED_SORT_FIELDS, 100, "username", Sort.Direction.ASC);
+
+  public UserController(UserService userService, SharedSecurityAuthorizer splitzAuthorizer) {
     this.userService = userService;
+    this.splitzAuthorizer = splitzAuthorizer;
   }
 
   // Create a new user (public endpoint for registration)
@@ -75,8 +86,8 @@ public class UserController {
   @GetMapping
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<Page<UserDTO>> getAllUsers(@PageableDefault(size = 20) Pageable pageable) {
-    Pageable cappedPageable = capPageSize(pageable);
-    Page<UserDTO> users = userService.getAllUsers(cappedPageable);
+    Pageable validatedPageable = allUsersValidator.validate(pageable);
+    Page<UserDTO> users = userService.getAllUsers(validatedPageable);
     return ResponseEntity.ok(users);
   }
 
@@ -173,8 +184,8 @@ public class UserController {
   public ResponseEntity<Page<UserDTO>> searchUsers(
       @Parameter(description = "Search query (name or email)") @RequestParam("query") String query,
       @PageableDefault(size = 10) Pageable pageable) {
-    Pageable cappedPageable = capPageSize(pageable);
-    Page<UserDTO> users = userService.searchUsers(query, cappedPageable);
+    Pageable validatedPageable = searchUsersValidator.validate(pageable);
+    Page<UserDTO> users = userService.searchUsers(query, validatedPageable);
     return ResponseEntity.ok(users);
   }
 
@@ -192,35 +203,6 @@ public class UserController {
   @GetMapping("/me")
   @PreAuthorize("isAuthenticated()")
   public ResponseEntity<UserDTO> getCurrentUser() {
-    org.springframework.security.core.Authentication auth =
-        org.springframework.security.core.context.SecurityContextHolder.getContext()
-            .getAuthentication();
-
-    if (auth == null || !auth.isAuthenticated()) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    Object principal = auth.getPrincipal();
-    if (principal instanceof com.splitz.user.model.User) {
-      return ResponseEntity.ok(
-          userService.getUserbyId(((com.splitz.user.model.User) principal).getId()).get());
-    }
-
-    String name = auth.getName();
-    // Use loadUserByUsername which now handles both numeric IDs and usernames
-    try {
-      com.splitz.user.model.User user =
-          (com.splitz.user.model.User) userService.loadUserByUsername(name);
-      return ResponseEntity.ok(userService.getUserbyId(user.getId()).get());
-    } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-  }
-
-  private Pageable capPageSize(Pageable pageable) {
-    if (pageable.getPageSize() > MAX_PAGE_SIZE) {
-      return PageRequest.of(pageable.getPageNumber(), MAX_PAGE_SIZE, pageable.getSort());
-    }
-    return pageable;
+    return ResponseEntity.ok(userService.getUserbyId(splitzAuthorizer.getCurrentUserId()).get());
   }
 }

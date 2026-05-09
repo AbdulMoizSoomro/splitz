@@ -7,14 +7,12 @@ import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.dto.UpdateMemberRoleRequest;
 import com.splitz.expense.service.GroupService;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,53 +28,56 @@ import org.springframework.web.bind.annotation.RestController;
 public class GroupController {
 
   private final GroupService groupService;
+  private final SharedSecurityAuthorizer splitzAuthorizer;
 
   @PostMapping
   public ResponseEntity<GroupDTO> createGroup(@Valid @RequestBody CreateGroupRequest request) {
-    GroupDTO result = groupService.createGroup(request, currentUserId());
+    GroupDTO result = groupService.createGroup(request, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.status(HttpStatus.CREATED).body(result);
   }
 
   @GetMapping
   public ResponseEntity<List<GroupDTO>> getGroupsForCurrentUser() {
-    return ResponseEntity.ok(groupService.getGroupsForUser(currentUserId()));
+    return ResponseEntity.ok(groupService.getGroupsForUser(splitzAuthorizer.getCurrentUserId()));
   }
 
   @GetMapping("/{groupId}")
   public ResponseEntity<GroupDTO> getGroup(@PathVariable("groupId") Long groupId) {
-    return ResponseEntity.ok(groupService.getGroup(groupId, currentUserId()));
+    return ResponseEntity.ok(groupService.getGroup(groupId, splitzAuthorizer.getCurrentUserId()));
   }
 
   @PutMapping("/{groupId}")
   public ResponseEntity<GroupDTO> updateGroup(
       @PathVariable("groupId") Long groupId, @Valid @RequestBody UpdateGroupRequest request) {
-    return ResponseEntity.ok(groupService.updateGroup(groupId, request, currentUserId()));
+    return ResponseEntity.ok(
+        groupService.updateGroup(groupId, request, splitzAuthorizer.getCurrentUserId()));
   }
 
   @DeleteMapping("/{groupId}")
   public ResponseEntity<Void> deleteGroup(@PathVariable("groupId") Long groupId) {
-    groupService.deleteGroup(groupId, currentUserId());
+    groupService.deleteGroup(groupId, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.noContent().build();
   }
 
   @PostMapping("/{groupId}/members")
   public ResponseEntity<GroupDTO> addMember(
       @PathVariable("groupId") Long groupId, @Valid @RequestBody AddMemberRequest request) {
-    GroupDTO result = groupService.addMember(groupId, request, currentUserId());
+    GroupDTO result = groupService.addMember(groupId, request, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.status(HttpStatus.CREATED).body(result);
   }
 
   @PostMapping("/{groupId}/members/bulk")
   public ResponseEntity<GroupDTO> bulkAddMembers(
       @PathVariable("groupId") Long groupId, @Valid @RequestBody BulkAddMembersRequest request) {
-    GroupDTO result = groupService.bulkAddMembers(groupId, request, currentUserId());
+    GroupDTO result =
+        groupService.bulkAddMembers(groupId, request, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.ok(result);
   }
 
   @DeleteMapping("/{groupId}/members/{memberUserId}")
   public ResponseEntity<Void> removeMember(
       @PathVariable("groupId") Long groupId, @PathVariable("memberUserId") Long memberUserId) {
-    groupService.removeMember(groupId, memberUserId, currentUserId());
+    groupService.removeMember(groupId, memberUserId, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.noContent().build();
   }
 
@@ -86,19 +87,8 @@ public class GroupController {
       @PathVariable("memberUserId") Long memberUserId,
       @Valid @RequestBody UpdateMemberRoleRequest request) {
     GroupDTO result =
-        groupService.updateMemberRole(groupId, memberUserId, request, currentUserId());
+        groupService.updateMemberRole(
+            groupId, memberUserId, request, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.ok(result);
-  }
-
-  private Long currentUserId() {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (authentication == null || authentication.getName() == null) {
-      throw new AccessDeniedException("No authenticated user found");
-    }
-    try {
-      return Long.parseLong(authentication.getName());
-    } catch (NumberFormatException ex) {
-      throw new AccessDeniedException("Authenticated username must be a numeric user id");
-    }
   }
 }

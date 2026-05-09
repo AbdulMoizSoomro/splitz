@@ -30,3 +30,9 @@ Issue 24 blocked by #22 (CLOSED) and #23 (OPEN). Issue 23 is the next candidate.
 - Implemented Bulk Add Members: POST /groups/{id}/members/bulk backend endpoint (transactional, ignores existing members) + AddMemberModal frontend component + Add Member button in GroupDetails Members card header (#32). Confidence: Medium. Backend: 2 new integration tests green. Frontend: lint + build + 16/16 E2E green.
 
 - Enhanced Member Selection: Added search bar to AddMemberModal, integrated useTempFriends hook to list non-friends with shared debts for selection, and improved empty state with link to Friends Page (#33). Confidence: High. Frontend: lint + build green. Reused Temp Friend tracking logic (#20/24).
+
+- Implemented Pagination for User Service List Endpoints: Added PaginationValidator with sort allow-list, InvalidPaginationException, GlobalExceptionHandler integration, and default sort behavior for getAllUsers and searchUsers (#3). Confidence: High. Backend: 123 tests green, verify suite passes.
+Task #35: Add Remaining Split Strategies. Confidence: High. Decision: Branch feature/issue-35 created. Starting TDD for EQUAL, PERCENTAGE, SHARES, ADJUSTMENT strategies.
+Task #35: Complete. Strategies implemented and verified. Committing changes.
+Task #34: Implement Currency-Aware Precision & Remainder Post-Processor. Confidence: High. Decision: Branch feature/issue-34 created. Starting unit tests.
+Task #35: Complete. Remainder handling and strategies verified. Committing changes.

@@ -38,7 +38,7 @@ public class BalanceController {
   @Operation(
       summary = "Get user balances",
       description = "Returns user's balances across all groups")
-  @PreAuthorize("@security.isOwnerOrAdmin(#id)")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#id)")
   public ResponseEntity<UserBalanceResponseDTO> getUserBalances(
       @P("id") @PathVariable("id") Long id) {
     return ResponseEntity.ok(balanceService.getUserBalances(id));

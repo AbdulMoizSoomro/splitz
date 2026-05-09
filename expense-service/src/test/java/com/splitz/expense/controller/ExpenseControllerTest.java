@@ -18,6 +18,7 @@ import com.splitz.expense.dto.UpdateExpenseRequest;
 import com.splitz.expense.model.SplitType;
 import com.splitz.expense.service.ExpenseService;
 import com.splitz.security.JwtRequestFilter;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,10 +43,13 @@ class ExpenseControllerTest {
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
+  @MockBean private SharedSecurityAuthorizer splitzAuthorizer;
+
   private ExpenseDTO expenseDTO;
 
   @BeforeEach
   void setUp() {
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(100L);
     expenseDTO =
         ExpenseDTO.builder()
             .id(1L)
