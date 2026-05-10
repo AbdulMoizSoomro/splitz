@@ -296,7 +296,7 @@ const FriendDetailPage = () => {
             id: Number(currentUser.id),
             username: currentUser.username,
             email: currentUser.email,
-            firstName: "", // We don't have first/last name in authStore user object likely
+            firstName: currentUser.username, // Use username as fallback for first name
             lastName: "",
           }}
           friend={friend}

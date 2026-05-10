@@ -32,4 +32,18 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
       @Param("payerId") Long payerId,
       @Param("payeeId") Long payeeId,
       @Param("status") SettlementStatus status);
+
+  @Query(
+      "SELECT COALESCE(SUM(s.amount), 0) FROM Settlement s WHERE s.group.id = :groupId AND s.payerId = :userId AND s.status = :status")
+  BigDecimal calculateTotalSettlementsPaidByUserInGroup(
+      @Param("userId") Long userId,
+      @Param("groupId") Long groupId,
+      @Param("status") SettlementStatus status);
+
+  @Query(
+      "SELECT COALESCE(SUM(s.amount), 0) FROM Settlement s WHERE s.group.id = :groupId AND s.payeeId = :userId AND s.status = :status")
+  BigDecimal calculateTotalSettlementsReceivedByUserInGroup(
+      @Param("userId") Long userId,
+      @Param("groupId") Long groupId,
+      @Param("status") SettlementStatus status);
 }

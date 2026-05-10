@@ -148,30 +148,28 @@ class BalanceServiceTest {
     GroupMember m2 = GroupMember.builder().userId(101L).group(g2).build();
 
     when(groupMemberRepository.findByUserId(101L)).thenReturn(Arrays.asList(m1, m2));
-    when(groupRepository.existsById(1L)).thenReturn(true);
-    when(groupRepository.existsById(2L)).thenReturn(true);
 
     // Group 1: User has +25.00 balance
-    when(groupMemberRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(m1));
-    Expense e1 = Expense.builder().paidBy(101L).amount(new BigDecimal("50.00")).build();
-    e1.setSplits(
-        Arrays.asList(
-            ExpenseSplit.builder().userId(101L).shareAmount(new BigDecimal("25.00")).build(),
-            ExpenseSplit.builder().userId(102L).shareAmount(new BigDecimal("25.00")).build()));
-    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(e1));
-    when(settlementRepository.findByGroupId(1L)).thenReturn(Collections.emptyList());
+    when(expenseRepository.calculateTotalPaidByUserInGroup(101L, 1L))
+        .thenReturn(new BigDecimal("50.00"));
+    when(expenseRepository.calculateTotalShareForUserInGroup(101L, 1L))
+        .thenReturn(new BigDecimal("25.00"));
+    when(settlementRepository.calculateTotalSettlementsPaidByUserInGroup(eq(101L), eq(1L), any()))
+        .thenReturn(BigDecimal.ZERO);
+    when(settlementRepository.calculateTotalSettlementsReceivedByUserInGroup(
+            eq(101L), eq(1L), any()))
+        .thenReturn(BigDecimal.ZERO);
 
     // Group 2: User has -10.00 balance
-    when(groupMemberRepository.findByGroupId(2L)).thenReturn(Collections.singletonList(m2));
-    Expense e2 = Expense.builder().paidBy(102L).amount(new BigDecimal("20.00")).build();
-    e2.setSplits(
-        Arrays.asList(
-            ExpenseSplit.builder().userId(101L).shareAmount(new BigDecimal("10.00")).build(),
-            ExpenseSplit.builder().userId(102L).shareAmount(new BigDecimal("10.00")).build()));
-    when(expenseRepository.findByGroupId(2L)).thenReturn(Collections.singletonList(e2));
-    when(settlementRepository.findByGroupId(2L)).thenReturn(Collections.emptyList());
+    when(expenseRepository.calculateTotalPaidByUserInGroup(101L, 2L)).thenReturn(BigDecimal.ZERO);
+    when(expenseRepository.calculateTotalShareForUserInGroup(101L, 2L))
+        .thenReturn(new BigDecimal("10.00"));
+    when(settlementRepository.calculateTotalSettlementsPaidByUserInGroup(eq(101L), eq(2L), any()))
+        .thenReturn(BigDecimal.ZERO);
+    when(settlementRepository.calculateTotalSettlementsReceivedByUserInGroup(
+            eq(101L), eq(2L), any()))
+        .thenReturn(BigDecimal.ZERO);
 
-    when(userClient.getUsersByIds(anyList())).thenReturn(Collections.emptyList());
     when(userClient.getUserById(101L))
         .thenReturn(Optional.of(UserResponse.builder().id(101L).username("testuser").build()));
 

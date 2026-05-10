@@ -221,21 +221,20 @@ public class BalanceService {
   }
 
   private BigDecimal calculateUserBalanceInGroup(Long userId, Long groupId) {
-    // 1. Total paid by user in group
-    BigDecimal totalPaid =
-        expenseRepository.calculateTotalOwedBetweenUsersGlobally(
-            userId, null); // Wait, this doesn't help with per-group
-    // I'll just keep it simple for now or implement a proper per-user-per-group balance query
+    BigDecimal totalPaid = expenseRepository.calculateTotalPaidByUserInGroup(userId, groupId);
+    BigDecimal totalShare = expenseRepository.calculateTotalShareForUserInGroup(userId, groupId);
+    BigDecimal settlementsPaid =
+        settlementRepository.calculateTotalSettlementsPaidByUserInGroup(
+            userId, groupId, SettlementStatus.COMPLETED);
+    BigDecimal settlementsReceived =
+        settlementRepository.calculateTotalSettlementsReceivedByUserInGroup(
+            userId, groupId, SettlementStatus.COMPLETED);
 
-    // For the sake of the review, let's just make it slightly better or leave it if it's too
-    // complex to do perfectly now.
-    // Actually, I'll add calculateUserBalanceInGroup to ExpenseRepository.
-
-    return getGroupBalances(groupId).getBalances().stream()
-        .filter(b -> b.getUserId().equals(userId))
-        .map(BalanceDTO::getBalance)
-        .findFirst()
-        .orElse(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+    return totalPaid
+        .subtract(totalShare)
+        .add(settlementsPaid)
+        .subtract(settlementsReceived)
+        .setScale(2, RoundingMode.HALF_UP);
   }
 
   private List<DebtDTO> simplifyDebts(

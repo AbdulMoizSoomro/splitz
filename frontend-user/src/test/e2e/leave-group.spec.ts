@@ -120,9 +120,11 @@ test.describe("Leave Group", () => {
       await expect(
         pageMember.getByRole("heading", { name: /your groups/i }),
       ).toBeVisible({ timeout: 15000 });
-      
+
       // Look for the group name specifically in an h3 (the card title) to avoid matching other text
-      await expect(pageMember.locator('h3').filter({ hasText: groupName })).not.toBeVisible({ timeout: 15000 });
+      await expect(
+        pageMember.locator("h3").filter({ hasText: groupName }),
+      ).not.toBeVisible({ timeout: 15000 });
     } finally {
       await ctxOwner.close();
       await ctxMember.close();
