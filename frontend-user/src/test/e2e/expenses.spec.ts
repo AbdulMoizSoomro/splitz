@@ -122,7 +122,7 @@ test.describe("Expense Management", () => {
     await expect(expenseModal.getByText(/remaining: \$100\.00/i)).toBeVisible();
 
     // 7. Input shares and verify real-time updates
-    const shareInputs = expenseModal.getByLabel(/share/i);
+    const shareInputs = expenseModal.getByLabel(/split value/i);
     await shareInputs.first().fill("30");
 
     // Check remaining updates to 70

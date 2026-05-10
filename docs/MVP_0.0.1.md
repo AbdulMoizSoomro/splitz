@@ -37,8 +37,8 @@ A user can register, login, create a group with friends, add expenses, and see c
 | Group Members | Add/remove members from groups (Leave Group with debt blocking), role visualization and management | ✅ Done |
 | Expenses | Create/edit/delete expenses | ✅ Done |
 | Split Types | EQUAL and EXACT splits | ✅ Done |
-| Balances | Calculate who owes whom | ⬜ Not Started |
-| Settlements | Record debt payments (manual) | ⬜ Not Started |
+| Balances | Calculate who owes whom | ✅ Done |
+| Settlements | Record debt payments (manual) | ✅ Done |
 
 ### Infrastructure
 

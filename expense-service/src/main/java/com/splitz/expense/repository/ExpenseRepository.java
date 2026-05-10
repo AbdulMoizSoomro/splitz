@@ -17,7 +17,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
   List<Expense> findByGroupIdIn(Collection<Long> groupIds);
 
   @Query(
-      "SELECT COALESCE(SUM(s.shareAmount), 0) FROM Expense e JOIN e.splits s WHERE e.groupId IN"
+      "SELECT COALESCE(SUM(s.shareAmount), 0) FROM Expense e JOIN e.splits s WHERE e.group.id IN"
           + " :groupIds AND e.paidBy = :payerId AND s.userId = :payeeId")
   BigDecimal calculateTotalOwedBetweenUsers(
       @Param("payerId") Long payerId,

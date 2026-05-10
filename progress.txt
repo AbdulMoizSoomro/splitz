@@ -37,3 +37,5 @@ Task #35: Complete. Strategies implemented and verified. Committing changes.
 Task #34: Implement Currency-Aware Precision & Remainder Post-Processor. Confidence: High. Decision: Branch feature/issue-34 created. Starting unit tests.
 Task #35: Complete. Remainder handling and strategies verified. Committing changes.
 - Implemented Advanced Split Strategies (PERCENTAGE, SHARES, ADJUSTMENT) in frontend CreateExpenseModal with real-time validation and comprehensive tests. Confidence: High.
+- Implemented Global Friendship Settlements (#39) and Net Balance Tracking. Confidence: High.
+- Optimized Shared Expenses with Bulk API (#38) and refactored Friend Detail Page for performance. Fixed "Leave Group" authorization bug. Confidence: High.

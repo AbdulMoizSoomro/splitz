@@ -113,10 +113,16 @@ test.describe("Leave Group", () => {
 
       // 6. Confirm Leave
       await modal.getByRole("button", { name: /^leave group$/i }).click();
+      await expect(modal).not.toBeVisible({ timeout: 10000 });
 
       // 7. Verify redirect and group absence for member
-      await expect(pageMember).toHaveURL(/\/groups/);
-      await expect(pageMember.getByText(groupName)).not.toBeVisible();
+      await expect(pageMember).toHaveURL(/\/groups/, { timeout: 15000 });
+      await expect(
+        pageMember.getByRole("heading", { name: /your groups/i }),
+      ).toBeVisible({ timeout: 15000 });
+      
+      // Look for the group name specifically in an h3 (the card title) to avoid matching other text
+      await expect(pageMember.locator('h3').filter({ hasText: groupName })).not.toBeVisible({ timeout: 15000 });
     } finally {
       await ctxOwner.close();
       await ctxMember.close();

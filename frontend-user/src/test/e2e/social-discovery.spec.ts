@@ -287,6 +287,8 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
 
     // 7. Verify redirect and group is gone from list
     await expect(page).toHaveURL(/\/groups/, { timeout: 10000 });
-    await expect(page.getByText(groupName)).not.toBeVisible();
+    await expect(
+      page.locator("h3").filter({ hasText: groupName }),
+    ).not.toBeVisible();
   });
 });
