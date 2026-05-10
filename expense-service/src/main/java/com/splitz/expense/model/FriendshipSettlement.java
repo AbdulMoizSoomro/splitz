@@ -37,6 +37,9 @@ public class FriendshipSettlement {
   @Column(name = "payee_id", nullable = false)
   private Long payeeId;
 
+  @Column(name = "group_id")
+  private Long groupId;
+
   @Column(nullable = false, precision = 19, scale = 2)
   private BigDecimal amount;
 

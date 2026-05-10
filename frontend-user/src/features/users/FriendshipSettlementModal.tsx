@@ -42,7 +42,7 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
     onError: (error: Error | AxiosError) => {
       const message =
         error instanceof AxiosError
-          ? error.response?.data?.message
+          ? error.response?.data?.detail || error.response?.data?.message
           : error.message;
       addToast(message || "Failed to record settlement", "error");
     },

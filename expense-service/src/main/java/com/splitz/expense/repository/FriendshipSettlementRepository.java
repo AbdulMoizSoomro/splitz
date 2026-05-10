@@ -21,6 +21,8 @@ public interface FriendshipSettlementRepository extends JpaRepository<Friendship
 
   List<FriendshipSettlement> findByPayerIdOrPayeeId(Long payerId, Long payeeId);
 
+  List<FriendshipSettlement> findByGroupId(Long groupId);
+
   @Query(
       "SELECT COALESCE(SUM(fs.amount), 0) FROM FriendshipSettlement fs WHERE fs.payerId ="
           + " :payerId AND fs.payeeId = :payeeId AND fs.status = :status")

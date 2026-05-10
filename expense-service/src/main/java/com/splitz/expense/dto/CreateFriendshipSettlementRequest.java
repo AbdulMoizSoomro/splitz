@@ -20,6 +20,8 @@ public class CreateFriendshipSettlementRequest {
   @NotNull(message = "Payee ID is required")
   private Long payeeId;
 
+  private Long groupId;
+
   @NotNull(message = "Amount is required")
   @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
   private BigDecimal amount;
