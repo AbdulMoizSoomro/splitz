@@ -1,8 +1,8 @@
 import { expenseApi } from "../../lib/axios";
 
 export interface CreateSettlementRequest {
-  fromUserId: number;
-  toUserId: number;
+  payerId: number;
+  payeeId: number;
   amount: number;
   currency: string;
   groupId: number;
@@ -10,12 +10,13 @@ export interface CreateSettlementRequest {
 
 export interface Settlement {
   id: number;
-  fromUserId: number;
-  toUserId: number;
+  payerId: number;
+  payeeId: number;
   amount: number;
   currency: string;
   groupId: number;
   status: "PENDING" | "PAID" | "CONFIRMED" | "REJECTED";
+  createdAt: string;
   paidAt?: string;
   confirmedAt?: string;
 }
