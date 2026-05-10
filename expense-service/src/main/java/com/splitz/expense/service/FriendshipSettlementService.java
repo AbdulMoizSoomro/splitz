@@ -8,6 +8,7 @@ import com.splitz.expense.mapper.FriendshipSettlementMapper;
 import com.splitz.expense.model.FriendshipSettlement;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.FriendshipSettlementRepository;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,6 +25,9 @@ public class FriendshipSettlementService {
 
   @Transactional
   public FriendshipSettlementDTO createSettlement(CreateFriendshipSettlementRequest request) {
+    if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalArgumentException("Settlement amount must be positive");
+    }
     if (request.getPayerId().equals(request.getPayeeId())) {
       throw new IllegalArgumentException("Payer and payee cannot be the same user");
     }

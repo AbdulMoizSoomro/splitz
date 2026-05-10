@@ -38,7 +38,10 @@ public class SharedSecurityAuthorizer {
 
   public Long getCurrentUserId() {
     return resolveCurrentUserId()
-        .orElseThrow(() -> new AccessDeniedException("No authenticated user found"));
+        .orElseThrow(
+            () ->
+                new AccessDeniedException(
+                    "User not authenticated or invalid user identity format"));
   }
 
   public Set<String> getCurrentRoles() {

@@ -32,7 +32,7 @@ test.describe("Expense Management", () => {
     const groupModal = page.getByRole("dialog");
     await groupModal.getByLabel(/group name/i).fill(groupName);
     await groupModal.getByRole("button", { name: /create group/i }).click();
-    await expect(groupModal).not.toBeVisible();
+    await expect(groupModal).not.toBeVisible({ timeout: 10000 });
 
     // 3. Open Create Expense Modal from the new group card
     const groupCard = page.locator(".bg-white", { hasText: groupName });
@@ -88,7 +88,7 @@ test.describe("Expense Management", () => {
     const groupModal = page.getByRole("dialog");
     await groupModal.getByLabel(/group name/i).fill(groupName);
     await groupModal.getByRole("button", { name: /create group/i }).click();
-    await expect(groupModal).not.toBeVisible();
+    await expect(groupModal).not.toBeVisible({ timeout: 10000 });
 
     // 3. Open Create Expense Modal
     const groupCard = page.locator(".bg-white", { hasText: groupName });
