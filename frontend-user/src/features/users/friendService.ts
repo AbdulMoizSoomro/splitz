@@ -1,4 +1,4 @@
-import api from "../../lib/axios";
+import api, { expenseApi } from "../../lib/axios";
 import type {
   User,
   Friendship,
@@ -53,7 +53,7 @@ export const friendService = {
     userId: number,
     friendId: number,
   ): Promise<{ netBalance: number }> => {
-    const response = await api.get<{ netBalance: number }>(
+    const response = await expenseApi.get<{ netBalance: number }>(
       `/users/${userId}/balances/with/${friendId}`,
     );
     return response.data;
@@ -64,7 +64,7 @@ export const friendService = {
     payeeId: number;
     amount: number;
   }): Promise<FriendshipSettlementDTO> => {
-    const response = await api.post<FriendshipSettlementDTO>(
+    const response = await expenseApi.post<FriendshipSettlementDTO>(
       "/friendship-settlements",
       data,
     );
@@ -74,7 +74,7 @@ export const friendService = {
   markAsPaid: async (
     settlementId: number,
   ): Promise<FriendshipSettlementDTO> => {
-    const response = await api.put<FriendshipSettlementDTO>(
+    const response = await expenseApi.put<FriendshipSettlementDTO>(
       `/friendship-settlements/${settlementId}/mark-paid`,
     );
     return response.data;
@@ -83,7 +83,7 @@ export const friendService = {
   confirmSettlement: async (
     settlementId: number,
   ): Promise<FriendshipSettlementDTO> => {
-    const response = await api.put<FriendshipSettlementDTO>(
+    const response = await expenseApi.put<FriendshipSettlementDTO>(
       `/friendship-settlements/${settlementId}/confirm`,
     );
     return response.data;

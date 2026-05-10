@@ -3,6 +3,7 @@ package com.splitz.expense.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -105,6 +106,38 @@ public class ExpenseIntegrationTest {
                 .content(objectMapper.writeValueAsString(updateRequest)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.description").value("Updated Lunch"));
+  }
+
+  @Test
+  void getExpensesByGroupIds_Success() throws Exception {
+    // Group 1 already exists from setUp
+    createTestExpense(100L);
+
+    // Create Group 2
+    Group group2 = Group.builder().name("Group 2").createdBy(100L).active(true).build();
+    group2 = groupRepository.save(group2);
+    groupMemberRepository.save(
+        GroupMember.builder().group(group2).userId(100L).role(GroupRole.ADMIN).build());
+
+    Expense e2 =
+        Expense.builder()
+            .group(group2)
+            .description("Group 2 Expense")
+            .amount(new BigDecimal("20.00"))
+            .paidBy(100L)
+            .currency("USD")
+            .build();
+    expenseRepository.save(e2);
+
+    mockMvc
+        .perform(
+            get("/groups/expenses/bulk")
+                .param("groupIds", group.getId().toString(), group2.getId().toString())
+                .header("Authorization", tokenFor(100L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[?(@.description == 'Test')]").exists())
+        .andExpect(jsonPath("$[?(@.description == 'Group 2 Expense')]").exists());
   }
 
   @Test

@@ -196,7 +196,13 @@ public class GroupService {
 
   public void removeMember(Long groupId, Long memberUserId, Long userId) {
     Group group = getGroupWithMembers(groupId);
-    requireAdmin(group, userId);
+
+    // Allow self-removal (leaving) or require admin role for removing others
+    if (!memberUserId.equals(userId)) {
+      requireAdmin(group, userId);
+    } else {
+      requireMembership(group, userId);
+    }
 
     GroupMember member =
         groupMemberRepository

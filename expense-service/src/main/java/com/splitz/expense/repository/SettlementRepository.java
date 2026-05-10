@@ -18,7 +18,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
   List<Settlement> findByPayerIdOrPayeeId(Long payerId, Long payeeId);
 
   @Query(
-      "SELECT COALESCE(SUM(s.amount), 0) FROM Settlement s WHERE s.groupId IN :groupIds AND"
+      "SELECT COALESCE(SUM(s.amount), 0) FROM Settlement s WHERE s.group.id IN :groupIds AND"
           + " s.payerId = :payerId AND s.payeeId = :payeeId AND s.status = :status")
   BigDecimal calculateTotalSettledBetweenUsers(
       @Param("payerId") Long payerId,
