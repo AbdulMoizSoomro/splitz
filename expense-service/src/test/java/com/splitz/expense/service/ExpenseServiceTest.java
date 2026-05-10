@@ -53,7 +53,16 @@ class ExpenseServiceTest {
 
   @Mock private ExpenseMapper expenseMapper;
 
-  @Spy private SplitCalculator splitCalculator = new SplitCalculator();
+  @Spy
+  private SplitCalculator splitCalculator =
+      new SplitCalculator(
+          java.util.List.of(
+              new com.splitz.expense.calculator.EqualSplitStrategy(),
+              new com.splitz.expense.calculator.ExactSplitStrategy(),
+              new com.splitz.expense.calculator.PercentageSplitStrategy(),
+              new com.splitz.expense.calculator.SharesSplitStrategy(),
+              new com.splitz.expense.calculator.AdjustmentSplitStrategy()),
+          new com.splitz.expense.calculator.RemainderHandler());
 
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
