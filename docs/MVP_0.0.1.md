@@ -39,6 +39,7 @@ A user can register, login, create a group with friends, add expenses, and see c
 | Split Types | EQUAL and EXACT splits | ✅ Done |
 | Balances | Calculate who owes whom | ✅ Done |
 | Settlements | Record debt payments (manual) | ✅ Done |
+| Global Activity Feed | Unified list of all expenses and settlements involving the user | ✅ Done |
 
 ### Infrastructure
 
