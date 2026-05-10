@@ -1,20 +1,22 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Loader2, UserMinus } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import api from '../../lib/axios';
-import type { User } from '../../types/user';
-import { useAuthStore } from '../../store/authStore';
-import Button from '../../components/core/Button/Button';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Users, Loader2, UserMinus } from "lucide-react";
+import { Link } from "react-router-dom";
+import api from "../../lib/axios";
+import type { User } from "../../types/user";
+import { useAuthStore } from "../../store/authStore";
+import Button from "../../components/core/Button/Button";
 
 const FriendsList = () => {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
   const { data: friends, isLoading } = useQuery({
-    queryKey: ['friends', currentUser?.id],
+    queryKey: ["friends", currentUser?.id],
     queryFn: async () => {
       if (!currentUser?.id) return [];
-      const response = await api.get<User[]>(`/users/${currentUser.id}/friends`);
+      const response = await api.get<User[]>(
+        `/users/${currentUser.id}/friends`,
+      );
       return response.data;
     },
     enabled: !!currentUser?.id,
@@ -26,7 +28,7 @@ const FriendsList = () => {
       await api.delete(`/users/${currentUser.id}/friends/${friendId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friends', currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ["friends", currentUser?.id] });
     },
   });
 
@@ -50,20 +52,22 @@ const FriendsList = () => {
   return (
     <div className="space-y-3">
       {friends.map((friend) => {
-        const isRemoving = removeFriendMutation.isPending && removeFriendMutation.variables === friend.id;
-        
+        const isRemoving =
+          removeFriendMutation.isPending &&
+          removeFriendMutation.variables === friend.id;
+
         return (
           <div
             key={friend.id}
             className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
           >
-            <Link 
+            <Link
               to={`/friends/${friend.id}`}
               className="flex items-center gap-3 hover:bg-gray-50 transition-colors flex-1"
             >
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
                 {friend.firstName[0]}
-                {friend.lastName ? friend.lastName[0] : ''}
+                {friend.lastName ? friend.lastName[0] : ""}
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">
@@ -78,7 +82,11 @@ const FriendsList = () => {
               variant="secondary"
               className="text-gray-400 hover:text-red-600 hover:bg-red-50"
               onClick={() => {
-                if (window.confirm(`Are you sure you want to remove ${friend.firstName} from your friends?`)) {
+                if (
+                  window.confirm(
+                    `Are you sure you want to remove ${friend.firstName} from your friends?`,
+                  )
+                ) {
                   removeFriendMutation.mutate(friend.id);
                 }
               }}

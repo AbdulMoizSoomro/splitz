@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface AuthState {
   token: string | null;
@@ -8,7 +8,7 @@ interface AuthState {
     username: string;
     email: string;
   } | null;
-  setAuth: (token: string, user: AuthState['user']) => void;
+  setAuth: (token: string, user: AuthState["user"]) => void;
   logout: () => void;
 }
 
@@ -21,7 +21,7 @@ export const useAuthStore = create<AuthState>()(
       logout: () => set({ token: null, user: null }),
     }),
     {
-      name: 'splitz-auth',
-    }
-  )
+      name: "splitz-auth",
+    },
+  ),
 );

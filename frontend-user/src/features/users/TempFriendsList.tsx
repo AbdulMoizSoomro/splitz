@@ -1,11 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Loader2, AlertCircle, UserMinus } from 'lucide-react';
-import { friendService } from './friendService';
-import { useAuthStore } from '../../store/authStore';
-import Button from '../../components/core/Button/Button';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/core/Card/Card';
-import Badge from '../../components/core/Badge/Badge';
-import { useTempFriends } from '../../hooks/useTempFriends';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { UserPlus, Loader2, AlertCircle, UserMinus } from "lucide-react";
+import { friendService } from "./friendService";
+import { useAuthStore } from "../../store/authStore";
+import Button from "../../components/core/Button/Button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "../../components/core/Card/Card";
+import Badge from "../../components/core/Badge/Badge";
+import { useTempFriends } from "../../hooks/useTempFriends";
 
 const TempFriendsList = () => {
   const user = useAuthStore((state) => state.user);
@@ -16,24 +21,30 @@ const TempFriendsList = () => {
 
   // Fetch outgoing requests to check status
   const { data: outgoingRequests, isLoading: isLoadingRequests } = useQuery({
-    queryKey: ['friend-requests', currentUserId, 'OUTGOING'],
-    queryFn: () => friendService.getFriendRequests(currentUserId, 'OUTGOING'),
+    queryKey: ["friend-requests", currentUserId, "OUTGOING"],
+    queryFn: () => friendService.getFriendRequests(currentUserId, "OUTGOING"),
     enabled: !!currentUserId,
   });
 
   // Add friend mutation
   const addFriendMutation = useMutation({
-    mutationFn: (friendId: number) => friendService.sendFriendRequest(currentUserId, friendId),
+    mutationFn: (friendId: number) =>
+      friendService.sendFriendRequest(currentUserId, friendId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUserId] });
+      queryClient.invalidateQueries({
+        queryKey: ["friend-requests", currentUserId],
+      });
     },
   });
 
   // Cancel friend request mutation
   const cancelRequestMutation = useMutation({
-    mutationFn: (friendId: number) => friendService.removeFriend(currentUserId, friendId),
+    mutationFn: (friendId: number) =>
+      friendService.removeFriend(currentUserId, friendId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUserId] });
+      queryClient.invalidateQueries({
+        queryKey: ["friend-requests", currentUserId],
+      });
     },
   });
 
@@ -62,28 +73,44 @@ const TempFriendsList = () => {
       <CardContent>
         <div className="space-y-3">
           {tempFriends.map((tf) => {
-            const pendingRequest = outgoingRequests?.find(r => r.addresseeId === tf.userId);
+            const pendingRequest = outgoingRequests?.find(
+              (r) => r.addresseeId === tf.userId,
+            );
             const isPending = !!pendingRequest;
-            const isMutationPending = addFriendMutation.isPending || cancelRequestMutation.isPending;
+            const isMutationPending =
+              addFriendMutation.isPending || cancelRequestMutation.isPending;
 
             return (
-              <div key={tf.userId} className="flex items-center justify-between p-3 bg-white border border-orange-100 rounded-lg shadow-sm">
+              <div
+                key={tf.userId}
+                className="flex items-center justify-between p-3 bg-white border border-orange-100 rounded-lg shadow-sm"
+              >
                 <div className="flex-1 min-w-0 mr-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold text-gray-900 truncate">{tf.username}</p>
+                    <p className="font-semibold text-gray-900 truncate">
+                      {tf.username}
+                    </p>
                     <div className="flex flex-wrap gap-1">
-                      {tf.groups.map(g => (
-                        <Badge key={g.id} variant="secondary" className="text-[10px] py-0 px-1 bg-orange-100 text-orange-700 border-orange-200">
+                      {tf.groups.map((g) => (
+                        <Badge
+                          key={g.id}
+                          variant="default"
+                          className="text-[10px] py-0 px-1 bg-orange-100 text-orange-700 border-orange-200"
+                        >
                           {g.name}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                  <p className={`text-sm ${tf.balance > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {tf.balance > 0 ? `Owes you ${tf.balance.toFixed(2)}` : `You owe ${Math.abs(tf.balance).toFixed(2)}`}
+                  <p
+                    className={`text-sm ${tf.balance > 0 ? "text-green-600" : "text-red-600"}`}
+                  >
+                    {tf.balance > 0
+                      ? `Owes you ${tf.balance.toFixed(2)}`
+                      : `You owe ${Math.abs(tf.balance).toFixed(2)}`}
                   </p>
                 </div>
-                
+
                 {isPending ? (
                   <Button
                     size="sm"
@@ -97,7 +124,11 @@ const TempFriendsList = () => {
                     ) : (
                       <UserMinus size={16} />
                     )}
-                    <span>{cancelRequestMutation.isPending ? 'Cancelling...' : 'Cancel Request'}</span>
+                    <span>
+                      {cancelRequestMutation.isPending
+                        ? "Cancelling..."
+                        : "Cancel Request"}
+                    </span>
                   </Button>
                 ) : (
                   <Button
@@ -112,7 +143,11 @@ const TempFriendsList = () => {
                     ) : (
                       <UserPlus size={16} />
                     )}
-                    <span>{addFriendMutation.isPending ? 'Sending...' : 'Add Friend'}</span>
+                    <span>
+                      {addFriendMutation.isPending
+                        ? "Sending..."
+                        : "Add Friend"}
+                    </span>
                   </Button>
                 )}
               </div>

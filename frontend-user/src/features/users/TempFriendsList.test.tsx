@@ -1,9 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import TempFriendsList from './TempFriendsList';
-import { friendService } from './friendService';
-import { groupService } from '../groups/groupService';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import TempFriendsList from "./TempFriendsList";
+import { friendService } from "./friendService";
+import { groupService } from "../groups/groupService";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,57 +13,63 @@ const queryClient = new QueryClient({
   },
 });
 
-vi.mock('./friendService');
-vi.mock('../groups/groupService');
-vi.mock('../../store/authStore', () => ({
-  useAuthStore: vi.fn((selector) => selector({
-    user: { id: '1', username: 'testuser' }
-  }))
+vi.mock("./friendService");
+vi.mock("../groups/groupService");
+vi.mock("../../store/authStore", () => ({
+  useAuthStore: vi.fn((selector) =>
+    selector({
+      user: { id: "1", username: "testuser" },
+    }),
+  ),
 }));
 
-describe('TempFriendsList', () => {
+describe("TempFriendsList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
   });
 
-  it('renders nothing when there are no temp friends', async () => {
+  it("renders nothing when there are no temp friends", async () => {
     vi.mocked(friendService.getFriends).mockResolvedValue([]);
     vi.mocked(groupService.getUserBalances).mockResolvedValue({
       userId: 1,
-      username: 'testuser',
-      email: 'test@example.com',
+      username: "testuser",
+      email: "test@example.com",
       totalBalance: 0,
-      groupBalances: []
+      groupBalances: [],
     });
 
     render(
       <QueryClientProvider client={queryClient}>
         <TempFriendsList />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     // Should render empty or nothing
-    expect(screen.queryByText('Temporary Friends')).not.toBeInTheDocument();
+    expect(screen.queryByText("Temporary Friends")).not.toBeInTheDocument();
   });
 
-  it('renders temp friends with non-zero balances', async () => {
+  it("renders temp friends with non-zero balances", async () => {
     // Current user is 1
     // Friend is 2
     // Non-friend is 3
     vi.mocked(friendService.getFriends).mockResolvedValue([
-      { id: 2, username: 'friend', firstName: 'Friend', lastName: 'User', email: 'f@e.com' }
+      {
+        id: 2,
+        username: "friend",
+        firstName: "Friend",
+        lastName: "User",
+        email: "f@e.com",
+      },
     ]);
 
     // User is in Group 10
     vi.mocked(groupService.getUserBalances).mockResolvedValue({
       userId: 1,
-      username: 'testuser',
-      email: 'test@example.com',
+      username: "testuser",
+      email: "test@example.com",
       totalBalance: 10,
-      groupBalances: [
-        { groupId: 10, groupName: 'Group A', balance: 10 }
-      ]
+      groupBalances: [{ groupId: 10, groupName: "Group A", balance: 10 }],
     });
 
     // Group 10 has debts: User 3 owes User 1 $10
@@ -71,8 +77,14 @@ describe('TempFriendsList', () => {
       groupId: 10,
       balances: [],
       simplifiedDebts: [
-        { from: 3, fromUsername: 'tempfriend', to: 1, toUsername: 'testuser', amount: 10 }
-      ]
+        {
+          from: 3,
+          fromUsername: "tempfriend",
+          to: 1,
+          toUsername: "testuser",
+          amount: 10,
+        },
+      ],
     });
 
     // We also need user 3's details if we want to show their name
@@ -82,15 +94,15 @@ describe('TempFriendsList', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <TempFriendsList />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Temporary Friends')).toBeInTheDocument();
-      expect(screen.getByText('tempfriend')).toBeInTheDocument();
-      expect(screen.getByText('Group A')).toBeInTheDocument(); // Group name check
+      expect(screen.getByText("Temporary Friends")).toBeInTheDocument();
+      expect(screen.getByText("tempfriend")).toBeInTheDocument();
+      expect(screen.getByText("Group A")).toBeInTheDocument(); // Group name check
       expect(screen.getByText(/owes you 10.00/i)).toBeInTheDocument();
-      expect(screen.getByText('Add Friend')).toBeInTheDocument();
+      expect(screen.getByText("Add Friend")).toBeInTheDocument();
     });
   });
 
@@ -98,60 +110,73 @@ describe('TempFriendsList', () => {
     vi.mocked(friendService.getFriends).mockResolvedValue([]);
     vi.mocked(groupService.getUserBalances).mockResolvedValue({
       userId: 1,
-      username: 'testuser',
-      email: 'test@example.com',
+      username: "testuser",
+      email: "test@example.com",
       totalBalance: 10,
-      groupBalances: [{ groupId: 10, groupName: 'Group A', balance: 10 }]
+      groupBalances: [{ groupId: 10, groupName: "Group A", balance: 10 }],
     });
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 10,
       balances: [],
-      simplifiedDebts: [{ from: 3, fromUsername: 'tempfriend', to: 1, toUsername: 'testuser', amount: 10 }]
+      simplifiedDebts: [
+        {
+          from: 3,
+          fromUsername: "tempfriend",
+          to: 1,
+          toUsername: "testuser",
+          amount: 10,
+        },
+      ],
     });
 
     // Mock outgoing request to user 3
     vi.mocked(friendService.getFriendRequests).mockResolvedValue([
-      { id: 100, requesterId: 1, addresseeId: 3, status: 'PENDING', createdAt: '', updatedAt: '' }
+      {
+        id: 100,
+        requesterId: 1,
+        addresseeId: 3,
+        status: "PENDING",
+        createdAt: "",
+        updatedAt: "",
+      },
     ]);
 
     render(
       <QueryClientProvider client={queryClient}>
         <TempFriendsList />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByText('tempfriend')).toBeInTheDocument();
-      expect(screen.getByText('Cancel Request')).toBeInTheDocument();
+      expect(screen.getByText("tempfriend")).toBeInTheDocument();
+      expect(screen.getByText("Cancel Request")).toBeInTheDocument();
     });
   });
 
-  it('auto-dismisses temp friends when balance hits zero', async () => {
+  it("auto-dismisses temp friends when balance hits zero", async () => {
     vi.mocked(friendService.getFriends).mockResolvedValue([]);
     vi.mocked(groupService.getUserBalances).mockResolvedValue({
       userId: 1,
-      username: 'testuser',
-      email: 'test@example.com',
+      username: "testuser",
+      email: "test@example.com",
       totalBalance: 0,
-      groupBalances: [
-        { groupId: 10, groupName: 'Group A', balance: 0 }
-      ]
+      groupBalances: [{ groupId: 10, groupName: "Group A", balance: 0 }],
     });
 
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 10,
       balances: [],
-      simplifiedDebts: [] // No debts involving user 1
+      simplifiedDebts: [], // No debts involving user 1
     });
 
     render(
       <QueryClientProvider client={queryClient}>
         <TempFriendsList />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.queryByText('Temporary Friends')).not.toBeInTheDocument();
+      expect(screen.queryByText("Temporary Friends")).not.toBeInTheDocument();
     });
   });
 });

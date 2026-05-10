@@ -1,26 +1,30 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, X, Loader2 } from 'lucide-react';
-import api from '../../lib/axios';
-import { friendService } from './friendService';
-import type { User, Friendship } from '../../types/user';
-import Button from '../../components/core/Button/Button';
-import { useAuthStore } from '../../store/authStore';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check, X, Loader2 } from "lucide-react";
+import api from "../../lib/axios";
+import { friendService } from "./friendService";
+import type { User, Friendship } from "../../types/user";
+import Button from "../../components/core/Button/Button";
+import { useAuthStore } from "../../store/authStore";
 
 interface FriendRequestItemProps {
   request: Friendship;
-  direction?: 'INCOMING' | 'OUTGOING';
+  direction?: "INCOMING" | "OUTGOING";
 }
 
-const FriendRequestItem = ({ request, direction = 'INCOMING' }: FriendRequestItemProps) => {
+const FriendRequestItem = ({
+  request,
+  direction = "INCOMING",
+}: FriendRequestItemProps) => {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
   // For INCOMING, we want the requester. For OUTGOING, we want the addressee.
-  const targetUserId = direction === 'INCOMING' ? request.requesterId : request.addresseeId;
+  const targetUserId =
+    direction === "INCOMING" ? request.requesterId : request.addresseeId;
 
   // Fetch user details
   const { data: user, isLoading: isLoadingUser } = useQuery({
-    queryKey: ['users', targetUserId],
+    queryKey: ["users", targetUserId],
     queryFn: async () => {
       const response = await api.get<User>(`/users/${targetUserId}`);
       return response.data;
@@ -29,23 +33,31 @@ const FriendRequestItem = ({ request, direction = 'INCOMING' }: FriendRequestIte
   });
 
   const respondMutation = useMutation({
-    mutationFn: (action: 'accept' | 'reject') => {
-      if (!currentUser?.id) throw new Error('User not logged in');
-      return friendService.respondToFriendRequest(currentUser.id, request.id, action);
+    mutationFn: (action: "accept" | "reject") => {
+      if (!currentUser?.id) throw new Error("User not logged in");
+      return friendService.respondToFriendRequest(
+        currentUser.id,
+        request.id,
+        action,
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
-      queryClient.invalidateQueries({ queryKey: ['friends', currentUser?.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["friend-requests", currentUser?.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["friends", currentUser?.id] });
     },
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => {
-      if (!currentUser?.id || !targetUserId) throw new Error('Missing ID');
+      if (!currentUser?.id || !targetUserId) throw new Error("Missing ID");
       return friendService.removeFriend(currentUser.id, targetUserId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["friend-requests", currentUser?.id],
+      });
     },
   });
 
@@ -73,16 +85,17 @@ const FriendRequestItem = ({ request, direction = 'INCOMING' }: FriendRequestIte
       </div>
 
       <div className="flex gap-2">
-        {direction === 'INCOMING' ? (
+        {direction === "INCOMING" ? (
           <>
             <Button
               size="sm"
               variant="primary"
-              onClick={() => respondMutation.mutate('accept')}
+              onClick={() => respondMutation.mutate("accept")}
               disabled={respondMutation.isPending}
               title="Accept"
             >
-              {respondMutation.isPending && respondMutation.variables === 'accept' ? (
+              {respondMutation.isPending &&
+              respondMutation.variables === "accept" ? (
                 <Loader2 className="animate-spin" size={16} />
               ) : (
                 <Check size={16} />
@@ -91,11 +104,12 @@ const FriendRequestItem = ({ request, direction = 'INCOMING' }: FriendRequestIte
             <Button
               size="sm"
               variant="danger"
-              onClick={() => respondMutation.mutate('reject')}
+              onClick={() => respondMutation.mutate("reject")}
               disabled={respondMutation.isPending}
               title="Reject"
             >
-              {respondMutation.isPending && respondMutation.variables === 'reject' ? (
+              {respondMutation.isPending &&
+              respondMutation.variables === "reject" ? (
                 <Loader2 className="animate-spin text-blue-600" size={16} />
               ) : (
                 <X size={16} />

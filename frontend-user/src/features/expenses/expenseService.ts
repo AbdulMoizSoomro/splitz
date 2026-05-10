@@ -1,14 +1,22 @@
-import { expenseApi } from '../../lib/axios';
-import type { Expense, CreateExpenseRequest } from '../../types/expense';
+import { expenseApi } from "../../lib/axios";
+import type { Expense, CreateExpenseRequest } from "../../types/expense";
 
 export const expenseService = {
   getGroupExpenses: async (groupId: number): Promise<Expense[]> => {
-    const response = await expenseApi.get<Expense[]>(`/groups/${groupId}/expenses`);
+    const response = await expenseApi.get<Expense[]>(
+      `/groups/${groupId}/expenses`,
+    );
     return response.data;
   },
 
-  createExpense: async (groupId: number, data: CreateExpenseRequest): Promise<Expense> => {
-    const response = await expenseApi.post<Expense>(`/groups/${groupId}/expenses`, data);
+  createExpense: async (
+    groupId: number,
+    data: CreateExpenseRequest,
+  ): Promise<Expense> => {
+    const response = await expenseApi.post<Expense>(
+      `/groups/${groupId}/expenses`,
+      data,
+    );
     return response.data;
   },
 

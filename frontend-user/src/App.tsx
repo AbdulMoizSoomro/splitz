@@ -1,13 +1,13 @@
-import { Routes, Route } from 'react-router-dom';
-import Login from './features/auth/Login';
-import Register from './features/auth/Register';
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import Dashboard from './features/dashboard/Dashboard';
-import GroupsPage from './features/groups/GroupsPage';
-import GroupDetails from './features/groups/GroupDetails';
-import FriendsPage from './features/users/FriendsPage';
-import FriendDetailPage from './features/users/FriendDetailPage';
-import ToastContainer from './components/core/Toast/ToastContainer';
+import { Routes, Route } from "react-router-dom";
+import Login from "./features/auth/Login";
+import Register from "./features/auth/Register";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import Dashboard from "./features/dashboard/Dashboard";
+import GroupsPage from "./features/groups/GroupsPage";
+import GroupDetails from "./features/groups/GroupDetails";
+import FriendsPage from "./features/users/FriendsPage";
+import FriendDetailPage from "./features/users/FriendDetailPage";
+import ToastContainer from "./components/core/Toast/ToastContainer";
 
 function App() {
   return (

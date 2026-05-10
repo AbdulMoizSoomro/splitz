@@ -1,5 +1,9 @@
-import api from '../../lib/axios';
-import type { User, Friendship } from '../../types/user';
+import api from "../../lib/axios";
+import type {
+  User,
+  Friendship,
+  FriendshipSettlementDTO,
+} from "../../types/user";
 
 export const friendService = {
   getFriends: async (userId: string | number): Promise<User[]> => {
@@ -7,16 +11,22 @@ export const friendService = {
     return response.data;
   },
 
-  getFriendRequests: async (userId: string | number, direction: 'INCOMING' | 'OUTGOING'): Promise<Friendship[]> => {
+  getFriendRequests: async (
+    userId: string | number,
+    direction: "INCOMING" | "OUTGOING",
+  ): Promise<Friendship[]> => {
     const response = await api.get<Friendship[]>(
-      `/users/${userId}/friends/requests?direction=${direction}`
+      `/users/${userId}/friends/requests?direction=${direction}`,
     );
     return response.data;
   },
 
-  sendFriendRequest: async (userId: string | number, friendId: number): Promise<Friendship> => {
+  sendFriendRequest: async (
+    userId: string | number,
+    friendId: number,
+  ): Promise<Friendship> => {
     const response = await api.post<Friendship>(
-      `/users/${userId}/friends?friendId=${friendId}`
+      `/users/${userId}/friends?friendId=${friendId}`,
     );
     return response.data;
   },
@@ -24,15 +34,58 @@ export const friendService = {
   respondToFriendRequest: async (
     userId: string | number,
     friendshipId: number,
-    action: 'accept' | 'reject'
+    action: "accept" | "reject",
   ): Promise<Friendship> => {
     const response = await api.put<Friendship>(
-      `/users/${userId}/friends/${friendshipId}/${action}`
+      `/users/${userId}/friends/${friendshipId}/${action}`,
     );
     return response.data;
   },
 
-  removeFriend: async (userId: string | number, friendId: number): Promise<void> => {
+  removeFriend: async (
+    userId: string | number,
+    friendId: number,
+  ): Promise<void> => {
     await api.delete(`/users/${userId}/friends/${friendId}`);
-  }
+  },
+
+  getNetBalance: async (
+    userId: number,
+    friendId: number,
+  ): Promise<{ netBalance: number }> => {
+    const response = await api.get<{ netBalance: number }>(
+      `/users/${userId}/balances/with/${friendId}`,
+    );
+    return response.data;
+  },
+
+  createSettlement: async (data: {
+    payerId: number;
+    payeeId: number;
+    amount: number;
+  }): Promise<FriendshipSettlementDTO> => {
+    const response = await api.post<FriendshipSettlementDTO>(
+      "/friendship-settlements",
+      data,
+    );
+    return response.data;
+  },
+
+  markAsPaid: async (
+    settlementId: number,
+  ): Promise<FriendshipSettlementDTO> => {
+    const response = await api.put<FriendshipSettlementDTO>(
+      `/friendship-settlements/${settlementId}/mark-paid`,
+    );
+    return response.data;
+  },
+
+  confirmSettlement: async (
+    settlementId: number,
+  ): Promise<FriendshipSettlementDTO> => {
+    const response = await api.put<FriendshipSettlementDTO>(
+      `/friendship-settlements/${settlementId}/confirm`,
+    );
+    return response.data;
+  },
 };

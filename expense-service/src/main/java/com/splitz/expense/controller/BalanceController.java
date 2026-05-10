@@ -1,5 +1,6 @@
 package com.splitz.expense.controller;
 
+import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.service.BalanceService;
@@ -42,5 +43,17 @@ public class BalanceController {
   public ResponseEntity<UserBalanceResponseDTO> getUserBalances(
       @P("id") @PathVariable("id") Long id) {
     return ResponseEntity.ok(balanceService.getUserBalances(id));
+  }
+
+  @GetMapping("/users/{userId}/balances/with/{friendId}")
+  @Operation(
+      summary = "Get net balance with a friend",
+      description =
+          "Returns net balance between two friends across all shared groups and global settlements")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
+  public ResponseEntity<FriendBalanceResponseDTO> getFriendBalance(
+      @P("userId") @PathVariable("userId") Long userId,
+      @P("friendId") @PathVariable("friendId") Long friendId) {
+    return ResponseEntity.ok(balanceService.getNetBalanceWithFriend(userId, friendId));
   }
 }

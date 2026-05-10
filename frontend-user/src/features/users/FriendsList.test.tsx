@@ -1,7 +1,7 @@
-import { render } from '@testing-library/react';
-import { describe, it, vi } from 'vitest';
-import FriendsList from './FriendsList';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render } from "@testing-library/react";
+import { describe, it, vi } from "vitest";
+import FriendsList from "./FriendsList";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -11,14 +11,14 @@ const queryClient = new QueryClient({
   },
 });
 
-vi.mock('../../lib/axios');
+vi.mock("../../lib/axios");
 
-describe('FriendsList', () => {
-  it('renders friends list header', () => {
+describe("FriendsList", () => {
+  it("renders friends list header", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <FriendsList />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
     // Since it's loading initially, we might see the loader or empty state depending on mock
   });

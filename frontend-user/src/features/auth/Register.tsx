@@ -1,33 +1,53 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/core/Card/Card';
-import Input from '../../components/core/Input/Input';
-import Button from '../../components/core/Button/Button';
-import api, { isAxiosError } from '../../lib/axios';
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "../../components/core/Card/Card";
+import Input from "../../components/core/Input/Input";
+import Button from "../../components/core/Button/Button";
+import api, { isAxiosError } from "../../lib/axios";
 
 const Register = () => {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
-    console.log('Submitting registration:', { username, email, firstName, lastName });
+    setError("");
+    console.log("Submitting registration:", {
+      username,
+      email,
+      firstName,
+      lastName,
+    });
 
     try {
-      const response = await api.post('/users', { username, email, firstName, lastName, password });
-      console.log('Registration success:', response.data);
-      navigate('/login');
+      const response = await api.post("/users", {
+        username,
+        email,
+        firstName,
+        lastName,
+        password,
+      });
+      console.log("Registration success:", response.data);
+      navigate("/login");
     } catch (err) {
-      console.error('Registration error:', isAxiosError(err) ? err.response?.data : err);
-      let message = 'Failed to register. Please try again.';
+      console.error(
+        "Registration error:",
+        isAxiosError(err) ? err.response?.data : err,
+      );
+      let message = "Failed to register. Please try again.";
       if (isAxiosError(err) && err.response?.data) {
         const data = err.response.data as { detail?: string; message?: string };
         message = data.detail || data.message || message;
@@ -84,14 +104,16 @@ const Register = () => {
               placeholder="••••••••"
               required
             />
-            {error && <p className="text-sm font-medium text-red-500">{error}</p>}
+            {error && (
+              <p className="text-sm font-medium text-red-500">{error}</p>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Creating account...' : 'Register'}
+              {isLoading ? "Creating account..." : "Register"}
             </Button>
             <p className="text-sm text-center text-gray-600">
-              Already have an account?{' '}
+              Already have an account?{" "}
               <Link to="/login" className="text-blue-600 hover:underline">
                 Login here
               </Link>

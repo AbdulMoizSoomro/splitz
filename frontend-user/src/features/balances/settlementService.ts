@@ -1,4 +1,4 @@
-import { expenseApi } from '../../lib/axios';
+import { expenseApi } from "../../lib/axios";
 
 export interface CreateSettlementRequest {
   fromUserId: number;
@@ -15,29 +15,37 @@ export interface Settlement {
   amount: number;
   currency: string;
   groupId: number;
-  status: 'PENDING' | 'PAID' | 'CONFIRMED' | 'REJECTED';
+  status: "PENDING" | "PAID" | "CONFIRMED" | "REJECTED";
   paidAt?: string;
   confirmedAt?: string;
 }
 
 export const settlementService = {
-  createSettlement: async (data: CreateSettlementRequest): Promise<Settlement> => {
-    const response = await expenseApi.post<Settlement>('/settlements', data);
+  createSettlement: async (
+    data: CreateSettlementRequest,
+  ): Promise<Settlement> => {
+    const response = await expenseApi.post<Settlement>("/settlements", data);
     return response.data;
   },
 
   markAsPaid: async (id: number): Promise<Settlement> => {
-    const response = await expenseApi.put<Settlement>(`/settlements/${id}/mark-paid`);
+    const response = await expenseApi.put<Settlement>(
+      `/settlements/${id}/mark-paid`,
+    );
     return response.data;
   },
 
   confirmSettlement: async (id: number): Promise<Settlement> => {
-    const response = await expenseApi.put<Settlement>(`/settlements/${id}/confirm`);
+    const response = await expenseApi.put<Settlement>(
+      `/settlements/${id}/confirm`,
+    );
     return response.data;
   },
 
   getSettlementsByGroup: async (groupId: number): Promise<Settlement[]> => {
-    const response = await expenseApi.get<Settlement[]>(`/groups/${groupId}/settlements`);
+    const response = await expenseApi.get<Settlement[]>(
+      `/groups/${groupId}/settlements`,
+    );
     return response.data;
-  }
+  },
 };
