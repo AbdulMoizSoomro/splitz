@@ -24,8 +24,9 @@ public class FriendshipSettlementService {
 
   @Transactional
   public FriendshipSettlementDTO createSettlement(CreateFriendshipSettlementRequest request) {
-    // In a real scenario, we might want to verify friendship here via user-service
-    // but for now we follow the requirement of creating the record.
+    if (request.getPayerId().equals(request.getPayeeId())) {
+      throw new IllegalArgumentException("Payer and payee cannot be the same user");
+    }
 
     FriendshipSettlement settlement =
         FriendshipSettlement.builder()
@@ -36,6 +37,14 @@ public class FriendshipSettlementService {
             .build();
 
     return friendshipSettlementMapper.toDTO(friendshipSettlementRepository.save(settlement));
+  }
+
+  @Transactional(readOnly = true)
+  public boolean isInvolved(Long settlementId, Long userId) {
+    return friendshipSettlementRepository
+        .findById(settlementId)
+        .map(s -> s.getPayerId().equals(userId) || s.getPayeeId().equals(userId))
+        .orElse(false);
   }
 
   @Transactional

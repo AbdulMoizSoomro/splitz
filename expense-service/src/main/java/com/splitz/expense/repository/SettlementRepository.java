@@ -1,8 +1,13 @@
 package com.splitz.expense.repository;
 
 import com.splitz.expense.model.Settlement;
+import com.splitz.expense.model.SettlementStatus;
+import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -11,4 +16,20 @@ public interface SettlementRepository extends JpaRepository<Settlement, Long> {
   List<Settlement> findByGroupId(Long groupId);
 
   List<Settlement> findByPayerIdOrPayeeId(Long payerId, Long payeeId);
+
+  @Query(
+      "SELECT COALESCE(SUM(s.amount), 0) FROM Settlement s WHERE s.groupId IN :groupIds AND"
+          + " s.payerId = :payerId AND s.payeeId = :payeeId AND s.status = :status")
+  BigDecimal calculateTotalSettledBetweenUsers(
+      @Param("payerId") Long payerId,
+      @Param("payeeId") Long payeeId,
+      @Param("groupIds") Collection<Long> groupIds,
+      @Param("status") SettlementStatus status);
+
+  @Query(
+      "SELECT COALESCE(SUM(s.amount), 0) FROM Settlement s WHERE s.payerId = :payerId AND s.payeeId = :payeeId AND s.status = :status")
+  BigDecimal calculateTotalSettledBetweenUsersGlobally(
+      @Param("payerId") Long payerId,
+      @Param("payeeId") Long payeeId,
+      @Param("status") SettlementStatus status);
 }

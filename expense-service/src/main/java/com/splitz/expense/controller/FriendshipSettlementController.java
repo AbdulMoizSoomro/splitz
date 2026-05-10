@@ -25,6 +25,8 @@ public class FriendshipSettlementController {
   private final FriendshipSettlementService friendshipSettlementService;
 
   @PostMapping("/friendship-settlements")
+  @PreAuthorize(
+      "@splitzAuthorizer.isSelfOrAdmin(#request.payerId) || @splitzAuthorizer.isSelfOrAdmin(#request.payeeId)")
   public ResponseEntity<FriendshipSettlementDTO> createSettlement(
       @Valid @RequestBody CreateFriendshipSettlementRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED)
@@ -32,11 +34,15 @@ public class FriendshipSettlementController {
   }
 
   @GetMapping("/friendship-settlements/{id}")
+  @PreAuthorize(
+      "@splitzAuthorizer.isAdmin() || @friendshipSettlementService.isInvolved(#id, @splitzAuthorizer.currentUserId)")
   public ResponseEntity<FriendshipSettlementDTO> getSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(friendshipSettlementService.getSettlementById(id));
   }
 
   @GetMapping("/users/{userId1}/friendships/{userId2}/settlements")
+  @PreAuthorize(
+      "@splitzAuthorizer.isSelfOrAdmin(#userId1) || @splitzAuthorizer.isSelfOrAdmin(#userId2)")
   public ResponseEntity<List<FriendshipSettlementDTO>> getSettlementsBetweenUsers(
       @PathVariable("userId1") Long userId1, @PathVariable("userId2") Long userId2) {
     return ResponseEntity.ok(

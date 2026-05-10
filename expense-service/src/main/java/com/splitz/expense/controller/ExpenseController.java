@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -57,6 +58,12 @@ public class ExpenseController {
   public ResponseEntity<List<ExpenseDTO>> getExpensesByGroup(
       @PathVariable("groupId") Long groupId) {
     return ResponseEntity.ok(expenseService.getExpensesByGroup(groupId));
+  }
+
+  @GetMapping("/groups/expenses/bulk")
+  public ResponseEntity<List<ExpenseDTO>> getExpensesByGroupIds(
+      @RequestParam("groupIds") List<Long> groupIds) {
+    return ResponseEntity.ok(expenseService.getExpensesByGroupIds(groupIds));
   }
 
   @PutMapping("/expenses/{id}")
