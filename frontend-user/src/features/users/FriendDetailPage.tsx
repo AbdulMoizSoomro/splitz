@@ -18,7 +18,8 @@ import { groupService } from "../groups/groupService";
 import { expenseService } from "../expenses/expenseService";
 import { friendService } from "./friendService";
 import { useAuthStore } from "../../store/authStore";
-import type { User } from "../../types/user";
+import type { User, FriendshipSettlementDTO } from "../../types/user";
+import type { Expense } from "../../types/expense";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import {
   Card,
@@ -27,6 +28,12 @@ import {
   CardContent,
 } from "../../components/core/Card/Card";
 import FriendshipSettlementModal from "./FriendshipSettlementModal";
+import Badge from "../../components/core/Badge/Badge";
+
+// Helper type for unified activity feed
+type ActivityItem = 
+  | { type: 'expense'; data: Expense; date: Date }
+  | { type: 'settlement'; data: FriendshipSettlementDTO; date: Date };
 
 const FriendDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -80,16 +87,47 @@ const FriendDetailPage = () => {
           expense.splits.some((split) => split.userId === friendId),
       );
 
-      return filtered.sort(
-        (a, b) =>
-          new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime(),
-      );
+      return filtered;
     },
     enabled: !!groups,
   });
 
+  const { data: settlements, isLoading: isLoadingSettlements } = useQuery({
+    queryKey: ["friend-settlements", currentUser?.id, friendId],
+    queryFn: () =>
+      friendService.getSettlementsWithFriend(Number(currentUser!.id), friendId),
+    enabled: !!currentUser && !!friendId,
+  });
+
+  const unifiedActivity = useMemo(() => {
+    const activities: ActivityItem[] = [];
+
+    if (sharedExpenses) {
+      activities.push(
+        ...sharedExpenses.map((expense) => ({
+          type: 'expense' as const,
+          data: expense,
+          date: new Date(expense.expenseDate),
+        }))
+      );
+    }
+
+    if (settlements) {
+      activities.push(
+        ...settlements.map((settlement) => ({
+          type: 'settlement' as const,
+          data: settlement,
+          date: new Date(settlement.createdAt),
+        }))
+      );
+    }
+
+    return activities.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [sharedExpenses, settlements]);
+
+
   const isLoading =
-    isLoadingFriend || isLoadingGroups || isLoadingExpenses || isLoadingBalance;
+    isLoadingFriend || isLoadingGroups || isLoadingExpenses || isLoadingBalance || isLoadingSettlements;
 
   if (isLoading) {
     return (
@@ -139,7 +177,7 @@ const FriendDetailPage = () => {
 
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-2xl font-bold">
-            {friend.firstName[0]}
+            {friend.firstName ? friend.firstName[0] : ""}
             {friend.lastName ? friend.lastName[0] : ""}
           </div>
           <div>
@@ -237,54 +275,99 @@ const FriendDetailPage = () => {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Shared Expenses</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {sharedExpenses && sharedExpenses.length > 0 ? (
-                  <div className="space-y-3">
-                    {sharedExpenses.map((expense) => (
-                      <div
-                        key={expense.id}
-                        className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                            <Receipt size={20} />
+            <CardHeader>
+              <CardTitle className="text-lg">Shared Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {unifiedActivity.length > 0 ? (
+                <div className="space-y-3">
+                  {unifiedActivity.map((activity, index) => {
+                    if (activity.type === 'expense') {
+                      const expense = activity.data as Expense;
+                      return (
+                        <div
+                          key={`expense-${expense.id}-${index}`}
+                          className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                              <Receipt size={20} />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {expense.description}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(
+                                  expense.expenseDate,
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {expense.description}
+                          <div className="text-right">
+                            <p className="font-bold text-gray-900">
+                              {expense.currency} {expense.amount.toFixed(2)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {new Date(
-                                expense.expenseDate,
-                              ).toLocaleDateString()}
+                              Paid by{" "}
+                              {expense.paidBy === friendId
+                                ? friend.firstName
+                                : "You"}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-gray-900">
-                            {expense.currency} {expense.amount.toFixed(2)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Paid by{" "}
-                            {expense.paidBy === friendId
-                              ? friend.firstName
-                              : "You"}
-                          </p>
+                      );
+                    } else {
+                      const settlement = activity.data as FriendshipSettlementDTO;
+                      const isPayer = settlement.payerId === Number(currentUser?.id);
+                      
+                      let badgeVariant: 'success' | 'warning' | 'default' = 'default';
+                      if (settlement.status === 'COMPLETED') badgeVariant = 'success';
+                      else if (settlement.status === 'MARKED_PAID') badgeVariant = 'warning';
+
+                      return (
+                        <div
+                          key={`settlement-${settlement.id}-${index}`}
+                          className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                              <DollarSign size={20} />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-gray-900">
+                                  {isPayer ? `You paid ${friend.firstName}` : `${friend.firstName} paid you`}
+                                </p>
+                                <Badge variant={badgeVariant}>
+                                  {settlement.status === 'MARKED_PAID' ? 'Pending Confirmation' :
+                                   settlement.status === 'COMPLETED' ? 'Settled' : 'Pending'}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                {new Date(
+                                  settlement.createdAt,
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-gray-900">
+                              ${settlement.amount.toFixed(2)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 italic">
-                    No shared expenses found.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                      );
+                    }
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">
+                  No shared activity found.
+                </p>
+              )}
+            </CardContent>
+            </Card>          </div>
         </div>
       </div>
 
