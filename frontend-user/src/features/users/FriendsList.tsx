@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Loader2, UserMinus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import api from '../../lib/axios';
 import type { User } from '../../types/user';
 import { useAuthStore } from '../../store/authStore';
@@ -56,7 +57,10 @@ const FriendsList = () => {
             key={friend.id}
             className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
           >
-            <div className="flex items-center gap-3">
+            <Link 
+              to={`/friends/${friend.id}`}
+              className="flex items-center gap-3 hover:bg-gray-50 transition-colors flex-1"
+            >
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
                 {friend.firstName[0]}
                 {friend.lastName ? friend.lastName[0] : ''}
@@ -67,7 +71,7 @@ const FriendsList = () => {
                 </p>
                 <p className="text-xs text-gray-500">@{friend.username}</p>
               </div>
-            </div>
+            </Link>
 
             <Button
               size="sm"

@@ -56,8 +56,10 @@ test.describe('Leave Group', () => {
 
     try {
       // 1. Register and Login both users
-      await registerUser(pageOwner, ownerName);
-      await registerUser(pageMember, memberName);
+      const ownerFullName = `Owner_${timestamp}`;
+      const memberFullName = `Member_${timestamp}`;
+      await registerUser(pageOwner, ownerName, ownerFullName);
+      await registerUser(pageMember, memberName, memberFullName);
       await loginUser(pageOwner, ownerName);
       await loginUser(pageMember, memberName);
 
@@ -73,12 +75,13 @@ test.describe('Leave Group', () => {
       await modal.getByLabel(/group name/i).fill(groupName);
       
       // Select member in picker
-      await modal.locator('.max-h-48').getByText(/test user/i).first().click();
+      await modal.locator('.max-h-48').getByText(memberFullName).first().click();
       
       await modal.getByRole('button', { name: 'Create Group', exact: true }).click();
       await expect(modal).not.toBeVisible();
 
       // 4. Member navigates to the group
+      await pageMember.goto('/groups');
       await expect(pageMember.getByText(groupName)).toBeVisible({ timeout: 10000 });
       await pageMember.getByText(groupName).click();
       await expect(pageMember).toHaveURL(/\/groups\/\d+/);

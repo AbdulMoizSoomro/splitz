@@ -57,9 +57,9 @@ describe('CreateExpenseModal - Exact Split', () => {
     renderModal();
     fireEvent.click(screen.getByLabelText(/exact/i));
     
-    expect(screen.getByLabelText(/user 1 share/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/user 2 share/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/user 3 share/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/user 1 split value/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/user 2 split value/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/user 3 split value/i)).toBeInTheDocument();
   });
 
   it('validates that exact shares sum up to total amount', async () => {
@@ -69,15 +69,15 @@ describe('CreateExpenseModal - Exact Split', () => {
     fireEvent.click(screen.getByLabelText(/exact/i));
     
     // Fill in shares that don't sum to 100
-    fireEvent.change(screen.getByLabelText(/user 1 share/i), { target: { value: '30' } });
-    fireEvent.change(screen.getByLabelText(/user 2 share/i), { target: { value: '30' } });
-    fireEvent.change(screen.getByLabelText(/user 3 share/i), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText(/user 1 split value/i), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText(/user 2 split value/i), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText(/user 3 split value/i), { target: { value: '30' } });
     
     const submitButton = screen.getByRole('button', { name: /add expense/i });
     expect(submitButton).toBeDisabled();
     
     // Fix shares to sum to 100
-    fireEvent.change(screen.getByLabelText(/user 3 share/i), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText(/user 3 split value/i), { target: { value: '40' } });
     expect(submitButton).not.toBeDisabled();
     
     fireEvent.click(submitButton);
@@ -100,7 +100,7 @@ describe('CreateExpenseModal - Exact Split', () => {
     fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '100' } });
     fireEvent.click(screen.getByLabelText(/exact/i));
     
-    fireEvent.change(screen.getByLabelText(/user 1 share/i), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText(/user 1 split value/i), { target: { value: '30' } });
     expect(screen.getByText(/remaining: \$70\.00/i)).toBeInTheDocument();
   });
 });

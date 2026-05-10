@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { UserCheck, UserPlus, Loader2 } from 'lucide-react';
-import api from '../../lib/axios';
+import { friendService } from './friendService';
 import type { Friendship } from '../../types/user';
 import { useAuthStore } from '../../store/authStore';
 import FriendRequestItem from './FriendRequestItem';
@@ -12,12 +12,9 @@ const FriendRequestsList = () => {
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ['friend-requests', currentUser?.id, direction],
-    queryFn: async () => {
-      if (!currentUser?.id) return [];
-      const response = await api.get<Friendship[]>(
-        `/users/${currentUser.id}/friends/requests?direction=${direction}`
-      );
-      return response.data;
+    queryFn: () => {
+      if (!currentUser?.id) return Promise.resolve([]);
+      return friendService.getFriendRequests(currentUser.id, direction);
     },
     enabled: !!currentUser?.id,
   });

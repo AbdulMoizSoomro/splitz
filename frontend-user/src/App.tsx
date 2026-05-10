@@ -6,6 +6,7 @@ import Dashboard from './features/dashboard/Dashboard';
 import GroupsPage from './features/groups/GroupsPage';
 import GroupDetails from './features/groups/GroupDetails';
 import FriendsPage from './features/users/FriendsPage';
+import FriendDetailPage from './features/users/FriendDetailPage';
 import ToastContainer from './components/core/Toast/ToastContainer';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/friends/:id" element={<FriendDetailPage />} />
           <Route path="/groups" element={<GroupsPage />} />
           <Route path="/groups/:id" element={<GroupDetails />} />
         </Route>

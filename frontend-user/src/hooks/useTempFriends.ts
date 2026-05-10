@@ -9,6 +9,7 @@ export interface TempFriend {
   firstName: string;
   lastName: string;
   balance: number;
+  groups: { id: number; name: string }[];
 }
 
 export const useTempFriends = () => {
@@ -30,54 +31,61 @@ export const useTempFriends = () => {
   });
 
   // 3. For each group with balance, fetch group balances (debts)
+  const groupIds = userBalances?.groupBalances?.map(gb => gb.groupId).sort((a, b) => a - b) || [];
+  
   const { data: allGroupDebts, isLoading: isLoadingDebts } = useQuery({
-    queryKey: ['temp-friends-debts', currentUserId, userBalances?.groupBalances?.length],
+    queryKey: ['temp-friends-debts', currentUserId, groupIds],
     queryFn: async () => {
       if (!userBalances || !userBalances.groupBalances) return [];
       
       const debtPromises = userBalances.groupBalances
         .filter((gb) => Math.abs(gb.balance) > 0.01)
-        .map((gb) => groupService.getBalances(gb.groupId));
+        .map(async (gb) => {
+          const balances = await groupService.getBalances(gb.groupId);
+          return {
+            groupId: gb.groupId,
+            groupName: gb.groupName,
+            simplifiedDebts: balances.simplifiedDebts
+          };
+        });
       
-      const results = await Promise.all(debtPromises);
-      return results.flatMap(r => r.simplifiedDebts);
+      return await Promise.all(debtPromises);
     },
     enabled: !!userBalances && !!userBalances.groupBalances && userBalances.groupBalances.length > 0,
   });
 
   // Aggregate mutual balances with other users
-  const mutualBalances: Record<number, { userId: number, username: string, firstName: string, lastName: string, balance: number }> = {};
+  const mutualBalances: Record<number, TempFriend> = {};
   
-  allGroupDebts?.forEach((debt) => {
-    if (debt.from === currentUserId) {
-      // Current user owes someone
-      const otherId = debt.to;
-      const otherUsername = debt.toUsername || `User ${otherId}`;
-      if (!mutualBalances[otherId]) {
-        mutualBalances[otherId] = { 
-          userId: otherId, 
-          username: otherUsername, 
-          firstName: otherUsername.split(' ')[0], 
-          lastName: otherUsername.split(' ').slice(1).join(' '),
-          balance: 0 
-        };
+  allGroupDebts?.forEach((groupDebt) => {
+    groupDebt.simplifiedDebts.forEach((debt) => {
+      if (debt.from === currentUserId || debt.to === currentUserId) {
+        const otherId = debt.from === currentUserId ? debt.to : debt.from;
+        const otherUsername = (debt.from === currentUserId ? debt.toUsername : debt.fromUsername) || `User ${otherId}`;
+        
+        if (!mutualBalances[otherId]) {
+          mutualBalances[otherId] = { 
+            userId: otherId, 
+            username: otherUsername, 
+            firstName: otherUsername.split(' ')[0], 
+            lastName: otherUsername.split(' ').slice(1).join(' '),
+            balance: 0,
+            groups: []
+          };
+        }
+
+        // Add group if not already added
+        if (!mutualBalances[otherId].groups.some(g => g.id === groupDebt.groupId)) {
+          mutualBalances[otherId].groups.push({ id: groupDebt.groupId, name: groupDebt.groupName });
+        }
+
+        if (debt.from === currentUserId) {
+          mutualBalances[otherId].balance -= debt.amount;
+        } else {
+          mutualBalances[otherId].balance += debt.amount;
+        }
       }
-      mutualBalances[otherId].balance -= debt.amount;
-    } else if (debt.to === currentUserId) {
-      // Someone owes current user
-      const otherId = debt.from;
-      const otherUsername = debt.fromUsername || `User ${otherId}`;
-      if (!mutualBalances[otherId]) {
-        mutualBalances[otherId] = { 
-          userId: otherId, 
-          username: otherUsername, 
-          firstName: otherUsername.split(' ')[0], 
-          lastName: otherUsername.split(' ').slice(1).join(' '),
-          balance: 0 
-        };
-      }
-      mutualBalances[otherId].balance += debt.amount;
-    }
+    });
   });
 
   const friendIds = new Set(friends?.map(f => f.id));

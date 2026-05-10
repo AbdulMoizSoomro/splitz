@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, X, Loader2 } from 'lucide-react';
 import api from '../../lib/axios';
+import { friendService } from './friendService';
 import type { User, Friendship } from '../../types/user';
 import Button from '../../components/core/Button/Button';
 import { useAuthStore } from '../../store/authStore';
@@ -28,12 +29,9 @@ const FriendRequestItem = ({ request, direction = 'INCOMING' }: FriendRequestIte
   });
 
   const respondMutation = useMutation({
-    mutationFn: async (action: 'accept' | 'reject') => {
-      if (!currentUser?.id) return;
-      const response = await api.put<Friendship>(
-        `/users/${currentUser.id}/friends/${request.id}/${action}`
-      );
-      return response.data;
+    mutationFn: (action: 'accept' | 'reject') => {
+      if (!currentUser?.id) throw new Error('User not logged in');
+      return friendService.respondToFriendRequest(currentUser.id, request.id, action);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
@@ -42,9 +40,9 @@ const FriendRequestItem = ({ request, direction = 'INCOMING' }: FriendRequestIte
   });
 
   const cancelMutation = useMutation({
-    mutationFn: async () => {
-      if (!currentUser?.id || !targetUserId) return;
-      await api.delete(`/users/${currentUser.id}/friends/${targetUserId}`);
+    mutationFn: () => {
+      if (!currentUser?.id || !targetUserId) throw new Error('Missing ID');
+      return friendService.removeFriend(currentUser.id, targetUserId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });

@@ -30,5 +30,9 @@ export const friendService = {
       `/users/${userId}/friends/${friendshipId}/${action}`
     );
     return response.data;
+  },
+
+  removeFriend: async (userId: string | number, friendId: number): Promise<void> => {
+    await api.delete(`/users/${userId}/friends/${friendId}`);
   }
 };

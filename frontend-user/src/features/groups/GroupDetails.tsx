@@ -14,6 +14,7 @@ import type { BadgeVariant } from '../../components/core/Badge/Badge';
 import Dropdown from '../../components/core/Dropdown/Dropdown';
 import { useToastStore } from '../../store/toastStore';
 import AddMemberModal from './AddMemberModal';
+import CreateExpenseModal from '../expenses/CreateExpenseModal';
 import GroupBalances from '../balances/GroupBalances';
 import GroupActivity from './GroupActivity';
 import { 
@@ -26,7 +27,8 @@ import {
   Settings, 
   UserPlus,
   Activity,
-  DollarSign
+  DollarSign,
+  Plus
 } from 'lucide-react';
 
 const GroupDetails = () => {
@@ -38,6 +40,7 @@ const GroupDetails = () => {
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isSelfDemoteModalOpen, setIsSelfDemoteModalOpen] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'activity' | 'members' | 'balances'>('activity');
 
   const { data: group, isLoading } = useQuery({
@@ -155,7 +158,10 @@ const GroupDetails = () => {
           <Button variant="ghost" size="sm" onClick={() => navigate('/groups')}>
             <ArrowLeft size={20} />
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
+            {group.description && <p className="text-gray-500">{group.description}</p>}
+          </div>
         </div>
 
         {/* Tab Navigation */}
@@ -206,7 +212,27 @@ const GroupDetails = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {activeTab === 'activity' && (
-              <GroupActivity groupId={Number(id)} balancesResponse={balancesResponse} />
+              <div className="space-y-4">
+                <div className="flex justify-between items-center px-1">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Activity size={20} className="text-blue-600" />
+                    <span>Recent Activity</span>
+                  </h2>
+                  <Button 
+                    size="sm" 
+                    onClick={() => setIsAddExpenseModalOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus size={18} />
+                    <span>Add Expense</span>
+                  </Button>
+                </div>
+                <GroupActivity 
+                  groupId={Number(id)} 
+                  balancesResponse={balancesResponse} 
+                  onAddExpense={() => setIsAddExpenseModalOpen(true)}
+                />
+              </div>
             )}
 
             {activeTab === 'members' && (
@@ -420,6 +446,14 @@ const GroupDetails = () => {
         <AddMemberModal
           isOpen={isAddMemberModalOpen}
           onClose={() => setIsAddMemberModalOpen(false)}
+          group={group}
+        />
+      )}
+
+      {group && (
+        <CreateExpenseModal
+          isOpen={isAddExpenseModalOpen}
+          onClose={() => setIsAddExpenseModalOpen(false)}
           group={group}
         />
       )}
