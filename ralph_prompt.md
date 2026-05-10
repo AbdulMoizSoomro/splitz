@@ -81,8 +81,8 @@ Assign an overall confidence: **High / Medium / Low**.
 ### 5. Quality Gates (hard stop on failure)
 
 Use Grep aggressively to *limit* the LOGS.
-
-Use `/code-review` skill to review the code.
+/
+Use `/feature-feedback-loop` skill to review the code.
 
 **Java**: `mvn -q -B spotless:apply && mvn -q -B verify`
 
