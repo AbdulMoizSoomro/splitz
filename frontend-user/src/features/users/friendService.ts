@@ -59,6 +59,16 @@ export const friendService = {
     return response.data;
   },
 
+  getSettlementsWithFriend: async (
+    userId: number,
+    friendId: number,
+  ): Promise<FriendshipSettlementDTO[]> => {
+    const response = await expenseApi.get<FriendshipSettlementDTO[]>(
+      `/users/${userId}/friendships/${friendId}/settlements`,
+    );
+    return response.data;
+  },
+
   createSettlement: async (data: {
     payerId: number;
     payeeId: number;
