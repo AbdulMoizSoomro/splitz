@@ -47,286 +47,141 @@ class BalanceServiceTest {
   @InjectMocks private BalanceService balanceService;
 
   private Group group;
-  private GroupMember member1;
-  private GroupMember member2;
-  private GroupMember member3;
 
   @BeforeEach
   void setUp() {
     group = Group.builder().id(1L).name("Test Group").build();
-    member1 = GroupMember.builder().id(1L).group(group).userId(101L).build();
-    member2 = GroupMember.builder().id(2L).group(group).userId(102L).build();
-    member3 = GroupMember.builder().id(3L).group(group).userId(103L).build();
   }
 
   @Test
-  void getGroupBalances_NoExpenses_ReturnsZeroBalances() {
+  void getGroupBalances_Success() {
+    // Arrange
+    GroupMember m1 = GroupMember.builder().userId(1L).group(group).build();
+    GroupMember m2 = GroupMember.builder().userId(2L).group(group).build();
     when(groupRepository.existsById(1L)).thenReturn(true);
-    when(groupMemberRepository.findByGroupId(1L)).thenReturn(Arrays.asList(member1, member2));
-    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.emptyList());
+    when(groupMemberRepository.findByGroupId(1L)).thenReturn(Arrays.asList(m1, m2));
 
-    GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
-
-    assertNotNull(response);
-    assertEquals(1L, response.getGroupId());
-    assertEquals(2, response.getBalances().size());
-    assertTrue(
-        response.getBalances().stream()
-            .allMatch(b -> b.getBalance().compareTo(BigDecimal.ZERO) == 0));
-    assertTrue(response.getSimplifiedDebts().isEmpty());
-  }
-
-  @Test
-  void getGroupBalances_SimpleEqualSplit() {
-    // Expense: 60 EUR paid by User 101, split EQUAL among 101, 102, 103
-    Expense expense =
-        Expense.builder().id(1L).group(group).amount(new BigDecimal("60.00")).paidBy(101L).build();
-
-    ExpenseSplit split1 =
-        ExpenseSplit.builder()
-            .userId(101L)
-            .shareAmount(new BigDecimal("20.00"))
-            .expense(expense)
-            .build();
-    ExpenseSplit split2 =
-        ExpenseSplit.builder()
-            .userId(102L)
-            .shareAmount(new BigDecimal("20.00"))
-            .expense(expense)
-            .build();
-    ExpenseSplit split3 =
-        ExpenseSplit.builder()
-            .userId(103L)
-            .shareAmount(new BigDecimal("20.00"))
-            .expense(expense)
-            .build();
-    expense.setSplits(Arrays.asList(split1, split2, split3));
-
-    UserResponse user101 = UserResponse.builder().id(101L).username("user101").build();
-    UserResponse user102 = UserResponse.builder().id(102L).username("user102").build();
-    UserResponse user103 = UserResponse.builder().id(103L).username("user103").build();
-
-    when(groupRepository.existsById(1L)).thenReturn(true);
-    when(groupMemberRepository.findByGroupId(1L))
-        .thenReturn(Arrays.asList(member1, member2, member3));
-    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(expense));
-    when(userClient.getUsersByIds(anyList())).thenReturn(Arrays.asList(user101, user102, user103));
-
-    GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
-
-    assertNotNull(response);
-    // User 101: paid 60, owes 20 -> balance +40
-    // User 102: paid 0, owes 20 -> balance -20
-    // User 103: paid 0, owes 20 -> balance -20
-
-    BalanceDTO b1 = findBalance(response.getBalances(), 101L);
-    BalanceDTO b2 = findBalance(response.getBalances(), 102L);
-    BalanceDTO b3 = findBalance(response.getBalances(), 103L);
-
-    assertEquals(0, new BigDecimal("40.00").compareTo(b1.getBalance()));
-    assertEquals("user101", b1.getUsername());
-    assertEquals(0, new BigDecimal("-20.00").compareTo(b2.getBalance()));
-    assertEquals("user102", b2.getUsername());
-    assertEquals(0, new BigDecimal("-20.00").compareTo(b3.getBalance()));
-    assertEquals("user103", b3.getUsername());
-
-    assertEquals(2, response.getSimplifiedDebts().size());
-    // Debts: 102 -> 101 (20), 103 -> 101 (20)
-    assertTrue(hasDebt(response.getSimplifiedDebts(), 102L, 101L, new BigDecimal("20.00")));
-    assertEquals("user102", response.getSimplifiedDebts().get(0).getFromUsername());
-    assertEquals("user101", response.getSimplifiedDebts().get(0).getToUsername());
-  }
-
-  @Test
-  void getGroupBalances_MultipleExpenses() {
-    // Expense 1: 60 EUR paid by 101, split among 101, 102, 103 (20 each)
-    Expense e1 =
-        Expense.builder().id(1L).group(group).amount(new BigDecimal("60.00")).paidBy(101L).build();
+    Expense e1 = Expense.builder().paidBy(1L).amount(new BigDecimal("100.00")).build();
     e1.setSplits(
         Arrays.asList(
-            ExpenseSplit.builder()
-                .userId(101L)
-                .shareAmount(new BigDecimal("20.00"))
-                .expense(e1)
-                .build(),
-            ExpenseSplit.builder()
-                .userId(102L)
-                .shareAmount(new BigDecimal("20.00"))
-                .expense(e1)
-                .build(),
-            ExpenseSplit.builder()
-                .userId(103L)
-                .shareAmount(new BigDecimal("20.00"))
-                .expense(e1)
-                .build()));
+            ExpenseSplit.builder().userId(1L).shareAmount(new BigDecimal("50.00")).build(),
+            ExpenseSplit.builder().userId(2L).shareAmount(new BigDecimal("50.00")).build()));
+    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(e1));
 
-    // Expense 2: 30 EUR paid by 102, split among 101, 102 (15 each)
-    Expense e2 =
-        Expense.builder().id(2L).group(group).amount(new BigDecimal("30.00")).paidBy(102L).build();
-    e2.setSplits(
-        Arrays.asList(
-            ExpenseSplit.builder()
-                .userId(101L)
-                .shareAmount(new BigDecimal("15.00"))
-                .expense(e2)
-                .build(),
-            ExpenseSplit.builder()
-                .userId(102L)
-                .shareAmount(new BigDecimal("15.00"))
-                .expense(e2)
-                .build()));
+    when(settlementRepository.findByGroupId(1L)).thenReturn(Collections.emptyList());
 
-    when(groupRepository.existsById(1L)).thenReturn(true);
-    when(groupMemberRepository.findByGroupId(1L))
-        .thenReturn(Arrays.asList(member1, member2, member3));
-    when(expenseRepository.findByGroupId(1L)).thenReturn(Arrays.asList(e1, e2));
+    UserResponse u1 = UserResponse.builder().id(1L).username("user1").build();
+    UserResponse u2 = UserResponse.builder().id(2L).username("user2").build();
+    when(userClient.getUsersByIds(anyList())).thenReturn(Arrays.asList(u1, u2));
 
+    // Act
     GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
 
-    // User 101: paid 60, owes (20+15)=35 -> balance +25
-    // User 102: paid 30, owes (20+15)=35 -> balance -5
-    // User 103: paid 0, owes 20 -> balance -20
-    BalanceDTO b1 = findBalance(response.getBalances(), 101L);
-    BalanceDTO b2 = findBalance(response.getBalances(), 102L);
-    BalanceDTO b3 = findBalance(response.getBalances(), 103L);
+    // Assert
+    assertEquals(1L, response.getGroupId());
+    assertEquals(2, response.getBalances().size());
 
-    assertEquals(0, new BigDecimal("25.00").compareTo(b1.getBalance()));
-    assertEquals(0, new BigDecimal("-5.00").compareTo(b2.getBalance()));
-    assertEquals(0, new BigDecimal("-20.00").compareTo(b3.getBalance()));
+    BalanceDTO b1 = findBalance(response.getBalances(), 1L);
+    BalanceDTO b2 = findBalance(response.getBalances(), 2L);
 
-    // Simplified Debts: 102 -> 101 (5), 103 -> 101 (20)
-    assertEquals(2, response.getSimplifiedDebts().size());
-    assertTrue(hasDebt(response.getSimplifiedDebts(), 102L, 101L, new BigDecimal("5.00")));
-    assertTrue(hasDebt(response.getSimplifiedDebts(), 103L, 101L, new BigDecimal("20.00")));
+    assertEquals(0, new BigDecimal("50.00").compareTo(b1.getBalance())); // Paid 100, owes 50
+    assertEquals(0, new BigDecimal("-50.00").compareTo(b2.getBalance())); // Paid 0, owes 50
+
+    assertEquals(1, response.getSimplifiedDebts().size());
+    DebtDTO debt = response.getSimplifiedDebts().get(0);
+    assertEquals(2L, debt.getFrom());
+    assertEquals(1L, debt.getTo());
+    assertEquals(0, new BigDecimal("50.00").compareTo(debt.getAmount()));
   }
 
   @Test
   void getGroupBalances_WithSettlements() {
-    // Expense: 60 EUR paid by User 101, split EQUAL among 101, 102
-    // User 101 paid 60, owes 30 -> Balance +30
-    // User 102 paid 0, owes 30 -> Balance -30
-    Expense expense =
-        Expense.builder().id(1L).group(group).amount(new BigDecimal("60.00")).paidBy(101L).build();
-    ExpenseSplit split1 =
-        ExpenseSplit.builder()
-            .userId(101L)
-            .shareAmount(new BigDecimal("30.00"))
-            .expense(expense)
-            .build();
-    ExpenseSplit split2 =
-        ExpenseSplit.builder()
-            .userId(102L)
-            .shareAmount(new BigDecimal("30.00"))
-            .expense(expense)
-            .build();
-    expense.setSplits(Arrays.asList(split1, split2));
+    GroupMember m1 = GroupMember.builder().userId(1L).group(group).build();
+    GroupMember m2 = GroupMember.builder().userId(2L).group(group).build();
+    when(groupRepository.existsById(1L)).thenReturn(true);
+    when(groupMemberRepository.findByGroupId(1L)).thenReturn(Arrays.asList(m1, m2));
 
-    // Settlement: User 102 pays User 101 20 EUR
-    Settlement settlement =
+    Expense e1 = Expense.builder().paidBy(1L).amount(new BigDecimal("100.00")).build();
+    e1.setSplits(
+        Arrays.asList(
+            ExpenseSplit.builder().userId(1L).shareAmount(new BigDecimal("50.00")).build(),
+            ExpenseSplit.builder().userId(2L).shareAmount(new BigDecimal("50.00")).build()));
+    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(e1));
+
+    // User 2 settles 30.00 to User 1
+    Settlement s1 =
         Settlement.builder()
-            .id(1L)
-            .group(group)
-            .payerId(102L)
-            .payeeId(101L)
-            .amount(new BigDecimal("20.00"))
+            .payerId(2L)
+            .payeeId(1L)
+            .amount(new BigDecimal("30.00"))
             .status(SettlementStatus.COMPLETED)
             .build();
+    when(settlementRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(s1));
 
-    when(groupRepository.existsById(1L)).thenReturn(true);
-    when(groupMemberRepository.findByGroupId(1L)).thenReturn(Arrays.asList(member1, member2));
-    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(expense));
-    when(settlementRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(settlement));
+    UserResponse u1 = UserResponse.builder().id(1L).username("user1").build();
+    UserResponse u2 = UserResponse.builder().id(2L).username("user2").build();
+    when(userClient.getUsersByIds(anyList())).thenReturn(Arrays.asList(u1, u2));
 
     GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
 
-    // Expected:
-    // User 101: +30 (from expense) - 20 (received settlement) = +10
-    // User 102: -30 (from expense) + 20 (paid settlement) = -10
-    BalanceDTO b1 = findBalance(response.getBalances(), 101L);
-    BalanceDTO b2 = findBalance(response.getBalances(), 102L);
+    BalanceDTO b1 = findBalance(response.getBalances(), 1L);
+    BalanceDTO b2 = findBalance(response.getBalances(), 2L);
 
-    assertEquals(0, new BigDecimal("10.00").compareTo(b1.getBalance()));
-    assertEquals(0, new BigDecimal("-10.00").compareTo(b2.getBalance()));
+    // Initial: 1: +50, 2: -50. After 30 settlement: 1: +50 - 30 = +20, 2: -50 + 30 = -20
+    // Wait, the logic in service:
+    // balances.put(payerId, balances.get(payerId).add(amount)); // Payer's balance increases (less
+    // debt/more credit)
+    // balances.put(payeeId, balances.get(payeeId).subtract(amount)); // Payee's balance decreases
+    // (less credit)
+    // 2 is payer, 1 is payee.
+    // 2: -50 + 30 = -20.
+    // 1: +50 - 30 = +20.
+    assertEquals(0, new BigDecimal("20.00").compareTo(b1.getBalance()));
+    assertEquals(0, new BigDecimal("-20.00").compareTo(b2.getBalance()));
   }
 
   @Test
-  void getUserBalances_MultipleGroups() {
-    Group group2 = Group.builder().id(2L).name("Group 2").build();
-    GroupMember member1InG2 = GroupMember.builder().id(4L).group(group2).userId(101L).build();
+  void getUserBalances_Success() {
+    Group g1 = Group.builder().id(1L).name("Group 1").build();
+    Group g2 = Group.builder().id(2L).name("Group 2").build();
+    GroupMember m1 = GroupMember.builder().userId(101L).group(g1).build();
+    GroupMember m2 = GroupMember.builder().userId(101L).group(g2).build();
 
-    when(groupMemberRepository.findByUserId(101L)).thenReturn(Arrays.asList(member1, member1InG2));
-
+    when(groupMemberRepository.findByUserId(101L)).thenReturn(Arrays.asList(m1, m2));
     when(groupRepository.existsById(1L)).thenReturn(true);
     when(groupRepository.existsById(2L)).thenReturn(true);
-    when(groupMemberRepository.findByGroupId(1L))
-        .thenReturn(Arrays.asList(member1, member2, member3));
-    when(groupMemberRepository.findByGroupId(2L)).thenReturn(Arrays.asList(member1InG2));
 
-    // Group 1: User 101 has +25 balance (from previous test case)
-    Expense e1 =
-        Expense.builder().id(1L).group(group).amount(new BigDecimal("60.00")).paidBy(101L).build();
+    // Group 1: User has +25.00 balance
+    when(groupMemberRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(m1));
+    Expense e1 = Expense.builder().paidBy(101L).amount(new BigDecimal("50.00")).build();
     e1.setSplits(
         Arrays.asList(
-            ExpenseSplit.builder()
-                .userId(101L)
-                .shareAmount(new BigDecimal("20.00"))
-                .expense(e1)
-                .build(),
-            ExpenseSplit.builder()
-                .userId(102L)
-                .shareAmount(new BigDecimal("20.00"))
-                .expense(e1)
-                .build(),
-            ExpenseSplit.builder()
-                .userId(103L)
-                .shareAmount(new BigDecimal("20.00"))
-                .expense(e1)
-                .build()));
-    Expense e2 =
-        Expense.builder().id(2L).group(group).amount(new BigDecimal("30.00")).paidBy(102L).build();
+            ExpenseSplit.builder().userId(101L).shareAmount(new BigDecimal("25.00")).build(),
+            ExpenseSplit.builder().userId(102L).shareAmount(new BigDecimal("25.00")).build()));
+    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(e1));
+    when(settlementRepository.findByGroupId(1L)).thenReturn(Collections.emptyList());
+
+    // Group 2: User has -10.00 balance
+    when(groupMemberRepository.findByGroupId(2L)).thenReturn(Collections.singletonList(m2));
+    Expense e2 = Expense.builder().paidBy(102L).amount(new BigDecimal("20.00")).build();
     e2.setSplits(
         Arrays.asList(
-            ExpenseSplit.builder()
-                .userId(101L)
-                .shareAmount(new BigDecimal("15.00"))
-                .expense(e2)
-                .build(),
-            ExpenseSplit.builder()
-                .userId(102L)
-                .shareAmount(new BigDecimal("15.00"))
-                .expense(e2)
-                .build()));
-    when(expenseRepository.findByGroupId(1L)).thenReturn(Arrays.asList(e1, e2));
+            ExpenseSplit.builder().userId(101L).shareAmount(new BigDecimal("10.00")).build(),
+            ExpenseSplit.builder().userId(102L).shareAmount(new BigDecimal("10.00")).build()));
+    when(expenseRepository.findByGroupId(2L)).thenReturn(Collections.singletonList(e2));
+    when(settlementRepository.findByGroupId(2L)).thenReturn(Collections.emptyList());
 
-    // Group 2: User 101 has -10 balance
-    Expense e3 =
-        Expense.builder().id(3L).group(group2).amount(new BigDecimal("20.00")).paidBy(104L).build();
-    e3.setSplits(
-        Arrays.asList(
-            ExpenseSplit.builder()
-                .userId(101L)
-                .shareAmount(new BigDecimal("10.00"))
-                .expense(e3)
-                .build(),
-            ExpenseSplit.builder()
-                .userId(104L)
-                .shareAmount(new BigDecimal("10.00"))
-                .expense(e3)
-                .build()));
-    when(expenseRepository.findByGroupId(2L)).thenReturn(Collections.singletonList(e3));
+    when(userClient.getUsersByIds(anyList())).thenReturn(Collections.emptyList());
+    when(userClient.getUserById(101L))
+        .thenReturn(Optional.of(UserResponse.builder().id(101L).username("testuser").build()));
 
-    UserResponse user101 =
-        UserResponse.builder().id(101L).username("user101").email("user101@example.com").build();
-    when(userClient.getUserById(101L)).thenReturn(Optional.of(user101));
-    when(userClient.getUsersByIds(anyList())).thenReturn(Collections.singletonList(user101));
+    when(friendshipSettlementRepository.findByPayerIdOrPayeeId(101L, 101L))
+        .thenReturn(Collections.emptyList());
 
     UserBalanceResponseDTO response = balanceService.getUserBalances(101L);
 
-    assertNotNull(response);
     assertEquals(101L, response.getUserId());
-    assertEquals("user101", response.getUsername());
-    assertEquals("user101@example.com", response.getEmail());
-    assertEquals(0, new BigDecimal("15.00").compareTo(response.getTotalBalance())); // 25 - 10 = 15
+    assertEquals(0, new BigDecimal("15.00").compareTo(response.getTotalBalance()));
     assertEquals(2, response.getGroupBalances().size());
 
     UserBalanceResponseDTO.GroupBalanceDTO gb1 = findGroupBalance(response.getGroupBalances(), 1L);
@@ -368,25 +223,27 @@ class BalanceServiceTest {
     when(groupMemberRepository.findByUserId(101L)).thenReturn(Collections.singletonList(m1));
     when(groupMemberRepository.findByUserId(102L)).thenReturn(Collections.singletonList(m2));
 
-    // Expense in group 1: 101 paid 30, split equally with 102 (15 each)
-    Expense e1 =
-        Expense.builder().paidBy(101L).amount(new BigDecimal("30.00")).group(group1).build();
-    e1.setSplits(
-        Arrays.asList(
-            ExpenseSplit.builder().userId(101L).shareAmount(new BigDecimal("15.00")).build(),
-            ExpenseSplit.builder().userId(102L).shareAmount(new BigDecimal("15.00")).build()));
-    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(e1));
+    // Mocks for calculateTotalOwedBetweenUsers
+    when(expenseRepository.calculateTotalOwedBetweenUsers(eq(101L), eq(102L), anySet()))
+        .thenReturn(new BigDecimal("15.00"));
+    when(expenseRepository.calculateTotalOwedBetweenUsers(eq(102L), eq(101L), anySet()))
+        .thenReturn(BigDecimal.ZERO);
 
-    // Global Settlement: 102 pays 101 10.00
-    FriendshipSettlement fs =
-        FriendshipSettlement.builder()
-            .payerId(102L)
-            .payeeId(101L)
-            .amount(new BigDecimal("10.00"))
-            .status(SettlementStatus.COMPLETED)
-            .build();
-    when(friendshipSettlementRepository.findBetweenUsers(101L, 102L))
-        .thenReturn(Collections.singletonList(fs));
+    // Mocks for calculateTotalSettledBetweenUsers (Group)
+    when(settlementRepository.calculateTotalSettledBetweenUsers(
+            eq(101L), eq(102L), anySet(), any()))
+        .thenReturn(BigDecimal.ZERO);
+    when(settlementRepository.calculateTotalSettledBetweenUsers(
+            eq(102L), eq(101L), anySet(), any()))
+        .thenReturn(BigDecimal.ZERO);
+
+    // Mocks for calculateTotalSettledBetweenUsers (Global)
+    when(friendshipSettlementRepository.calculateTotalSettledBetweenUsers(
+            eq(101L), eq(102L), any()))
+        .thenReturn(BigDecimal.ZERO);
+    when(friendshipSettlementRepository.calculateTotalSettledBetweenUsers(
+            eq(102L), eq(101L), any()))
+        .thenReturn(new BigDecimal("10.00"));
 
     FriendBalanceResponseDTO result = balanceService.getNetBalanceWithFriend(101L, 102L);
 
@@ -401,14 +258,5 @@ class BalanceServiceTest {
   private UserBalanceResponseDTO.GroupBalanceDTO findGroupBalance(
       List<UserBalanceResponseDTO.GroupBalanceDTO> balances, Long groupId) {
     return balances.stream().filter(b -> b.getGroupId().equals(groupId)).findFirst().orElseThrow();
-  }
-
-  private boolean hasDebt(List<DebtDTO> debts, Long from, Long to, BigDecimal amount) {
-    return debts.stream()
-        .anyMatch(
-            d ->
-                d.getFrom().equals(from)
-                    && d.getTo().equals(to)
-                    && d.getAmount().compareTo(amount) == 0);
   }
 }

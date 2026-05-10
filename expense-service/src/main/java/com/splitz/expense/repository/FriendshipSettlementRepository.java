@@ -1,6 +1,8 @@
 package com.splitz.expense.repository;
 
 import com.splitz.expense.model.FriendshipSettlement;
+import com.splitz.expense.model.SettlementStatus;
+import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,4 +20,12 @@ public interface FriendshipSettlementRepository extends JpaRepository<Friendship
       @Param("userId1") Long userId1, @Param("userId2") Long userId2);
 
   List<FriendshipSettlement> findByPayerIdOrPayeeId(Long payerId, Long payeeId);
+
+  @Query(
+      "SELECT COALESCE(SUM(fs.amount), 0) FROM FriendshipSettlement fs WHERE fs.payerId ="
+          + " :payerId AND fs.payeeId = :payeeId AND fs.status = :status")
+  BigDecimal calculateTotalSettledBetweenUsers(
+      @Param("payerId") Long payerId,
+      @Param("payeeId") Long payeeId,
+      @Param("status") SettlementStatus status);
 }

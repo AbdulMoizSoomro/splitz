@@ -125,6 +125,13 @@ public class ExpenseService {
         .collect(Collectors.toList());
   }
 
+  @Transactional(readOnly = true)
+  public List<ExpenseDTO> getExpensesByGroupIds(List<Long> groupIds) {
+    return expenseRepository.findByGroupIdIn(groupIds).stream()
+        .map(expenseMapper::toDTO)
+        .collect(Collectors.toList());
+  }
+
   @Transactional
   public ExpenseDTO updateExpense(Long id, UpdateExpenseRequest request, Long currentUserId) {
     Expense expense =

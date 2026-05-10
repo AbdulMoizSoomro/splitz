@@ -9,6 +9,14 @@ export const expenseService = {
     return response.data;
   },
 
+  getBulkGroupExpenses: async (groupIds: number[]): Promise<Expense[]> => {
+    if (groupIds.length === 0) return [];
+    const response = await expenseApi.get<Expense[]>(
+      `/groups/expenses/bulk?groupIds=${groupIds.join(",")}`,
+    );
+    return response.data;
+  },
+
   createExpense: async (
     groupId: number,
     data: CreateExpenseRequest,

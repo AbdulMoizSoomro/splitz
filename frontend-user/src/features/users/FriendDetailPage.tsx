@@ -69,15 +69,12 @@ const FriendDetailPage = () => {
     queryFn: async () => {
       if (sharedGroups.length === 0) return [];
 
-      const expensePromises = sharedGroups.map((group) =>
-        expenseService.getGroupExpenses(group.id),
+      const allExpenses = await expenseService.getBulkGroupExpenses(
+        sharedGroups.map((g) => g.id),
       );
 
-      const allExpenses = await Promise.all(expensePromises);
-      const flatExpenses = allExpenses.flat();
-
       // Filter expenses where friend is involved (either as payer or in splits)
-      const filtered = flatExpenses.filter(
+      const filtered = allExpenses.filter(
         (expense) =>
           expense.paidBy === friendId ||
           expense.splits.some((split) => split.userId === friendId),
