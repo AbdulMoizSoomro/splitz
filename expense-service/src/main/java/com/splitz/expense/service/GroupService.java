@@ -7,6 +7,7 @@ import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.dto.UpdateMemberRoleRequest;
+import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.mapper.GroupMapper;
 import com.splitz.expense.model.Group;
@@ -14,8 +15,11 @@ import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -103,7 +107,7 @@ public class GroupService {
 
   public GroupDTO addMember(Long groupId, AddMemberRequest request, Long userId) {
     Group group = getGroupWithMembers(groupId);
-    requireAdmin(group, userId);
+    requireCanManageMembers(group, userId);
 
     if (groupMemberRepository.existsByGroupIdAndUserId(groupId, request.getUserId())) {
       throw new IllegalArgumentException("User is already a member of this group");
@@ -122,24 +126,72 @@ public class GroupService {
   }
 
   public GroupDTO bulkAddMembers(Long groupId, BulkAddMembersRequest request, Long userId) {
-    Group group = getGroupWithMembers(groupId);
-    requireAdmin(group, userId);
+    if (request.getUserIds() != null && request.getUserIds().size() > 50) {
+      throw new IllegalArgumentException("Maximum 50 users can be added at once");
+    }
 
-    for (Long memberUserId : request.getUserIds()) {
-      // Skip users already in the group
-      if (groupMemberRepository.existsByGroupIdAndUserId(groupId, memberUserId)) {
-        continue;
+    Group group = getGroupWithMembers(groupId);
+    requireCanManageMembers(group, userId);
+
+    if (request.getUserIds() != null) {
+      for (Long memberUserId : request.getUserIds()) {
+        // Skip users already in the group
+        if (groupMemberRepository.existsByGroupIdAndUserId(groupId, memberUserId)) {
+          continue;
+        }
+        if (!userClient.existsById(memberUserId)) {
+          throw new ResourceNotFoundException("User not found with id: " + memberUserId);
+        }
+        GroupMember member =
+            GroupMember.builder().userId(memberUserId).role(GroupRole.MEMBER).build();
+        group.addMember(member);
       }
-      if (!userClient.existsById(memberUserId)) {
-        throw new ResourceNotFoundException("User not found with id: " + memberUserId);
-      }
-      GroupMember member =
-          GroupMember.builder().userId(memberUserId).role(GroupRole.MEMBER).build();
-      group.addMember(member);
     }
 
     Group saved = groupRepository.save(group);
     return groupMapper.toDTO(saved);
+  }
+
+  @Transactional(readOnly = true)
+  public List<UserResponse> getPotentialMembers(Long groupId, Long userId) {
+    // 1. Get friends
+    List<UserResponse> friends = userClient.getFriends(userId);
+    Set<Long> friendIds = friends.stream().map(UserResponse::getId).collect(Collectors.toSet());
+
+    // 2. Get all group IDs for user
+    List<Long> userGroupIds =
+        groupRepository.findDistinctByMembersUserIdAndActiveTrue(userId).stream()
+            .map(Group::getId)
+            .toList();
+
+    // 3. Get all members in those groups (Potential Temp Friends)
+    Set<Long> potentialIds =
+        groupMemberRepository.findByGroupIdIn(userGroupIds).stream()
+            .map(GroupMember::getUserId)
+            .filter(id -> !id.equals(userId))
+            .collect(Collectors.toSet());
+
+    // 4. Combine and Filter
+    // Those who are either friends OR shared group members, but NOT already in the target group
+    Group targetGroup = getGroupWithMembers(groupId);
+    Set<Long> existingMemberIds =
+        targetGroup.getMembers().stream().map(GroupMember::getUserId).collect(Collectors.toSet());
+
+    potentialIds.addAll(friendIds);
+    potentialIds.removeAll(existingMemberIds);
+
+    // 5. Fetch details for those not already in 'friends' (since we already have their details)
+    List<Long> idsToFetch =
+        potentialIds.stream().filter(id -> !friendIds.contains(id)).collect(Collectors.toList());
+
+    List<UserResponse> sharedMembers = userClient.getUsersByIds(idsToFetch);
+
+    List<UserResponse> results = new ArrayList<>(friends);
+    // Filter friends to only those not in group
+    results.removeIf(f -> existingMemberIds.contains(f.getId()));
+    results.addAll(sharedMembers);
+
+    return results;
   }
 
   public void removeMember(Long groupId, Long memberUserId, Long userId) {
@@ -209,6 +261,22 @@ public class GroupService {
             .orElseThrow(() -> new AccessDeniedException("You are not a member of this group"));
     if (membership.getRole() != GroupRole.ADMIN) {
       throw new AccessDeniedException("Only admins can perform this action");
+    }
+  }
+
+  private void requireCanManageMembers(Group group, Long userId) {
+    GroupMember membership =
+        group.getMembers().stream()
+            .filter(member -> member.getUserId().equals(userId))
+            .findFirst()
+            .orElseThrow(() -> new AccessDeniedException("You are not a member of this group"));
+
+    if (membership.getRole() == GroupRole.ADMIN || group.getCreatedBy().equals(userId)) {
+      return;
+    }
+
+    if (!group.isAllowMembersToManageMembers()) {
+      throw new AccessDeniedException("Only admins can manage members in this group");
     }
   }
 }

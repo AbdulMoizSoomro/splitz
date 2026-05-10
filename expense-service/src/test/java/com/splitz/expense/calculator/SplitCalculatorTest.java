@@ -120,4 +120,61 @@ class SplitCalculatorTest {
         results.stream().map(SplitResult::shareAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     assertThat(sum).isEqualByComparingTo("10.00");
   }
+
+  @Test
+  void calculate_AdjustmentSplits_ReturnsCorrectSplits() {
+    BigDecimal totalAmount = new BigDecimal("100.00");
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("10.00")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("-10.00")).build());
+
+    List<SplitResult> results =
+        calculator.calculate(totalAmount, SplitType.ADJUSTMENT, requests, "USD");
+
+    assertThat(results).hasSize(2);
+    assertThat(results.get(0).shareAmount()).isEqualByComparingTo("60.00"); // 50 + 10
+    assertThat(results.get(1).shareAmount()).isEqualByComparingTo("40.00"); // 50 - 10
+  }
+
+  @Test
+  void calculate_MultiCurrency_Precision_JPY() {
+    BigDecimal totalAmount = new BigDecimal("100");
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).build(),
+            SplitRequest.builder().userId(2L).build(),
+            SplitRequest.builder().userId(3L).build());
+
+    // 100 / 3 = 33.33... -> JPY scale is 0 -> 33 + 33 + 34
+    List<SplitResult> results = calculator.calculate(totalAmount, SplitType.EQUAL, requests, "JPY");
+
+    assertThat(results).hasSize(3);
+    assertThat(results.get(0).shareAmount()).isEqualByComparingTo("34");
+    assertThat(results.get(1).shareAmount()).isEqualByComparingTo("33");
+    assertThat(results.get(2).shareAmount()).isEqualByComparingTo("33");
+
+    BigDecimal sum =
+        results.stream().map(SplitResult::shareAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    assertThat(sum).isEqualByComparingTo("100");
+  }
+
+  @Test
+  void calculate_MultiCurrency_Precision_KWD() {
+    BigDecimal totalAmount = new BigDecimal("10.000");
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).build(),
+            SplitRequest.builder().userId(2L).build(),
+            SplitRequest.builder().userId(3L).build());
+
+    // 10 / 3 = 3.3333... -> KWD scale is 3 -> 3.333 + 3.333 + 3.334
+    List<SplitResult> results = calculator.calculate(totalAmount, SplitType.EQUAL, requests, "KWD");
+
+    assertThat(results).hasSize(3);
+    assertThat(results.get(0).shareAmount()).isEqualByComparingTo("3.334");
+    BigDecimal sum =
+        results.stream().map(SplitResult::shareAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    assertThat(sum).isEqualByComparingTo("10.000");
+  }
 }

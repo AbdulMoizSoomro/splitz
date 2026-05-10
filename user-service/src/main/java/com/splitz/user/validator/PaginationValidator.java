@@ -42,6 +42,10 @@ public class PaginationValidator {
       }
     }
 
+    if (sort.equals(pageable.getSort())) {
+      return pageable;
+    }
+
     return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
   }
 }

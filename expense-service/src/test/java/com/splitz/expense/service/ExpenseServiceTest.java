@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +27,7 @@ import com.splitz.expense.repository.CategoryRepository;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
@@ -52,6 +54,8 @@ class ExpenseServiceTest {
   @Mock private ExpenseMapper expenseMapper;
 
   @Spy private SplitCalculator splitCalculator = new SplitCalculator();
+
+  @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
   @InjectMocks private ExpenseService expenseService;
 
@@ -82,6 +86,7 @@ class ExpenseServiceTest {
             .paidBy(100L)
             .categoryId(1L)
             .build();
+    lenient().when(splitzAuthorizer.isAdmin()).thenReturn(false);
   }
 
   @Test

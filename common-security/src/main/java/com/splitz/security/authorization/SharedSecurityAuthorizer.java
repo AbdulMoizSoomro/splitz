@@ -3,6 +3,7 @@ package com.splitz.security.authorization;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -10,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component("splitzAuthorizer")
 public class SharedSecurityAuthorizer {
 
@@ -27,6 +29,7 @@ public class SharedSecurityAuthorizer {
     try {
       return Optional.of(Long.parseLong(userDetails.getUsername()));
     } catch (NumberFormatException e) {
+      log.info("Invalid user principal username (not a numeric ID): {}", userDetails.getUsername());
       return Optional.empty();
     }
   }

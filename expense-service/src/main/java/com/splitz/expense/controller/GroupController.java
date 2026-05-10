@@ -6,6 +6,7 @@ import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.dto.UpdateMemberRoleRequest;
+import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import jakarta.validation.Valid;
@@ -72,6 +73,13 @@ public class GroupController {
     GroupDTO result =
         groupService.bulkAddMembers(groupId, request, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.ok(result);
+  }
+
+  @GetMapping("/{groupId}/potential-members")
+  public ResponseEntity<List<UserResponse>> getPotentialMembers(
+      @PathVariable("groupId") Long groupId) {
+    return ResponseEntity.ok(
+        groupService.getPotentialMembers(groupId, splitzAuthorizer.getCurrentUserId()));
   }
 
   @DeleteMapping("/{groupId}/members/{memberUserId}")

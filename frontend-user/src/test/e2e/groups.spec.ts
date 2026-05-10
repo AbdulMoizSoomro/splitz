@@ -108,8 +108,10 @@ test.describe('Group Management', () => {
     await expect(page).toHaveURL(/\/groups\/\d+/);
     await expect(page.getByText(groupName)).toBeVisible();
 
+    // Navigate to Members tab
+    await page.getByRole('button', { name: 'Members', exact: true }).click();
+
     // 5. Verify "Owner" badge is visible for the creator
-    await expect(page.getByText('Members', { exact: true })).toBeVisible();
     await expect(page.getByText(/role tester/i)).toBeVisible();
     const ownerBadge = page.locator('span', { hasText: 'Owner' });
     await expect(ownerBadge).toBeVisible();
@@ -151,8 +153,11 @@ test.describe('Group Management', () => {
     await page.getByRole('button', { name: /create group/i }).first().click();
     const modal = page.getByRole('dialog');
     await modal.getByLabel(/group name/i).fill(`Role Group ${timestamp}`);
-    await modal.getByRole('button', { name: /create group/i }).click();
+    await modal.getByRole('button', { name: 'Create Group', exact: true }).click();
     await page.getByText(`Role Group ${timestamp}`).click();
+
+    // Navigate to Members tab
+    await page.getByRole('button', { name: 'Members', exact: true }).click();
 
     // Verify "Manage role" is NOT visible for self (Owner cannot demote self)
     await expect(page.getByText('Owner User')).toBeVisible();

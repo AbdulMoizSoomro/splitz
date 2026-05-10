@@ -14,7 +14,19 @@ import type { BadgeVariant } from '../../components/core/Badge/Badge';
 import Dropdown from '../../components/core/Dropdown/Dropdown';
 import { useToastStore } from '../../store/toastStore';
 import AddMemberModal from './AddMemberModal';
-import { Loader2, ArrowLeft, LogOut, Users, MoreVertical, ShieldAlert, Settings, UserPlus } from 'lucide-react';
+import GroupBalances from '../balances/GroupBalances';
+import { 
+  Loader2, 
+  ArrowLeft, 
+  LogOut, 
+  Users, 
+  MoreVertical, 
+  ShieldAlert, 
+  Settings, 
+  UserPlus,
+  Info,
+  DollarSign
+} from 'lucide-react';
 
 const GroupDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +37,7 @@ const GroupDetails = () => {
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isSelfDemoteModalOpen, setIsSelfDemoteModalOpen] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'about' | 'members' | 'balances'>('about');
 
   const { data: group, isLoading } = useQuery({
     queryKey: ['group', id],
@@ -144,106 +157,159 @@ const GroupDetails = () => {
           <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
         </div>
 
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('about')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'about'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Info size={18} />
+                <span>About</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('members')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'members'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Users size={18} />
+                <span>Members</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('balances')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'balances'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <DollarSign size={18} />
+                <span>Balances</span>
+              </div>
+            </button>
+          </nav>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>About this Group</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">{group.description || 'No description provided.'}</p>
-              </CardContent>
-            </Card>
+            {activeTab === 'about' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>About this Group</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-600">{group.description || 'No description provided.'}</p>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="flex items-center gap-2">
-                  <Users size={20} />
-                  <span>Members</span>
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">{group.members.length} members</span>
-                  {(isOwner || isAdmin) && (
-                    <button
-                      aria-label="Add member"
-                      onClick={() => setIsAddMemberModalOpen(true)}
-                      className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                      title="Add Member"
-                    >
-                      <UserPlus size={16} />
-                    </button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="divide-y divide-gray-100">
-                  {group.members.map((member) => {
-                    const balanceInfo = balancesResponse?.balances.find(b => b.userId === member.userId);
-                    const displayName = balanceInfo 
-                      ? `${balanceInfo.firstName} ${balanceInfo.lastName}`
-                      : `User ${member.userId}`;
-                    
-                    let roleVariant: BadgeVariant = 'member';
-                    let roleLabel = 'Member';
-                    
-                    if (member.userId === group.createdBy) {
-                      roleVariant = 'owner';
-                      roleLabel = 'Owner';
-                    } else if (member.role === 'ADMIN') {
-                      roleVariant = 'admin';
-                      roleLabel = 'Admin';
-                    }
-                    
-                    const isCurrentUser = member.userId === Number(user?.id);
-                    const isFriend = friends?.some(f => f.id === member.userId);
-                    const isTempFriend = !isCurrentUser && friends && !isFriend;
+            {activeTab === 'members' && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users size={20} />
+                    <span>Members</span>
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">{group.members.length} members</span>
+                    {(isOwner || isAdmin || group.allowMembersToManageMembers) && (
+                      <button
+                        aria-label="Add member"
+                        onClick={() => setIsAddMemberModalOpen(true)}
+                        className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                        title="Add Member"
+                      >
+                        <UserPlus size={16} />
+                      </button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="divide-y divide-gray-100">
+                    {group.members.map((member) => {
+                      const balanceInfo = balancesResponse?.balances.find(b => b.userId === member.userId);
+                      const displayName = balanceInfo 
+                        ? `${balanceInfo.firstName} ${balanceInfo.lastName}`
+                        : `User ${member.userId}`;
+                      
+                      let roleVariant: BadgeVariant = 'member';
+                      let roleLabel = 'Member';
+                      
+                      if (member.userId === group.createdBy) {
+                        roleVariant = 'owner';
+                        roleLabel = 'Owner';
+                      } else if (member.role === 'ADMIN') {
+                        roleVariant = 'admin';
+                        roleLabel = 'Admin';
+                      }
+                      
+                      const isCurrentUser = member.userId === Number(user?.id);
+                      const isFriend = friends?.some(f => f.id === member.userId);
+                      const isTempFriend = !isCurrentUser && friends && !isFriend;
 
-                    return (
-                      <div key={member.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium text-sm">
-                            {displayName.charAt(0)}
+                      return (
+                        <div key={member.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium text-sm">
+                              {displayName.charAt(0)}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-gray-900">{displayName}</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-900">{displayName}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isTempFriend && (
-                            <Badge variant="temp">Temp Friend</Badge>
-                          )}
-                          <Badge variant={roleVariant}>{roleLabel}</Badge>
-                          
-                          {/* Role Management Dropdown */}
-                          {(isAdmin || isOwner) && member.userId !== group.createdBy && (
-                            <Dropdown
-                              trigger={
-                                <button 
-                                  aria-label="Manage role"
-                                  className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-                                >
-                                  <MoreVertical size={16} />
-                                </button>
-                              }
-                              items={[
-                                {
-                                  label: member.role === 'ADMIN' ? 'Demote to Member' : 'Promote to Admin',
-                                  onClick: () => handleRoleUpdate(
-                                    member.userId, 
-                                    member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN'
-                                  ),
-                                  disabled: updateRoleMutation.isPending
+                          <div className="flex items-center gap-2">
+                            {isTempFriend && (
+                              <Badge variant="temp">Temp Friend</Badge>
+                            )}
+                            <Badge variant={roleVariant}>{roleLabel}</Badge>
+                            
+                            {/* Role Management Dropdown */}
+                            {(isAdmin || isOwner) && member.userId !== group.createdBy && (
+                              <Dropdown
+                                trigger={
+                                  <button 
+                                    aria-label="Manage role"
+                                    className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                                  >
+                                    <MoreVertical size={16} />
+                                  </button>
                                 }
-                              ]}
-                            />
-                          )}
+                                items={[
+                                  {
+                                    label: member.role === 'ADMIN' ? 'Demote to Member' : 'Promote to Admin',
+                                    onClick: () => handleRoleUpdate(
+                                      member.userId, 
+                                      member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN'
+                                    ),
+                                    disabled: updateRoleMutation.isPending
+                                  }
+                                ]}
+                              />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'balances' && (
+              <GroupBalances groupId={Number(id)} />
+            )}
           </div>
 
           <div className="space-y-6">

@@ -203,6 +203,9 @@ public class UserController {
   @GetMapping("/me")
   @PreAuthorize("isAuthenticated()")
   public ResponseEntity<UserDTO> getCurrentUser() {
-    return ResponseEntity.ok(userService.getUserbyId(splitzAuthorizer.getCurrentUserId()).get());
+    return userService
+        .getUserbyId(splitzAuthorizer.getCurrentUserId())
+        .map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
   }
 }

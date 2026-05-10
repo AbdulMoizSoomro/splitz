@@ -10,5 +10,7 @@ public interface UserClient {
 
   List<UserResponse> getUsersByIds(List<Long> ids);
 
+  List<UserResponse> getFriends(Long userId);
+
   boolean existsById(Long id);
 }

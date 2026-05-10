@@ -82,6 +82,8 @@ Assign an overall confidence: **High / Medium / Low**.
 
 Use Grep aggressively to *limit* the LOGS.
 
+Use `/code-review` skill to review the code.
+
 **Java**: `mvn -q -B spotless:apply && mvn -q -B verify`
 
 **Frontend**: `npm run lint && npm run build && npm test`

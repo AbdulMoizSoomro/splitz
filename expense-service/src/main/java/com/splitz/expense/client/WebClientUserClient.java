@@ -50,6 +50,18 @@ public class WebClientUserClient implements UserClient {
   }
 
   @Override
+  public List<UserResponse> getFriends(Long userId) {
+    log.info("Fetching friends for user with id: {}", userId);
+    return userWebClient
+        .get()
+        .uri("/users/{id}/friends", userId)
+        .retrieve()
+        .bodyToFlux(UserResponse.class)
+        .collectList()
+        .block();
+  }
+
+  @Override
   public boolean existsById(Long id) {
     log.info("Checking existence of user with id: {}", id);
     return getUserById(id).isPresent();
