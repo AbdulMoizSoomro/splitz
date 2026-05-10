@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useToastStore } from '../../store/toastStore';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/core/Card/Card';
 import Button from '../../components/core/Button/Button';
-import { Loader2, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import { Loader2, ArrowRight, Clock } from 'lucide-react';
 import { useState } from 'react';
 import Modal from '../../components/core/Modal/Modal';
 
@@ -130,6 +130,36 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* All Group Debts */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-gray-900 flex items-center gap-2">
+            <ArrowRight size={20} className="text-blue-500" />
+            <span>All Group Debts</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!balances?.simplifiedDebts || balances.simplifiedDebts.length === 0 ? (
+            <p className="text-gray-500 text-sm italic">No outstanding debts in this group.</p>
+          ) : (
+            <div className="space-y-4">
+              {balances.simplifiedDebts.map((debt, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <div className="flex-1">
+                    <span className="font-semibold text-gray-900">{debt.fromUsername || `User ${debt.from}`}</span>
+                    <span className="mx-2 text-gray-500">owes</span>
+                    <span className="font-semibold text-gray-900">{debt.toUsername || `User ${debt.to}`}</span>
+                  </div>
+                  <div className="text-lg font-bold text-blue-600">
+                    ${debt.amount.toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pending Confirmations */}
       {(pendingIncoming.length > 0 || pendingOutgoing.length > 0) && (

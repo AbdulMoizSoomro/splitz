@@ -15,6 +15,7 @@ import Dropdown from '../../components/core/Dropdown/Dropdown';
 import { useToastStore } from '../../store/toastStore';
 import AddMemberModal from './AddMemberModal';
 import GroupBalances from '../balances/GroupBalances';
+import GroupActivity from './GroupActivity';
 import { 
   Loader2, 
   ArrowLeft, 
@@ -24,7 +25,7 @@ import {
   ShieldAlert, 
   Settings, 
   UserPlus,
-  Info,
+  Activity,
   DollarSign
 } from 'lucide-react';
 
@@ -37,7 +38,7 @@ const GroupDetails = () => {
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isSelfDemoteModalOpen, setIsSelfDemoteModalOpen] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'about' | 'members' | 'balances'>('about');
+  const [activeTab, setActiveTab] = useState<'activity' | 'members' | 'balances'>('activity');
 
   const { data: group, isLoading } = useQuery({
     queryKey: ['group', id],
@@ -161,16 +162,16 @@ const GroupDetails = () => {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab('about')}
+              onClick={() => setActiveTab('activity')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'about'
+                activeTab === 'activity'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
               <div className="flex items-center gap-2">
-                <Info size={18} />
-                <span>About</span>
+                <Activity size={18} />
+                <span>Activity</span>
               </div>
             </button>
             <button
@@ -204,15 +205,8 @@ const GroupDetails = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {activeTab === 'about' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>About this Group</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600">{group.description || 'No description provided.'}</p>
-                </CardContent>
-              </Card>
+            {activeTab === 'activity' && (
+              <GroupActivity groupId={Number(id)} balancesResponse={balancesResponse} />
             )}
 
             {activeTab === 'members' && (
