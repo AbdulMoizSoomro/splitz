@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, Check, Clock } from 'lucide-react';
+import { Search, Loader2, UserPlus, Check, Clock, UserMinus } from 'lucide-react';
 import api from '../../lib/axios';
+import { friendService } from './friendService';
 import type { User, PaginatedResponse, Friendship } from '../../types/user';
 import Input from '../../components/core/Input/Input';
 import Button from '../../components/core/Button/Button';
@@ -26,10 +27,9 @@ const UserSearch = () => {
   // Fetch current user's friends to show status
   const { data: friends } = useQuery({
     queryKey: ['friends', currentUser?.id],
-    queryFn: async () => {
-      if (!currentUser?.id) return [];
-      const response = await api.get<User[]>(`/users/${currentUser.id}/friends`);
-      return response.data;
+    queryFn: () => {
+      if (!currentUser?.id) return Promise.resolve([]);
+      return friendService.getFriends(currentUser.id);
     },
     enabled: !!currentUser?.id,
   });
@@ -37,12 +37,9 @@ const UserSearch = () => {
   // Fetch pending requests (incoming) to show status
   const { data: incomingRequests } = useQuery({
     queryKey: ['friend-requests', currentUser?.id, 'INCOMING'],
-    queryFn: async () => {
-      if (!currentUser?.id) return [];
-      const response = await api.get<Friendship[]>(
-        `/users/${currentUser.id}/friends/requests?direction=INCOMING`
-      );
-      return response.data;
+    queryFn: () => {
+      if (!currentUser?.id) return Promise.resolve([]);
+      return friendService.getFriendRequests(currentUser.id, 'INCOMING');
     },
     enabled: !!currentUser?.id,
   });
@@ -50,24 +47,29 @@ const UserSearch = () => {
   // Fetch pending requests (outgoing) to show status
   const { data: outgoingRequests } = useQuery({
     queryKey: ['friend-requests', currentUser?.id, 'OUTGOING'],
-    queryFn: async () => {
-      if (!currentUser?.id) return [];
-      const response = await api.get<Friendship[]>(
-        `/users/${currentUser.id}/friends/requests?direction=OUTGOING`
-      );
-      return response.data;
+    queryFn: () => {
+      if (!currentUser?.id) return Promise.resolve([]);
+      return friendService.getFriendRequests(currentUser.id, 'OUTGOING');
     },
     enabled: !!currentUser?.id,
   });
 
   // Send friend request mutation
   const sendRequestMutation = useMutation({
-    mutationFn: async (friendId: number) => {
-      if (!currentUser?.id) return;
-      const response = await api.post<Friendship>(
-        `/users/${currentUser.id}/friends?friendId=${friendId}`
-      );
-      return response.data;
+    mutationFn: (friendId: number) => {
+      if (!currentUser?.id) throw new Error('User not logged in');
+      return friendService.sendFriendRequest(currentUser.id, friendId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
+    },
+  });
+
+  // Cancel friend request mutation
+  const cancelRequestMutation = useMutation({
+    mutationFn: (friendId: number) => {
+      if (!currentUser?.id) throw new Error('User not logged in');
+      return friendService.removeFriend(currentUser.id, friendId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
@@ -76,12 +78,9 @@ const UserSearch = () => {
 
   // Accept/Reject mutation for immediate action in search
   const respondMutation = useMutation({
-    mutationFn: async ({ friendshipId, action }: { friendshipId: number; action: 'accept' | 'reject' }) => {
-      if (!currentUser?.id) return;
-      const response = await api.put<Friendship>(
-        `/users/${currentUser.id}/friends/${friendshipId}/${action}`
-      );
-      return response.data;
+    mutationFn: ({ friendshipId, action }: { friendshipId: number; action: 'accept' | 'reject' }) => {
+      if (!currentUser?.id) throw new Error('User not logged in');
+      return friendService.respondToFriendRequest(currentUser.id, friendshipId, action);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
@@ -89,20 +88,38 @@ const UserSearch = () => {
     },
   });
 
-  const getFriendshipStatus = (userId: number) => {
-    if (userId.toString() === currentUser?.id) return { type: 'self' };
+  const friendshipStatuses = useMemo(() => {
+    if (!searchData) return {};
     
-    const isFriend = friends?.some((f) => f.id === userId);
-    if (isFriend) return { type: 'friend' };
+    const statusMap: Record<number, any> = {};
+    searchData.content.forEach((user) => {
+      if (user.id.toString() === currentUser?.id) {
+        statusMap[user.id] = { type: 'self' };
+        return;
+      }
+      
+      const isFriend = friends?.some((f) => f.id === user.id);
+      if (isFriend) {
+        statusMap[user.id] = { type: 'friend' };
+        return;
+      }
 
-    const incoming = incomingRequests?.find((r) => r.requesterId === userId);
-    if (incoming) return { type: 'incoming', id: incoming.id };
+      const incoming = incomingRequests?.find((r) => r.requesterId === user.id);
+      if (incoming) {
+        statusMap[user.id] = { type: 'incoming', id: incoming.id };
+        return;
+      }
 
-    const hasOutgoing = outgoingRequests?.some((r) => r.addresseeId === userId);
-    if (hasOutgoing) return { type: 'outgoing' };
+      const hasOutgoing = outgoingRequests?.some((r) => r.addresseeId === user.id);
+      if (hasOutgoing) {
+        statusMap[user.id] = { type: 'outgoing' };
+        return;
+      }
 
-    return { type: 'none' };
-  };
+      statusMap[user.id] = { type: 'none' };
+    });
+    return statusMap;
+  }, [searchData, friends, incomingRequests, outgoingRequests, currentUser?.id]);
 
   return (
     <div className="w-full space-y-4">
@@ -128,8 +145,9 @@ const UserSearch = () => {
         )}
 
         {searchData?.content.map((user) => {
-          const status = getFriendshipStatus(user.id);
+          const status = friendshipStatuses[user.id] || { type: 'none' };
           const isSending = sendRequestMutation.isPending && sendRequestMutation.variables === user.id;
+          const isCancelling = cancelRequestMutation.isPending && cancelRequestMutation.variables === user.id;
           const isResponding = respondMutation.isPending && respondMutation.variables?.friendshipId === status.id;
           
           return (
@@ -157,10 +175,20 @@ const UserSearch = () => {
                   </div>
                 )}
                 {status.type === 'outgoing' && (
-                  <div className="flex items-center gap-1 text-orange-500">
-                    <Clock size={16} />
-                    <span className="text-sm font-medium">Pending</span>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="flex items-center gap-1 text-orange-500 hover:text-orange-600 hover:bg-orange-50"
+                    onClick={() => cancelRequestMutation.mutate(user.id)}
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <Clock size={16} />
+                    )}
+                    <span>{isCancelling ? 'Cancelling...' : 'Pending (Cancel)'}</span>
+                  </Button>
                 )}
                 {status.type === 'incoming' && (
                   <div className="flex items-center gap-2">

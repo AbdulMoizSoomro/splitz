@@ -88,8 +88,41 @@ describe('TempFriendsList', () => {
     await waitFor(() => {
       expect(screen.getByText('Temporary Friends')).toBeInTheDocument();
       expect(screen.getByText('tempfriend')).toBeInTheDocument();
+      expect(screen.getByText('Group A')).toBeInTheDocument(); // Group name check
       expect(screen.getByText(/owes you 10.00/i)).toBeInTheDocument();
       expect(screen.getByText('Add Friend')).toBeInTheDocument();
+    });
+  });
+
+  it('shows "Cancel Request" if a friend request was already sent', async () => {
+    vi.mocked(friendService.getFriends).mockResolvedValue([]);
+    vi.mocked(groupService.getUserBalances).mockResolvedValue({
+      userId: 1,
+      username: 'testuser',
+      email: 'test@example.com',
+      totalBalance: 10,
+      groupBalances: [{ groupId: 10, groupName: 'Group A', balance: 10 }]
+    });
+    vi.mocked(groupService.getBalances).mockResolvedValue({
+      groupId: 10,
+      balances: [],
+      simplifiedDebts: [{ from: 3, fromUsername: 'tempfriend', to: 1, toUsername: 'testuser', amount: 10 }]
+    });
+
+    // Mock outgoing request to user 3
+    vi.mocked(friendService.getFriendRequests).mockResolvedValue([
+      { id: 100, requesterId: 1, addresseeId: 3, status: 'PENDING', createdAt: '', updatedAt: '' }
+    ]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TempFriendsList />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('tempfriend')).toBeInTheDocument();
+      expect(screen.getByText('Cancel Request')).toBeInTheDocument();
     });
   });
 

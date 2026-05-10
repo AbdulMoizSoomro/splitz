@@ -2,20 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { expenseService } from '../expenses/expenseService';
 import { useAuthStore } from '../../store/authStore';
 import { Card, CardContent } from '../../components/core/Card/Card';
-import { Loader2, Receipt, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import Button from '../../components/core/Button/Button';
+import { Loader2, Receipt, ArrowUpRight, ArrowDownLeft, Plus } from 'lucide-react';
 import type { GroupBalanceResponse } from '../../types/group';
 
 interface GroupActivityProps {
   groupId: number;
   balancesResponse?: GroupBalanceResponse;
+  onAddExpense?: () => void;
 }
 
-const GroupActivity = ({ groupId, balancesResponse }: GroupActivityProps) => {
+const GroupActivity = ({ groupId, balancesResponse, onAddExpense }: GroupActivityProps) => {
   const { user } = useAuthStore();
   const currentUserId = Number(user?.id);
 
   const { data: expenses, isLoading } = useQuery({
-    queryKey: ['group-expenses', groupId],
+    queryKey: ['expenses', groupId],
     queryFn: () => expenseService.getGroupExpenses(groupId),
   });
 
@@ -28,7 +30,14 @@ const GroupActivity = ({ groupId, balancesResponse }: GroupActivityProps) => {
       <Card>
         <CardContent className="py-12 text-center">
           <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
-          <p className="text-gray-500 italic">No activity yet. Add an expense to get started!</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">No activity yet</h3>
+          <p className="text-gray-500 italic mb-6">Add an expense to get started!</p>
+          {onAddExpense && (
+            <Button onClick={onAddExpense} className="flex items-center gap-2 mx-auto">
+              <Plus size={18} />
+              <span>Add Expense</span>
+            </Button>
+          )}
         </CardContent>
       </Card>
     );

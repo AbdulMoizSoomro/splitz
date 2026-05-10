@@ -15,6 +15,8 @@ import org.springframework.stereotype.Component;
 @Component("splitzAuthorizer")
 public class SharedSecurityAuthorizer {
 
+  private static final String ROLE_ADMIN = "ROLE_ADMIN";
+
   private Optional<Long> resolveCurrentUserId() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication == null || !authentication.isAuthenticated()) {
@@ -57,7 +59,7 @@ public class SharedSecurityAuthorizer {
 
   public boolean isAdmin() {
     try {
-      return getCurrentRoles().contains("ROLE_ADMIN");
+      return getCurrentRoles().contains(ROLE_ADMIN);
     } catch (AccessDeniedException e) {
       return false;
     }

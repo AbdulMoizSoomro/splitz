@@ -24,8 +24,8 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
   const [selectedMembers, setSelectedMembers] = useState<number[]>(
     group.members.map((m) => m.userId)
   );
-  const [splitType, setSplitType] = useState<'EQUAL' | 'EXACT'>('EQUAL');
-  const [exactShares, setExactShares] = useState<Record<number, string>>({});
+  const [splitType, setSplitType] = useState<SplitType>('EQUAL');
+  const [splitValues, setSplitValues] = useState<Record<number, string>>({});
 
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -40,6 +40,7 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
     mutationFn: (data: CreateExpenseRequest) => expenseService.createExpense(group.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses', group.id] });
+      queryClient.invalidateQueries({ queryKey: ['group-balances', group.id.toString()] });
       onClose();
       resetForm();
     },
@@ -52,47 +53,84 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
     setExpenseDate(new Date().toISOString().split('T')[0]);
     setSelectedMembers(group.members.map((m) => m.userId));
     setSplitType('EQUAL');
-    setExactShares({});
+    setSplitValues({});
   };
 
   const handleMemberToggle = (userId: number) => {
     setSelectedMembers((prev) => {
-      const next = prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId];
+      const isSelected = prev.includes(userId);
+      const next = isSelected ? prev.filter((id) => id !== userId) : [...prev, userId];
       
-      // If we are in EXACT mode and unselecting a member, remove their share
-      if (splitType === 'EXACT' && prev.includes(userId)) {
-        const nextShares = { ...exactShares };
-        delete nextShares[userId];
-        setExactShares(nextShares);
+      if (isSelected && splitType !== 'EQUAL') {
+        const nextValues = { ...splitValues };
+        delete nextValues[userId];
+        setSplitValues(nextValues);
       }
       
       return next;
     });
   };
 
-  const handleExactShareChange = (userId: number, value: string) => {
-    setExactShares((prev) => ({
+  const handleSplitValueChange = (userId: number, value: string) => {
+    setSplitValues((prev) => ({
       ...prev,
       [userId]: value,
     }));
   };
 
-  const totalExactAllocated = Object.values(exactShares).reduce(
+  const totalSplitValue = Object.values(splitValues).reduce(
     (sum, val) => sum + (parseFloat(val) || 0),
     0
   );
 
-  const isExactSplitValid =
-    splitType === 'EQUAL' ||
-    (amount && Math.abs(totalExactAllocated - parseFloat(amount)) < 0.01);
+  const numAmount = parseFloat(amount) || 0;
+
+  const getValidationInfo = () => {
+    switch (splitType) {
+      case 'EQUAL':
+        return { isValid: true };
+      case 'EXACT':
+        const isExactValid = Math.abs(totalSplitValue - numAmount) < 0.01;
+        return {
+          isValid: isExactValid,
+          message: isExactValid ? 'Fully allocated' : `Remaining: $${(numAmount - totalSplitValue).toFixed(2)}`,
+          error: !isExactValid && numAmount > 0 ? `Total must equal $${numAmount}` : undefined
+        };
+      case 'PERCENTAGE':
+        const isPercentValid = Math.abs(totalSplitValue - 100) < 0.01;
+        return {
+          isValid: isPercentValid,
+          message: isPercentValid ? '100% allocated' : `Total: ${totalSplitValue.toFixed(1)}%`,
+          error: !isPercentValid ? 'Total must equal 100%' : undefined
+        };
+      case 'SHARES':
+        const hasShares = totalSplitValue > 0;
+        return {
+          isValid: hasShares,
+          message: `Total shares: ${totalSplitValue}`,
+          error: !hasShares ? 'Total shares must be greater than 0' : undefined
+        };
+      case 'ADJUSTMENT':
+        const isAdjValid = Math.abs(totalSplitValue) < 0.01;
+        return {
+          isValid: isAdjValid,
+          message: isAdjValid ? 'Adjustments balanced' : `Offset: ${totalSplitValue > 0 ? '+' : ''}$${totalSplitValue.toFixed(2)}`,
+          error: !isAdjValid ? 'Adjustments must sum to $0.00' : undefined
+        };
+      default:
+        return { isValid: true };
+    }
+  };
+
+  const validation = getValidationInfo();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || selectedMembers.length === 0 || !isExactSplitValid) return;
+    if (!amount || selectedMembers.length === 0 || !validation.isValid) return;
 
-    const expenseData = {
+    const expenseData: CreateExpenseRequest = {
       description,
-      amount: parseFloat(amount),
+      amount: numAmount,
       paidBy: parseInt(currentUser?.id || '0'),
       categoryId,
       expenseDate,
@@ -100,8 +138,8 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
       splits: selectedMembers.map((userId) => ({
         userId,
         splitType,
-        splitValue: splitType === 'EXACT' ? parseFloat(exactShares[userId] || '0') : undefined,
-        shareAmount: splitType === 'EXACT' ? parseFloat(exactShares[userId] || '0') : undefined,
+        splitValue: splitType !== 'EQUAL' ? parseFloat(splitValues[userId] || '0') : undefined,
+        shareAmount: splitType === 'EXACT' ? parseFloat(splitValues[userId] || '0') : undefined,
       })),
     };
 
@@ -110,8 +148,28 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
 
   const sharePerPerson =
     amount && selectedMembers.length > 0
-      ? (parseFloat(amount) / selectedMembers.length).toFixed(2)
+      ? (numAmount / selectedMembers.length).toFixed(2)
       : '0.00';
+
+  const getPlaceholder = () => {
+    switch (splitType) {
+      case 'EXACT': return '0.00';
+      case 'PERCENTAGE': return '0';
+      case 'SHARES': return '1';
+      case 'ADJUSTMENT': return '0.00';
+      default: return '';
+    }
+  };
+
+  const getUnitPrefix = () => splitType === 'EXACT' || splitType === 'ADJUSTMENT' ? '$' : '';
+  const getUnitSuffix = () => splitType === 'PERCENTAGE' ? '%' : splitType === 'SHARES' ? ' shares' : '';
+
+  const getSplitTypeLabel = (type: SplitType) => {
+    switch (type) {
+      case 'ADJUSTMENT': return 'Fixed Adjustment';
+      default: return type.toLowerCase();
+    }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Expense">
@@ -162,30 +220,28 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
           </select>
         </div>
 
-        <div className="flex items-center gap-4 py-2 border-y border-gray-100">
+        <div className="space-y-2 py-2 border-y border-gray-100">
           <span className="text-sm font-medium text-gray-700">Split Type:</span>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="radio"
-              name="splitType"
-              value="EQUAL"
-              checked={splitType === 'EQUAL'}
-              onChange={() => setSplitType('EQUAL')}
-              className="w-4 h-4 text-blue-600"
-            />
-            <span className="text-sm text-gray-700">Equal</span>
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="radio"
-              name="splitType"
-              value="EXACT"
-              checked={splitType === 'EXACT'}
-              onChange={() => setSplitType('EXACT')}
-              className="w-4 h-4 text-blue-600"
-            />
-            <span className="text-sm text-gray-700">Exact</span>
-          </label>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {(['EQUAL', 'EXACT', 'PERCENTAGE', 'SHARES', 'ADJUSTMENT'] as const).map((type) => (
+              <label key={type} className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="splitType"
+                  value={type}
+                  checked={splitType === type}
+                  onChange={() => {
+                    setSplitType(type);
+                    setSplitValues({});
+                  }}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-gray-700 capitalize">
+                  {getSplitTypeLabel(type)}
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div>
@@ -208,18 +264,20 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
                       User {member.userId} {member.userId === parseInt(currentUser?.id || '0') && '(You)'}
                     </label>
                   </div>
-                  {splitType === 'EXACT' && selectedMembers.includes(member.userId) && (
-                    <div className="w-24">
+                  {splitType !== 'EQUAL' && selectedMembers.includes(member.userId) && (
+                    <div className="flex items-center gap-1 w-32">
+                      <span className="text-sm text-gray-500">{getUnitPrefix()}</span>
                       <Input
-                        id={`share-${member.userId}`}
+                        id={`split-value-${member.userId}`}
                         type="number"
-                        step="0.01"
-                        value={exactShares[member.userId] || ''}
-                        onChange={(e) => handleExactShareChange(member.userId, e.target.value)}
-                        placeholder="0.00"
+                        step={splitType === 'SHARES' ? '1' : '0.01'}
+                        value={splitValues[member.userId] || ''}
+                        onChange={(e) => handleSplitValueChange(member.userId, e.target.value)}
+                        placeholder={getPlaceholder()}
                         inputSize="sm"
-                        aria-label={`User ${member.userId} share`}
+                        aria-label={`User ${member.userId} split value`}
                       />
+                      <span className="text-xs text-gray-500 whitespace-nowrap">{getUnitSuffix()}</span>
                     </div>
                   )}
                 </div>
@@ -235,30 +293,30 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
         </div>
 
         {amount && selectedMembers.length > 0 && (
-          <div className={`p-3 rounded-md ${isExactSplitValid ? 'bg-blue-50' : 'bg-orange-50'}`}>
+          <div className={`p-3 rounded-md ${validation.isValid ? 'bg-blue-50' : 'bg-orange-50'}`}>
             {splitType === 'EQUAL' ? (
               <p className="text-sm text-blue-700">
                 Each person pays: <span className="font-bold">${sharePerPerson}</span>
               </p>
             ) : (
               <div className="flex justify-between items-center text-sm">
-                <p className={isExactSplitValid ? 'text-blue-700' : 'text-orange-700'}>
-                  Total split: <span className="font-bold">${totalExactAllocated.toFixed(2)}</span>
+                <p className={validation.isValid ? 'text-blue-700' : 'text-orange-700'}>
+                  {validation.message}
                 </p>
-                <p className={isExactSplitValid ? 'text-blue-700' : 'text-orange-700 font-bold'}>
-                  {Math.abs(totalExactAllocated - parseFloat(amount)) < 0.01
-                    ? 'Fully allocated'
-                    : `Remaining: $${(parseFloat(amount) - totalExactAllocated).toFixed(2)}`}
-                </p>
+                {splitType === 'PERCENTAGE' && validation.isValid && (
+                  <p className="text-blue-700">
+                    Total: <span className="font-bold">${numAmount.toFixed(2)}</span>
+                  </p>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {splitType === 'EXACT' && amount && !isExactSplitValid && (
+        {!validation.isValid && validation.error && (
           <p className="text-xs text-orange-600 flex items-center gap-1">
             <AlertCircle size={12} />
-            Total split must equal {amount}
+            {validation.error}
           </p>
         )}
 
@@ -274,7 +332,7 @@ const CreateExpenseModal = ({ isOpen, onClose, group }: CreateExpenseModalProps)
           </Button>
           <Button
             type="submit"
-            disabled={createMutation.isPending || !amount || selectedMembers.length === 0 || !isExactSplitValid}
+            disabled={createMutation.isPending || !amount || selectedMembers.length === 0 || !validation.isValid}
             className="flex items-center gap-2"
           >
             {createMutation.isPending && <Loader2 size={16} className="animate-spin" />}
