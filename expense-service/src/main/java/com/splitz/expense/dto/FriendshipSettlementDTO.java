@@ -17,6 +17,7 @@ public class FriendshipSettlementDTO {
   private Long id;
   private Long payerId;
   private Long payeeId;
+  private Long groupId;
   private BigDecimal amount;
   private SettlementStatus status;
   private LocalDateTime createdAt;

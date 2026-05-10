@@ -36,6 +36,7 @@ public class FriendshipSettlementService {
         FriendshipSettlement.builder()
             .payerId(request.getPayerId())
             .payeeId(request.getPayeeId())
+            .groupId(request.getGroupId())
             .amount(request.getAmount())
             .status(SettlementStatus.PENDING)
             .build();
