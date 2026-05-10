@@ -3,16 +3,19 @@ package com.splitz.expense.service;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.BalanceDTO;
 import com.splitz.expense.dto.DebtDTO;
+import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
+import com.splitz.expense.model.FriendshipSettlement;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.Settlement;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.ExpenseRepository;
+import com.splitz.expense.repository.FriendshipSettlementRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.expense.repository.SettlementRepository;
@@ -23,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +39,73 @@ public class BalanceService {
   private final GroupMemberRepository groupMemberRepository;
   private final GroupRepository groupRepository;
   private final SettlementRepository settlementRepository;
+  private final FriendshipSettlementRepository friendshipSettlementRepository;
   private final UserClient userClient;
+
+  @Transactional(readOnly = true)
+  public FriendBalanceResponseDTO getNetBalanceWithFriend(Long userId, Long friendId) {
+    List<Long> userGroupIds =
+        groupMemberRepository.findByUserId(userId).stream()
+            .map(gm -> gm.getGroup().getId())
+            .collect(Collectors.toList());
+    List<Long> friendGroupIds =
+        groupMemberRepository.findByUserId(friendId).stream()
+            .map(gm -> gm.getGroup().getId())
+            .collect(Collectors.toList());
+
+    userGroupIds.retainAll(friendGroupIds);
+
+    BigDecimal netBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+
+    for (Long groupId : userGroupIds) {
+      List<Expense> expenses = expenseRepository.findByGroupId(groupId);
+      for (Expense expense : expenses) {
+        if (expense.getPaidBy().equals(userId)) {
+          for (ExpenseSplit split : expense.getSplits()) {
+            if (split.getUserId().equals(friendId)) {
+              netBalance = netBalance.add(split.getShareAmount());
+            }
+          }
+        } else if (expense.getPaidBy().equals(friendId)) {
+          for (ExpenseSplit split : expense.getSplits()) {
+            if (split.getUserId().equals(userId)) {
+              netBalance = netBalance.subtract(split.getShareAmount());
+            }
+          }
+        }
+      }
+
+      List<Settlement> settlements = settlementRepository.findByGroupId(groupId);
+      for (Settlement settlement : settlements) {
+        if (settlement.getStatus() == SettlementStatus.COMPLETED) {
+          if (settlement.getPayerId().equals(userId) && settlement.getPayeeId().equals(friendId)) {
+            netBalance = netBalance.add(settlement.getAmount());
+          } else if (settlement.getPayerId().equals(friendId)
+              && settlement.getPayeeId().equals(userId)) {
+            netBalance = netBalance.subtract(settlement.getAmount());
+          }
+        }
+      }
+    }
+
+    List<FriendshipSettlement> globalSettlements =
+        friendshipSettlementRepository.findBetweenUsers(userId, friendId);
+    for (FriendshipSettlement settlement : globalSettlements) {
+      if (settlement.getStatus() == SettlementStatus.COMPLETED) {
+        if (settlement.getPayerId().equals(userId)) {
+          netBalance = netBalance.add(settlement.getAmount());
+        } else {
+          netBalance = netBalance.subtract(settlement.getAmount());
+        }
+      }
+    }
+
+    return FriendBalanceResponseDTO.builder()
+        .userId(userId)
+        .friendId(friendId)
+        .netBalance(netBalance)
+        .build();
+  }
 
   @Transactional(readOnly = true)
   public GroupBalanceResponseDTO getGroupBalances(Long groupId) {
@@ -138,6 +208,19 @@ public class BalanceService {
               .build());
 
       totalBalance = totalBalance.add(userBalance);
+    }
+
+    // Include global friendship settlements
+    List<FriendshipSettlement> globalSettlements =
+        friendshipSettlementRepository.findByPayerIdOrPayeeId(userId, userId);
+    for (FriendshipSettlement settlement : globalSettlements) {
+      if (settlement.getStatus() == SettlementStatus.COMPLETED) {
+        if (settlement.getPayerId().equals(userId)) {
+          totalBalance = totalBalance.add(settlement.getAmount());
+        } else {
+          totalBalance = totalBalance.subtract(settlement.getAmount());
+        }
+      }
     }
 
     UserResponse user = userClient.getUserById(userId).orElse(null);

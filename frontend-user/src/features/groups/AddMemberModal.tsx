@@ -1,17 +1,23 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, UserPlus, CheckCircle2, Search, ExternalLink } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import Modal from '../../components/core/Modal/Modal';
-import Button from '../../components/core/Button/Button';
-import Badge from '../../components/core/Badge/Badge';
-import { groupService } from './groupService';
-import api from '../../lib/axios';
-import { useAuthStore } from '../../store/authStore';
-import { useToastStore } from '../../store/toastStore';
-import { useTempFriends } from '../../hooks/useTempFriends';
-import type { User } from '../../types/user';
-import type { Group } from '../../types/group';
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Loader2,
+  UserPlus,
+  CheckCircle2,
+  Search,
+  ExternalLink,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import Modal from "../../components/core/Modal/Modal";
+import Button from "../../components/core/Button/Button";
+import Badge from "../../components/core/Badge/Badge";
+import { groupService } from "./groupService";
+import api from "../../lib/axios";
+import { useAuthStore } from "../../store/authStore";
+import { useToastStore } from "../../store/toastStore";
+import { useTempFriends } from "../../hooks/useTempFriends";
+import type { User } from "../../types/user";
+import type { Group } from "../../types/group";
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -29,16 +35,18 @@ interface EligibleUser {
 
 const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const { addToast } = useToastStore();
 
   const { data: friends, isLoading: isLoadingFriends } = useQuery({
-    queryKey: ['friends', currentUser?.id],
+    queryKey: ["friends", currentUser?.id],
     queryFn: async () => {
       if (!currentUser?.id) return [];
-      const response = await api.get<User[]>(`/users/${currentUser.id}/friends`);
+      const response = await api.get<User[]>(
+        `/users/${currentUser.id}/friends`,
+      );
       return response.data;
     },
     enabled: isOpen && !!currentUser?.id,
@@ -84,7 +92,7 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
     return combined;
   }, [friends, tempFriends, group.members]);
 
-  const filteredUsers = allEligible.filter(u => {
+  const filteredUsers = allEligible.filter((u) => {
     const full = `${u.firstName} ${u.lastName} ${u.username}`.toLowerCase();
     return full.includes(searchQuery.toLowerCase());
   });
@@ -92,14 +100,14 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
   const bulkAddMutation = useMutation({
     mutationFn: () => groupService.bulkAddMembers(group.id, selectedUserIds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['group', String(group.id)] });
-      addToast('Members added successfully', 'success');
+      queryClient.invalidateQueries({ queryKey: ["group", String(group.id)] });
+      addToast("Members added successfully", "success");
       setSelectedUserIds([]);
-      setSearchQuery('');
+      setSearchQuery("");
       onClose();
     },
     onError: () => {
-      addToast('Failed to add members', 'error');
+      addToast("Failed to add members", "error");
     },
   });
 
@@ -117,7 +125,7 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
 
   const handleClose = () => {
     setSelectedUserIds([]);
-    setSearchQuery('');
+    setSearchQuery("");
     onClose();
   };
 
@@ -128,7 +136,10 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
             <input
               type="text"
               placeholder="Search friends or group mates..."
@@ -153,14 +164,14 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
                   onClick={() => toggleUser(user.id)}
                   className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
                     selectedUserIds.includes(user.id)
-                      ? 'bg-blue-50 border-blue-100 border'
-                      : 'hover:bg-gray-50'
+                      ? "bg-blue-50 border-blue-100 border"
+                      : "hover:bg-gray-50"
                   }`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <div className="w-8 h-8 flex-shrink-0 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
                       {user.firstName[0]}
-                      {user.lastName ? user.lastName[0] : ''}
+                      {user.lastName ? user.lastName[0] : ""}
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2">
@@ -168,28 +179,41 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
                           {user.firstName} {user.lastName}
                         </span>
                         {user.isTemp && (
-                          <Badge variant="temp" className="text-[10px] py-0 px-1">Temp Friend</Badge>
+                          <Badge
+                            variant="temp"
+                            className="text-[10px] py-0 px-1"
+                          >
+                            Temp Friend
+                          </Badge>
                         )}
                       </div>
-                      <span className="text-xs text-gray-500 truncate">@{user.username}</span>
+                      <span className="text-xs text-gray-500 truncate">
+                        @{user.username}
+                      </span>
                     </div>
                   </div>
                   {selectedUserIds.includes(user.id) ? (
-                    <CheckCircle2 size={18} className="text-blue-600 flex-shrink-0" />
+                    <CheckCircle2
+                      size={18}
+                      className="text-blue-600 flex-shrink-0"
+                    />
                   ) : (
-                    <UserPlus size={18} className="text-gray-400 flex-shrink-0" />
+                    <UserPlus
+                      size={18}
+                      className="text-gray-400 flex-shrink-0"
+                    />
                   )}
                 </div>
               ))
             ) : (
               <div className="text-center py-8">
                 <p className="text-sm text-gray-500 mb-4">
-                  {searchQuery 
-                    ? `No results found for "${searchQuery}"` 
+                  {searchQuery
+                    ? `No results found for "${searchQuery}"`
                     : "No one available to add. Invite more friends to split expenses!"}
                 </p>
-                <Link 
-                  to="/friends" 
+                <Link
+                  to="/friends"
                   className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
                   onClick={onClose}
                 >
@@ -202,7 +226,12 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
         </div>
 
         <div className="flex gap-3 pt-2">
-          <Button type="button" variant="ghost" className="flex-1 border border-gray-300" onClick={handleClose}>
+          <Button
+            type="button"
+            variant="ghost"
+            className="flex-1 border border-gray-300"
+            onClick={handleClose}
+          >
             Cancel
           </Button>
           <Button
@@ -216,7 +245,7 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
                 Adding...
               </>
             ) : (
-              `Add ${selectedUserIds.length > 0 ? selectedUserIds.length : ''} Member${selectedUserIds.length !== 1 ? 's' : ''}`
+              `Add ${selectedUserIds.length > 0 ? selectedUserIds.length : ""} Member${selectedUserIds.length !== 1 ? "s" : ""}`
             )}
           </Button>
         </div>

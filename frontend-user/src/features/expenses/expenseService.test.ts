@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { expenseService } from './expenseService';
-import { expenseApi } from '../../lib/axios';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { expenseService } from "./expenseService";
+import { expenseApi } from "../../lib/axios";
 
-vi.mock('../../lib/axios', () => ({
+vi.mock("../../lib/axios", () => ({
   expenseApi: {
     get: vi.fn(),
     post: vi.fn(),
@@ -11,18 +11,18 @@ vi.mock('../../lib/axios', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
-  }
+  },
 }));
 
-describe('expenseService', () => {
+describe("expenseService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('fetches expenses for a group', async () => {
+  it("fetches expenses for a group", async () => {
     const groupId = 1;
     const mockExpenses = [
-      { id: 1, description: 'Lunch', amount: 30, splits: [] },
+      { id: 1, description: "Lunch", amount: 30, splits: [] },
     ];
     vi.mocked(expenseApi.get).mockResolvedValueOnce({ data: mockExpenses });
 
@@ -32,21 +32,24 @@ describe('expenseService', () => {
     expect(result).toEqual(mockExpenses);
   });
 
-  it('creates a new expense', async () => {
+  it("creates a new expense", async () => {
     const groupId = 1;
     const newExpense = {
-      description: 'Dinner',
+      description: "Dinner",
       amount: 60,
       paidBy: 1,
-      splitType: 'EQUAL' as const,
-      splits: [{ userId: 1 }, { userId: 2 }]
+      splitType: "EQUAL" as const,
+      splits: [{ userId: 1 }, { userId: 2 }],
     };
     const mockResponse = { id: 2, ...newExpense, splits: [] };
     vi.mocked(expenseApi.post).mockResolvedValueOnce({ data: mockResponse });
 
     const result = await expenseService.createExpense(groupId, newExpense);
 
-    expect(expenseApi.post).toHaveBeenCalledWith(`/groups/${groupId}/expenses`, newExpense);
+    expect(expenseApi.post).toHaveBeenCalledWith(
+      `/groups/${groupId}/expenses`,
+      newExpense,
+    );
     expect(result).toEqual(mockResponse);
   });
 });

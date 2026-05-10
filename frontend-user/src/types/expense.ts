@@ -1,4 +1,9 @@
-export type SplitType = 'EQUAL' | 'EXACT' | 'PERCENTAGE' | 'SHARES' | 'ADJUSTMENT';
+export type SplitType =
+  | "EQUAL"
+  | "EXACT"
+  | "PERCENTAGE"
+  | "SHARES"
+  | "ADJUSTMENT";
 
 export interface ExpenseSplit {
   id: number;

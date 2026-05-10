@@ -1,10 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
-import { expenseService } from '../expenses/expenseService';
-import { useAuthStore } from '../../store/authStore';
-import { Card, CardContent } from '../../components/core/Card/Card';
-import Button from '../../components/core/Button/Button';
-import { Loader2, Receipt, ArrowUpRight, ArrowDownLeft, Plus } from 'lucide-react';
-import type { GroupBalanceResponse } from '../../types/group';
+import { useQuery } from "@tanstack/react-query";
+import { expenseService } from "../expenses/expenseService";
+import { useAuthStore } from "../../store/authStore";
+import { Card, CardContent } from "../../components/core/Card/Card";
+import Button from "../../components/core/Button/Button";
+import {
+  Loader2,
+  Receipt,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Plus,
+} from "lucide-react";
+import type { GroupBalanceResponse } from "../../types/group";
 
 interface GroupActivityProps {
   groupId: number;
@@ -12,17 +18,25 @@ interface GroupActivityProps {
   onAddExpense?: () => void;
 }
 
-const GroupActivity = ({ groupId, balancesResponse, onAddExpense }: GroupActivityProps) => {
+const GroupActivity = ({
+  groupId,
+  balancesResponse,
+  onAddExpense,
+}: GroupActivityProps) => {
   const { user } = useAuthStore();
   const currentUserId = Number(user?.id);
 
   const { data: expenses, isLoading } = useQuery({
-    queryKey: ['expenses', groupId],
+    queryKey: ["expenses", groupId],
     queryFn: () => expenseService.getGroupExpenses(groupId),
   });
 
   if (isLoading) {
-    return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-600" /></div>;
+    return (
+      <div className="flex justify-center p-8">
+        <Loader2 className="animate-spin text-blue-600" />
+      </div>
+    );
   }
 
   if (!expenses || expenses.length === 0) {
@@ -30,10 +44,17 @@ const GroupActivity = ({ groupId, balancesResponse, onAddExpense }: GroupActivit
       <Card>
         <CardContent className="py-12 text-center">
           <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
-          <h3 className="text-lg font-medium text-gray-900 mb-1">No activity yet</h3>
-          <p className="text-gray-500 italic mb-6">Add an expense to get started!</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-1">
+            No activity yet
+          </h3>
+          <p className="text-gray-500 italic mb-6">
+            Add an expense to get started!
+          </p>
           {onAddExpense && (
-            <Button onClick={onAddExpense} className="flex items-center gap-2 mx-auto">
+            <Button
+              onClick={onAddExpense}
+              className="flex items-center gap-2 mx-auto"
+            >
               <Plus size={18} />
               <span>Add Expense</span>
             </Button>
@@ -44,40 +65,41 @@ const GroupActivity = ({ groupId, balancesResponse, onAddExpense }: GroupActivit
   }
 
   const getMemberName = (userId: number) => {
-    const member = balancesResponse?.balances.find(b => b.userId === userId);
+    const member = balancesResponse?.balances.find((b) => b.userId === userId);
     return member ? `${member.firstName} ${member.lastName}` : `User ${userId}`;
   };
 
   // Sort expenses by date (newest first)
-  const sortedExpenses = [...expenses].sort((a, b) => 
-    new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime()
+  const sortedExpenses = [...expenses].sort(
+    (a, b) =>
+      new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime(),
   );
 
   return (
     <div className="space-y-4">
       {sortedExpenses.map((expense) => {
         const isPayer = expense.paidBy === currentUserId;
-        const mySplit = expense.splits.find(s => s.userId === currentUserId);
-        
-        let statusText = 'not involved';
-        let statusColor = 'text-gray-500';
-        let amountText = '';
+        const mySplit = expense.splits.find((s) => s.userId === currentUserId);
+
+        let statusText = "not involved";
+        let statusColor = "text-gray-500";
+        let amountText = "";
         let Icon = Receipt;
 
         if (isPayer) {
           const totalOwedToMe = expense.amount - (mySplit?.shareAmount || 0);
           if (totalOwedToMe > 0) {
-            statusText = 'you are owed';
-            statusColor = 'text-green-600';
+            statusText = "you are owed";
+            statusColor = "text-green-600";
             amountText = `$${totalOwedToMe.toFixed(2)}`;
             Icon = ArrowUpRight;
           } else {
-            statusText = 'you paid for yourself';
+            statusText = "you paid for yourself";
             amountText = `$${expense.amount.toFixed(2)}`;
           }
         } else if (mySplit) {
-          statusText = 'you owe';
-          statusColor = 'text-red-600';
+          statusText = "you owe";
+          statusColor = "text-red-600";
           amountText = `$${mySplit.shareAmount.toFixed(2)}`;
           Icon = ArrowDownLeft;
         }
@@ -87,19 +109,31 @@ const GroupActivity = ({ groupId, balancesResponse, onAddExpense }: GroupActivit
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-full ${isPayer ? 'bg-green-100 text-green-700' : mySplit ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+                  <div
+                    className={`p-2 rounded-full ${isPayer ? "bg-green-100 text-green-700" : mySplit ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}
+                  >
                     <Icon size={20} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{expense.description}</h3>
+                    <h3 className="font-semibold text-gray-900">
+                      {expense.description}
+                    </h3>
                     <p className="text-sm text-gray-500">
-                      Paid by <span className="font-medium text-gray-700">{isPayer ? 'You' : getMemberName(expense.paidBy)}</span> on {new Date(expense.expenseDate).toLocaleDateString()}
+                      Paid by{" "}
+                      <span className="font-medium text-gray-700">
+                        {isPayer ? "You" : getMemberName(expense.paidBy)}
+                      </span>{" "}
+                      on {new Date(expense.expenseDate).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-500 uppercase font-medium tracking-wider">{statusText}</p>
-                  <p className={`text-lg font-bold ${statusColor}`}>{amountText || `$${expense.amount.toFixed(2)}`}</p>
+                  <p className="text-sm text-gray-500 uppercase font-medium tracking-wider">
+                    {statusText}
+                  </p>
+                  <p className={`text-lg font-bold ${statusColor}`}>
+                    {amountText || `$${expense.amount.toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </CardContent>

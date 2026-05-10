@@ -1,5 +1,5 @@
-import React, { useEffect, useId } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect, useId } from "react";
+import { X } from "lucide-react";
 
 /**
  * Props for the Modal component.
@@ -31,17 +31,17 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   const titleId = useId();
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
 
@@ -56,7 +56,9 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
         aria-labelledby={titleId}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 id={titleId} className="text-xl font-semibold text-gray-900">{title}</h2>
+          <h2 id={titleId} className="text-xl font-semibold text-gray-900">
+            {title}
+          </h2>
           <button
             onClick={onClose}
             className="p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"

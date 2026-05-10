@@ -1,7 +1,7 @@
-import { Menu, Bell, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import Button from '../core/Button/Button';
-import { useAuthStore } from '../../store/authStore';
+import { Menu, Bell, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import Button from "../core/Button/Button";
+import { useAuthStore } from "../../store/authStore";
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -14,7 +14,7 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
@@ -44,7 +44,12 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
               <Bell size={20} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} title="Logout">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              title="Logout"
+            >
               <LogOut size={20} />
             </Button>
           </div>

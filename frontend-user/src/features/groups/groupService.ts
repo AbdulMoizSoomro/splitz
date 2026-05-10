@@ -1,10 +1,16 @@
-import { expenseApi } from '../../lib/axios';
-import type { Group, CreateGroupRequest, AddMemberRequest, GroupBalanceResponse, GroupRole } from '../../types/group';
-import type { UserBalanceResponse } from '../../types/user';
+import { expenseApi } from "../../lib/axios";
+import type {
+  Group,
+  CreateGroupRequest,
+  AddMemberRequest,
+  GroupBalanceResponse,
+  GroupRole,
+} from "../../types/group";
+import type { UserBalanceResponse } from "../../types/user";
 
 export const groupService = {
   getGroups: async (): Promise<Group[]> => {
-    const response = await expenseApi.get<Group[]>('/groups');
+    const response = await expenseApi.get<Group[]>("/groups");
     return response.data;
   },
 
@@ -14,17 +20,29 @@ export const groupService = {
   },
 
   createGroup: async (data: CreateGroupRequest): Promise<Group> => {
-    const response = await expenseApi.post<Group>('/groups', data);
+    const response = await expenseApi.post<Group>("/groups", data);
     return response.data;
   },
 
-  addMember: async (groupId: number, data: AddMemberRequest): Promise<Group> => {
-    const response = await expenseApi.post<Group>(`/groups/${groupId}/members`, data);
+  addMember: async (
+    groupId: number,
+    data: AddMemberRequest,
+  ): Promise<Group> => {
+    const response = await expenseApi.post<Group>(
+      `/groups/${groupId}/members`,
+      data,
+    );
     return response.data;
   },
 
-  bulkAddMembers: async (groupId: number, userIds: number[]): Promise<Group> => {
-    const response = await expenseApi.post<Group>(`/groups/${groupId}/members/bulk`, { userIds });
+  bulkAddMembers: async (
+    groupId: number,
+    userIds: number[],
+  ): Promise<Group> => {
+    const response = await expenseApi.post<Group>(
+      `/groups/${groupId}/members/bulk`,
+      { userIds },
+    );
     return response.data;
   },
 
@@ -38,17 +56,28 @@ export const groupService = {
   },
 
   getBalances: async (groupId: number): Promise<GroupBalanceResponse> => {
-    const response = await expenseApi.get<GroupBalanceResponse>(`/groups/${groupId}/balances`);
+    const response = await expenseApi.get<GroupBalanceResponse>(
+      `/groups/${groupId}/balances`,
+    );
     return response.data;
   },
 
-  updateMemberRole: async (groupId: number, userId: number, role: GroupRole): Promise<Group> => {
-    const response = await expenseApi.put<Group>(`/groups/${groupId}/members/${userId}/role`, { role });
+  updateMemberRole: async (
+    groupId: number,
+    userId: number,
+    role: GroupRole,
+  ): Promise<Group> => {
+    const response = await expenseApi.put<Group>(
+      `/groups/${groupId}/members/${userId}/role`,
+      { role },
+    );
     return response.data;
   },
 
   getUserBalances: async (userId: number): Promise<UserBalanceResponse> => {
-    const response = await expenseApi.get<UserBalanceResponse>(`/users/${userId}/balances`);
+    const response = await expenseApi.get<UserBalanceResponse>(
+      `/users/${userId}/balances`,
+    );
     return response.data;
   },
 };

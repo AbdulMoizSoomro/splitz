@@ -6,16 +6,19 @@ import static org.mockito.Mockito.*;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.BalanceDTO;
 import com.splitz.expense.dto.DebtDTO;
+import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
+import com.splitz.expense.model.FriendshipSettlement;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.Settlement;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.ExpenseRepository;
+import com.splitz.expense.repository.FriendshipSettlementRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.expense.repository.SettlementRepository;
@@ -38,6 +41,7 @@ class BalanceServiceTest {
   @Mock private GroupMemberRepository groupMemberRepository;
   @Mock private GroupRepository groupRepository;
   @Mock private SettlementRepository settlementRepository;
+  @Mock private FriendshipSettlementRepository friendshipSettlementRepository;
   @Mock private UserClient userClient;
 
   @InjectMocks private BalanceService balanceService;
@@ -330,6 +334,64 @@ class BalanceServiceTest {
 
     assertEquals(0, new BigDecimal("25.00").compareTo(gb1.getBalance()));
     assertEquals(0, new BigDecimal("-10.00").compareTo(gb2.getBalance()));
+  }
+
+  @Test
+  void getUserBalances_WithGlobalSettlements() {
+    when(groupMemberRepository.findByUserId(101L)).thenReturn(Collections.emptyList());
+
+    // Global Settlement: User 101 pays 50.00
+    FriendshipSettlement settlement =
+        FriendshipSettlement.builder()
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .status(SettlementStatus.COMPLETED)
+            .build();
+    when(friendshipSettlementRepository.findByPayerIdOrPayeeId(101L, 101L))
+        .thenReturn(Collections.singletonList(settlement));
+    when(userClient.getUserById(101L))
+        .thenReturn(Optional.of(UserResponse.builder().id(101L).build()));
+
+    UserBalanceResponseDTO response = balanceService.getUserBalances(101L);
+
+    assertEquals(0, new BigDecimal("50.00").compareTo(response.getTotalBalance()));
+  }
+
+  @Test
+  void getNetBalanceWithFriend_CombinesGroupAndGlobal() {
+    // Shared Group 1
+    Group group1 = Group.builder().id(1L).build();
+    GroupMember m1 = GroupMember.builder().group(group1).userId(101L).build();
+    GroupMember m2 = GroupMember.builder().group(group1).userId(102L).build();
+
+    when(groupMemberRepository.findByUserId(101L)).thenReturn(Collections.singletonList(m1));
+    when(groupMemberRepository.findByUserId(102L)).thenReturn(Collections.singletonList(m2));
+
+    // Expense in group 1: 101 paid 30, split equally with 102 (15 each)
+    Expense e1 =
+        Expense.builder().paidBy(101L).amount(new BigDecimal("30.00")).group(group1).build();
+    e1.setSplits(
+        Arrays.asList(
+            ExpenseSplit.builder().userId(101L).shareAmount(new BigDecimal("15.00")).build(),
+            ExpenseSplit.builder().userId(102L).shareAmount(new BigDecimal("15.00")).build()));
+    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(e1));
+
+    // Global Settlement: 102 pays 101 10.00
+    FriendshipSettlement fs =
+        FriendshipSettlement.builder()
+            .payerId(102L)
+            .payeeId(101L)
+            .amount(new BigDecimal("10.00"))
+            .status(SettlementStatus.COMPLETED)
+            .build();
+    when(friendshipSettlementRepository.findBetweenUsers(101L, 102L))
+        .thenReturn(Collections.singletonList(fs));
+
+    FriendBalanceResponseDTO result = balanceService.getNetBalanceWithFriend(101L, 102L);
+
+    // Expected: 15 (owed from expense) - 10 (settled globally) = 5
+    assertEquals(0, new BigDecimal("5.00").compareTo(result.getNetBalance()));
   }
 
   private BalanceDTO findBalance(List<BalanceDTO> balances, Long userId) {

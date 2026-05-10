@@ -14,7 +14,7 @@ export interface PaginatedResponse<T> {
   number: number;
 }
 
-export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'BLOCKED';
+export type FriendshipStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "BLOCKED";
 
 export interface Friendship {
   id: number;
@@ -37,4 +37,16 @@ export interface UserBalanceResponse {
   email: string;
   totalBalance: number;
   groupBalances: GroupBalance[];
+}
+
+export interface FriendshipSettlementDTO {
+  id: number;
+  payerId: number;
+  payeeId: number;
+  amount: number;
+  status: "PENDING" | "MARKED_PAID" | "COMPLETED";
+  createdAt: string;
+  updatedAt: string;
+  markedPaidAt?: string;
+  settledAt?: string;
 }

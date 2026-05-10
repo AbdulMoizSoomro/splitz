@@ -1,24 +1,26 @@
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Loader2, UserPlus, Check, Clock, UserMinus } from 'lucide-react';
-import api from '../../lib/axios';
-import { friendService } from './friendService';
-import type { User, PaginatedResponse, Friendship } from '../../types/user';
-import Input from '../../components/core/Input/Input';
-import Button from '../../components/core/Button/Button';
-import { useAuthStore } from '../../store/authStore';
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Search, Loader2, UserPlus, Check, Clock } from "lucide-react";
+import api from "../../lib/axios";
+import { friendService } from "./friendService";
+import type { User, PaginatedResponse } from "../../types/user";
+import Input from "../../components/core/Input/Input";
+import Button from "../../components/core/Button/Button";
+import { useAuthStore } from "../../store/authStore";
 
 const UserSearch = () => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
   // Fetch search results
   const { data: searchData, isLoading: isSearching } = useQuery({
-    queryKey: ['users', 'search', query],
+    queryKey: ["users", "search", query],
     queryFn: async () => {
       if (!query) return null;
-      const response = await api.get<PaginatedResponse<User>>(`/users/search?query=${query}`);
+      const response = await api.get<PaginatedResponse<User>>(
+        `/users/search?query=${query}`,
+      );
       return response.data;
     },
     enabled: query.length > 2,
@@ -26,7 +28,7 @@ const UserSearch = () => {
 
   // Fetch current user's friends to show status
   const { data: friends } = useQuery({
-    queryKey: ['friends', currentUser?.id],
+    queryKey: ["friends", currentUser?.id],
     queryFn: () => {
       if (!currentUser?.id) return Promise.resolve([]);
       return friendService.getFriends(currentUser.id);
@@ -36,20 +38,20 @@ const UserSearch = () => {
 
   // Fetch pending requests (incoming) to show status
   const { data: incomingRequests } = useQuery({
-    queryKey: ['friend-requests', currentUser?.id, 'INCOMING'],
+    queryKey: ["friend-requests", currentUser?.id, "INCOMING"],
     queryFn: () => {
       if (!currentUser?.id) return Promise.resolve([]);
-      return friendService.getFriendRequests(currentUser.id, 'INCOMING');
+      return friendService.getFriendRequests(currentUser.id, "INCOMING");
     },
     enabled: !!currentUser?.id,
   });
 
   // Fetch pending requests (outgoing) to show status
   const { data: outgoingRequests } = useQuery({
-    queryKey: ['friend-requests', currentUser?.id, 'OUTGOING'],
+    queryKey: ["friend-requests", currentUser?.id, "OUTGOING"],
     queryFn: () => {
       if (!currentUser?.id) return Promise.resolve([]);
-      return friendService.getFriendRequests(currentUser.id, 'OUTGOING');
+      return friendService.getFriendRequests(currentUser.id, "OUTGOING");
     },
     enabled: !!currentUser?.id,
   });
@@ -57,69 +59,93 @@ const UserSearch = () => {
   // Send friend request mutation
   const sendRequestMutation = useMutation({
     mutationFn: (friendId: number) => {
-      if (!currentUser?.id) throw new Error('User not logged in');
+      if (!currentUser?.id) throw new Error("User not logged in");
       return friendService.sendFriendRequest(currentUser.id, friendId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["friend-requests", currentUser?.id],
+      });
     },
   });
 
   // Cancel friend request mutation
   const cancelRequestMutation = useMutation({
     mutationFn: (friendId: number) => {
-      if (!currentUser?.id) throw new Error('User not logged in');
+      if (!currentUser?.id) throw new Error("User not logged in");
       return friendService.removeFriend(currentUser.id, friendId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["friend-requests", currentUser?.id],
+      });
     },
   });
 
   // Accept/Reject mutation for immediate action in search
   const respondMutation = useMutation({
-    mutationFn: ({ friendshipId, action }: { friendshipId: number; action: 'accept' | 'reject' }) => {
-      if (!currentUser?.id) throw new Error('User not logged in');
-      return friendService.respondToFriendRequest(currentUser.id, friendshipId, action);
+    mutationFn: ({
+      friendshipId,
+      action,
+    }: {
+      friendshipId: number;
+      action: "accept" | "reject";
+    }) => {
+      if (!currentUser?.id) throw new Error("User not logged in");
+      return friendService.respondToFriendRequest(
+        currentUser.id,
+        friendshipId,
+        action,
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friend-requests', currentUser?.id] });
-      queryClient.invalidateQueries({ queryKey: ['friends', currentUser?.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["friend-requests", currentUser?.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ["friends", currentUser?.id] });
     },
   });
 
   const friendshipStatuses = useMemo(() => {
     if (!searchData) return {};
-    
-    const statusMap: Record<number, any> = {};
+
+    const statusMap: Record<number, { type: string; id?: number }> = {};
     searchData.content.forEach((user) => {
       if (user.id.toString() === currentUser?.id) {
-        statusMap[user.id] = { type: 'self' };
+        statusMap[user.id] = { type: "self" };
         return;
       }
-      
+
       const isFriend = friends?.some((f) => f.id === user.id);
       if (isFriend) {
-        statusMap[user.id] = { type: 'friend' };
+        statusMap[user.id] = { type: "friend" };
         return;
       }
 
       const incoming = incomingRequests?.find((r) => r.requesterId === user.id);
       if (incoming) {
-        statusMap[user.id] = { type: 'incoming', id: incoming.id };
+        statusMap[user.id] = { type: "incoming", id: incoming.id };
         return;
       }
 
-      const hasOutgoing = outgoingRequests?.some((r) => r.addresseeId === user.id);
+      const hasOutgoing = outgoingRequests?.some(
+        (r) => r.addresseeId === user.id,
+      );
       if (hasOutgoing) {
-        statusMap[user.id] = { type: 'outgoing' };
+        statusMap[user.id] = { type: "outgoing" };
         return;
       }
 
-      statusMap[user.id] = { type: 'none' };
+      statusMap[user.id] = { type: "none" };
     });
     return statusMap;
-  }, [searchData, friends, incomingRequests, outgoingRequests, currentUser?.id]);
+  }, [
+    searchData,
+    friends,
+    incomingRequests,
+    outgoingRequests,
+    currentUser?.id,
+  ]);
 
   return (
     <div className="w-full space-y-4">
@@ -140,16 +166,24 @@ const UserSearch = () => {
           </div>
         )}
 
-        {!isSearching && query.length > 2 && searchData?.content.length === 0 && (
-          <p className="text-center text-gray-500 py-4">No users found.</p>
-        )}
+        {!isSearching &&
+          query.length > 2 &&
+          searchData?.content.length === 0 && (
+            <p className="text-center text-gray-500 py-4">No users found.</p>
+          )}
 
         {searchData?.content.map((user) => {
-          const status = friendshipStatuses[user.id] || { type: 'none' };
-          const isSending = sendRequestMutation.isPending && sendRequestMutation.variables === user.id;
-          const isCancelling = cancelRequestMutation.isPending && cancelRequestMutation.variables === user.id;
-          const isResponding = respondMutation.isPending && respondMutation.variables?.friendshipId === status.id;
-          
+          const status = friendshipStatuses[user.id] || { type: "none" };
+          const isSending =
+            sendRequestMutation.isPending &&
+            sendRequestMutation.variables === user.id;
+          const isCancelling =
+            cancelRequestMutation.isPending &&
+            cancelRequestMutation.variables === user.id;
+          const isResponding =
+            respondMutation.isPending &&
+            respondMutation.variables?.friendshipId === status.id;
+
           return (
             <div
               key={user.id}
@@ -163,18 +197,18 @@ const UserSearch = () => {
               </div>
 
               <div>
-                {status.type === 'self' && (
+                {status.type === "self" && (
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
                     You
                   </span>
                 )}
-                {status.type === 'friend' && (
+                {status.type === "friend" && (
                   <div className="flex items-center gap-1 text-green-600">
                     <Check size={16} />
                     <span className="text-sm font-medium">Friends</span>
                   </div>
                 )}
-                {status.type === 'outgoing' && (
+                {status.type === "outgoing" && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -187,38 +221,52 @@ const UserSearch = () => {
                     ) : (
                       <Clock size={16} />
                     )}
-                    <span>{isCancelling ? 'Cancelling...' : 'Pending (Cancel)'}</span>
+                    <span>
+                      {isCancelling ? "Cancelling..." : "Pending (Cancel)"}
+                    </span>
                   </Button>
                 )}
-                {status.type === 'incoming' && (
+                {status.type === "incoming" && (
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
                       variant="primary"
-                      onClick={() => respondMutation.mutate({ friendshipId: status.id!, action: 'accept' })}
+                      onClick={() =>
+                        respondMutation.mutate({
+                          friendshipId: status.id!,
+                          action: "accept",
+                        })
+                      }
                       disabled={isResponding}
                     >
-                      {isResponding && respondMutation.variables?.action === 'accept' ? (
+                      {isResponding &&
+                      respondMutation.variables?.action === "accept" ? (
                         <Loader2 className="animate-spin" size={16} />
                       ) : (
-                        'Accept'
+                        "Accept"
                       )}
                     </Button>
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => respondMutation.mutate({ friendshipId: status.id!, action: 'reject' })}
+                      onClick={() =>
+                        respondMutation.mutate({
+                          friendshipId: status.id!,
+                          action: "reject",
+                        })
+                      }
                       disabled={isResponding}
                     >
-                      {isResponding && respondMutation.variables?.action === 'reject' ? (
+                      {isResponding &&
+                      respondMutation.variables?.action === "reject" ? (
                         <Loader2 className="animate-spin" size={16} />
                       ) : (
-                        'Reject'
+                        "Reject"
                       )}
                     </Button>
                   </div>
                 )}
-                {status.type === 'none' && (
+                {status.type === "none" && (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -231,7 +279,7 @@ const UserSearch = () => {
                     ) : (
                       <UserPlus size={16} />
                     )}
-                    <span>{isSending ? 'Sending...' : 'Add Friend'}</span>
+                    <span>{isSending ? "Sending..." : "Add Friend"}</span>
                   </Button>
                 )}
               </div>

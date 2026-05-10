@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import Navbar from './Navbar';
-import Sidebar from './Sidebar';
+import React, { useState } from "react";
+import Navbar from "./Navbar";
+import Sidebar from "./Sidebar";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -14,9 +14,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <main className="p-4 lg:ml-64 pt-20">
-        <div className="mx-auto max-w-7xl">
-          {children}
-        </div>
+        <div className="mx-auto max-w-7xl">{children}</div>
       </main>
     </div>
   );

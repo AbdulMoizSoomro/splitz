@@ -1,9 +1,14 @@
-import DashboardLayout from '../../components/layout/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/core/Card/Card';
-import UserSearch from './UserSearch';
-import FriendRequestsList from './FriendRequestsList';
-import FriendsList from './FriendsList';
-import TempFriendsList from './TempFriendsList';
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "../../components/core/Card/Card";
+import UserSearch from "./UserSearch";
+import FriendRequestsList from "./FriendRequestsList";
+import FriendsList from "./FriendsList";
+import TempFriendsList from "./TempFriendsList";
 
 const FriendsPage = () => {
   return (
@@ -11,7 +16,9 @@ const FriendsPage = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Friends</h1>
-          <p className="text-gray-600">Manage your connections and find new friends.</p>
+          <p className="text-gray-600">
+            Manage your connections and find new friends.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

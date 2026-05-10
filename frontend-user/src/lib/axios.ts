@@ -1,12 +1,12 @@
-import axios, { isAxiosError } from 'axios';
-import type { AxiosInstance } from 'axios';
-import { useAuthStore } from '../store/authStore';
+import axios, { isAxiosError } from "axios";
+import type { AxiosInstance } from "axios";
+import { useAuthStore } from "../store/authStore";
 
 const createApi = (baseURL: string): AxiosInstance => {
   const instance = axios.create({
     baseURL,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
@@ -25,14 +25,18 @@ const createApi = (baseURL: string): AxiosInstance => {
         useAuthStore.getState().logout();
       }
       return Promise.reject(error);
-    }
+    },
   );
 
   return instance;
 };
 
-export const userApi = createApi(import.meta.env.VITE_USER_SERVICE_URL || 'http://localhost:8080');
-export const expenseApi = createApi(import.meta.env.VITE_EXPENSE_SERVICE_URL || 'http://localhost:8081');
+export const userApi = createApi(
+  import.meta.env.VITE_USER_SERVICE_URL || "http://localhost:8080",
+);
+export const expenseApi = createApi(
+  import.meta.env.VITE_EXPENSE_SERVICE_URL || "http://localhost:8081",
+);
 
 export { isAxiosError };
 export default userApi;
