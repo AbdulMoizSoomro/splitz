@@ -237,7 +237,7 @@ const GroupDetails = () => {
                 <div className="flex justify-between items-center px-1">
                   <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <Activity size={20} className="text-blue-600" />
-                    <span>Recent Activity</span>
+                    <span>Shared Activity</span>
                   </h2>
                   <Button
                     size="sm"

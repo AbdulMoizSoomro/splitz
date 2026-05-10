@@ -44,8 +44,8 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
   const createSettlementMutation = useMutation({
     mutationFn: async (debt: { to: number; amount: number }) => {
       const s = await settlementService.createSettlement({
-        fromUserId: currentUserId,
-        toUserId: debt.to,
+        payerId: currentUserId,
+        payeeId: debt.to,
         amount: debt.amount,
         currency: "USD", // Default to USD for now or get from group
         groupId,
@@ -91,11 +91,11 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
 
   const pendingIncoming =
     settlements?.filter(
-      (s) => s.toUserId === currentUserId && s.status === "PAID",
+      (s) => s.payeeId === currentUserId && s.status === "PAID",
     ) || [];
   const pendingOutgoing =
     settlements?.filter(
-      (s) => s.fromUserId === currentUserId && s.status === "PAID",
+      (s) => s.payerId === currentUserId && s.status === "PAID",
     ) || [];
 
   return (
@@ -227,7 +227,7 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
                     <Clock className="text-amber-600" size={20} />
                     <div>
                       <p className="text-sm font-medium">
-                        User {s.fromUserId} sent you ${s.amount.toFixed(2)}
+                        User {s.payerId} sent you ${s.amount.toFixed(2)}
                       </p>
                       <p className="text-xs text-amber-700">
                         Waiting for your confirmation
@@ -252,7 +252,7 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
                   <Clock className="text-blue-600" size={20} />
                   <div>
                     <p className="text-sm font-medium">
-                      You sent ${s.amount.toFixed(2)} to User {s.toUserId}
+                      You sent ${s.amount.toFixed(2)} to User {s.payeeId}
                     </p>
                     <p className="text-xs text-blue-700">
                       Waiting for confirmation
