@@ -107,13 +107,16 @@ test.describe('[E2E] Group Roles and Permissions', () => {
       const groupName = `Promo Group ${ts}`;
       const groupUrl = await createGroupWithMember(pageOwner, groupName);
 
-      // 5. Verify member row shows "Member" badge (not Admin yet)
+      // 5. Navigate to Members tab
+      await pageOwner.getByRole('button', { name: 'Members', exact: true }).click();
+
+      // 6. Verify member row shows "Member" badge (not Admin yet)
       //    Use the Members card to scope our badge search
       const membersCard = pageOwner.locator('.divide-y');
       await expect(membersCard.locator('span', { hasText: 'Member' }).first()).toBeVisible();
       await expect(membersCard.locator('span', { hasText: 'Admin' })).not.toBeVisible();
 
-      // 6. Owner promotes the member to Admin via the "Manage role" dropdown
+      // 7. Owner promotes the member to Admin via the "Manage role" dropdown
       //    (visible for all non-owner members when actor is Owner or Admin)
       const manageRoleBtn = pageOwner.getByLabel('Manage role');
       await expect(manageRoleBtn).toBeVisible();
@@ -122,19 +125,23 @@ test.describe('[E2E] Group Roles and Permissions', () => {
       await expect(promoteOption).toBeVisible();
       await promoteOption.click();
 
-      // 7. Owner's view: badge should now say "Admin"
+      // 8. Owner's view: badge should now say "Admin"
       await expect(membersCard.locator('span', { hasText: 'Admin' })).toBeVisible({ timeout: 10000 });
       await expect(membersCard.locator('span', { hasText: 'Member' })).not.toBeVisible();
 
-      // 8. Member navigates to the group page and confirms their Admin badge is visible
+      // 9. Member navigates to the group page and confirms their Admin badge is visible
       await pageMember.goto(groupUrl);
       await expect(pageMember).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
+      
+      // Navigate to Members tab
+      await pageMember.getByRole('button', { name: 'Members', exact: true }).click();
+
       const membersMemberCard = pageMember.locator('.divide-y');
       await expect(membersMemberCard.locator('span', { hasText: 'Admin' })).toBeVisible({
         timeout: 10000,
       });
 
-      // 9. The new Admin also sees the Owner badge for the group creator
+      // 10. The new Admin also sees the Owner badge for the group creator
       await expect(membersMemberCard.locator('span', { hasText: 'Owner' })).toBeVisible();
     } finally {
       await ctxOwner.close();
@@ -205,6 +212,8 @@ test.describe('[E2E] Group Roles and Permissions', () => {
       await expect(pageMember.getByText(/group settings/i)).not.toBeVisible();
 
       // 8. Regular member never sees "Manage role" dropdown (requires Admin or Owner role)
+      // Navigate to Members tab first
+      await pageMember.getByRole('button', { name: 'Members', exact: true }).click();
       await expect(pageMember.getByLabel('Manage role')).not.toBeVisible();
     } finally {
       await ctxOwner.close();
@@ -244,6 +253,9 @@ test.describe('[E2E] Group Roles and Permissions', () => {
       const groupName = `Demote Group ${ts}`;
       const groupUrl = await createGroupWithMember(pageOwner, groupName);
 
+      // Navigate to Members tab
+      await pageOwner.getByRole('button', { name: 'Members', exact: true }).click();
+
       const membersCard = pageOwner.locator('.divide-y');
 
       // 4. Owner promotes the member to Admin
@@ -268,6 +280,10 @@ test.describe('[E2E] Group Roles and Permissions', () => {
       // 7. The demoted user navigates to the group and confirms their badge is "Member"
       await pageAdmin.goto(groupUrl);
       await expect(pageAdmin).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
+      
+      // Navigate to Members tab
+      await pageAdmin.getByRole('button', { name: /members/i }).click();
+
       const adminMembersCard = pageAdmin.locator('.divide-y');
       await expect(adminMembersCard.locator('span', { hasText: 'Member' }).first()).toBeVisible({
         timeout: 10000,

@@ -21,13 +21,22 @@ public class SplitCalculator {
       throw new InvalidSplitCalculationException("At least one split is required");
     }
 
-    return switch (splitType) {
-      case EXACT -> calculateExactSplits(totalAmount, splitRequests);
-      case EQUAL -> calculateEqualSplits(totalAmount, splitRequests, currency);
-      case PERCENTAGE -> calculatePercentageSplits(totalAmount, splitRequests, currency);
-      case SHARES -> calculateSharesSplits(totalAmount, splitRequests, currency);
-      case ADJUSTMENT -> calculateAdjustmentSplits(totalAmount, splitRequests, currency);
-    };
+    int scale = getScale(currency);
+
+    List<SplitResult> results =
+        switch (splitType) {
+          case EXACT -> calculateExactSplits(totalAmount, splitRequests);
+          case EQUAL -> calculateEqualSplits(totalAmount, splitRequests, scale);
+          case PERCENTAGE -> calculatePercentageSplits(totalAmount, splitRequests, scale);
+          case SHARES -> calculateSharesSplits(totalAmount, splitRequests, scale);
+          case ADJUSTMENT -> calculateAdjustmentSplits(totalAmount, splitRequests, scale);
+        };
+
+    if (splitType != SplitType.EXACT) {
+      handleRemainder(totalAmount, results);
+    }
+
+    return results;
   }
 
   private List<SplitResult> calculateExactSplits(
@@ -77,24 +86,21 @@ public class SplitCalculator {
   }
 
   private List<SplitResult> calculateEqualSplits(
-      BigDecimal totalAmount, List<SplitRequest> splitRequests, String currency) {
+      BigDecimal totalAmount, List<SplitRequest> splitRequests, int scale) {
     List<SplitResult> results = new ArrayList<>();
     BigDecimal count = BigDecimal.valueOf(splitRequests.size());
-    int scale = getScale(currency);
     BigDecimal shareAmount = totalAmount.divide(count, scale, RoundingMode.HALF_UP);
 
     for (SplitRequest sr : splitRequests) {
       results.add(new SplitResult(sr.getUserId(), shareAmount, SplitType.EQUAL, null));
     }
-    handleRemainder(totalAmount, results);
     return results;
   }
 
   private List<SplitResult> calculatePercentageSplits(
-      BigDecimal totalAmount, List<SplitRequest> splitRequests, String currency) {
+      BigDecimal totalAmount, List<SplitRequest> splitRequests, int scale) {
     List<SplitResult> results = new ArrayList<>();
     BigDecimal totalPercentage = BigDecimal.ZERO;
-    int scale = getScale(currency);
     for (SplitRequest sr : splitRequests) {
       if (sr.getSplitValue() == null) {
         throw new InvalidSplitCalculationException("Percentage required");
@@ -110,15 +116,13 @@ public class SplitCalculator {
     if (totalPercentage.compareTo(new BigDecimal("100")) != 0) {
       throw new InvalidSplitCalculationException("Percentage must sum to 100");
     }
-    handleRemainder(totalAmount, results);
     return results;
   }
 
   private List<SplitResult> calculateSharesSplits(
-      BigDecimal totalAmount, List<SplitRequest> splitRequests, String currency) {
+      BigDecimal totalAmount, List<SplitRequest> splitRequests, int scale) {
     List<SplitResult> results = new ArrayList<>();
     BigDecimal totalShares = BigDecimal.ZERO;
-    int scale = getScale(currency);
     for (SplitRequest sr : splitRequests) {
       if (sr.getSplitValue() == null || sr.getSplitValue().compareTo(BigDecimal.ZERO) <= 0) {
         throw new InvalidSplitCalculationException("Positive shares required");
@@ -132,12 +136,11 @@ public class SplitCalculator {
       results.add(
           new SplitResult(sr.getUserId(), shareAmount, SplitType.SHARES, sr.getSplitValue()));
     }
-    handleRemainder(totalAmount, results);
     return results;
   }
 
   private List<SplitResult> calculateAdjustmentSplits(
-      BigDecimal totalAmount, List<SplitRequest> splitRequests, String currency) {
+      BigDecimal totalAmount, List<SplitRequest> splitRequests, int scale) {
     List<SplitResult> results = new ArrayList<>();
     BigDecimal totalAdjustment = BigDecimal.ZERO;
     for (SplitRequest sr : splitRequests) {
@@ -150,13 +153,11 @@ public class SplitCalculator {
     }
 
     BigDecimal count = BigDecimal.valueOf(splitRequests.size());
-    int scale = getScale(currency);
     BigDecimal baseShare = totalAmount.divide(count, scale, RoundingMode.HALF_UP);
     for (SplitRequest sr : splitRequests) {
       BigDecimal adj = sr.getSplitValue() != null ? sr.getSplitValue() : BigDecimal.ZERO;
       results.add(new SplitResult(sr.getUserId(), baseShare.add(adj), SplitType.ADJUSTMENT, adj));
     }
-    handleRemainder(totalAmount, results);
     return results;
   }
 }

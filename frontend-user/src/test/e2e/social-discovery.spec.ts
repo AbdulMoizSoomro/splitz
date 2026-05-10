@@ -72,22 +72,6 @@ async function createGroupWithMember(
 test.describe('[E2E] Social Discovery and Group Exit', () => {
   /**
    * AC#1: User joins a group with non-friends and verifies the 'Temp Friend' badge appears.
-   *
-   * Setup: UserA and UserB are NOT friends. UserA creates a group and adds UserB
-   * (this requires a different setup — UserB can't be added without being a friend
-   * in the current UI. Instead: UserA and UserC are friends and in a group.
-   * UserB is NOT a friend of UserA. UserB is added to the group via UserC's session.)
-   *
-   * Simpler valid interpretation: UserA creates group with UserB (who is a friend).
-   * Then UserA removes UserB from friends. Now UserB is a Temp Friend in the group.
-   * However, "remove friend" requires confirming a browser dialog.
-   *
-   * Cleanest approach: Create two users. Make them friends (required for group creation).
-   * Add UserB to group. Confirm 'Temp Friend' badge does NOT appear when they are friends.
-   * Then remove the friendship → reload → 'Temp Friend' badge should appear.
-   *
-   * Note: The isTempFriend logic: `!isCurrentUser && friends && !isFriend`
-   * If `friends` is empty (non-friend) → isTempFriend = true.
    */
   test('Temp Friend badge appears for non-friend group members', async ({ browser }) => {
     const ts = Date.now();
@@ -104,7 +88,6 @@ test.describe('[E2E] Social Discovery and Group Exit', () => {
       // 1. Register all three users: owner, a friend (member), and a non-friend
       await registerUser(pageOwner, ownerName, 'Owner', 'User');
       await registerUser(pageMember, memberName, 'Member', 'User');
-      // Non-friend just needs to exist; register via owner's page then owner logs back in
       await registerUser(pageOwner, nonFriendName, 'NonFriend', 'User');
 
       // 2. Login owner and member
@@ -119,22 +102,27 @@ test.describe('[E2E] Social Discovery and Group Exit', () => {
       const groupName = `TempFriend Group ${ts}`;
       const groupUrl = await createGroupWithMember(pageOwner, groupName, 'Member');
 
-      // 5. In GroupDetails, the member (who is a friend of owner) should show "Member" badge
+      // 5. In GroupDetails, navigate to Members tab
+      await pageOwner.getByRole('button', { name: 'Members', exact: true }).click();
+
+      // 6. The member (who is a friend of owner) should show "Member" badge
       //    but NOT "Temp Friend" badge (they are friends)
       const membersCard = pageOwner.locator('.divide-y');
       await expect(membersCard.locator('span', { hasText: 'Temp Friend' })).not.toBeVisible();
 
-      // 6. Owner removes the member from friends via the friends page
+      // 7. Owner removes the member from friends via the friends page
       pageOwner.on('dialog', (dialog) => dialog.accept());
       await pageOwner.goto('/friends');
       await expect(pageOwner.getByText(`@${memberName}`)).toBeVisible({ timeout: 10000 });
       await pageOwner.getByTitle('Remove Friend').click();
-      // Confirm friend was removed
       await expect(pageOwner.getByText(/no friends added yet/i)).toBeVisible({ timeout: 5000 });
 
-      // 7. Navigate back to the group — member is now a non-friend → Temp Friend badge
+      // 8. Navigate back to the group — member is now a non-friend → Temp Friend badge
       await pageOwner.goto(groupUrl);
       await expect(pageOwner).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
+      
+      // Navigate to Members tab
+      await pageOwner.getByRole('button', { name: 'Members', exact: true }).click();
 
       // The member should now show the "Temp Friend" badge
       await expect(
@@ -148,10 +136,6 @@ test.describe('[E2E] Social Discovery and Group Exit', () => {
 
   /**
    * AC#2: User with a non-zero balance attempts to leave the group and is blocked by the UI.
-   *
-   * Setup: Two users (A=payer, B=debtor) share a group with an expense.
-   * UserB (debtor) has a non-zero balance and cannot leave.
-   * The leave modal shows an outstanding balance warning with the Leave button disabled.
    */
   test('User with non-zero balance is blocked from leaving group', async ({ browser }) => {
     const ts = Date.now();
@@ -181,7 +165,6 @@ test.describe('[E2E] Social Discovery and Group Exit', () => {
       const groupUrl = await createGroupWithMember(pagePayer, groupName, 'Debtor');
 
       // 5. Payer creates an expense (equal split): $20 → each owes $10
-      //    Payer paid, so Debtor owes Payer $10 (Debtor balance = -10)
       await pagePayer.goto('/groups');
       const groupCard = pagePayer.locator('.bg-white', { hasText: groupName });
       await groupCard.getByRole('button', { name: /add expense/i }).click();
@@ -198,7 +181,7 @@ test.describe('[E2E] Social Discovery and Group Exit', () => {
       await expect(pageDebtor).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
       await expect(pageDebtor.getByText(groupName)).toBeVisible();
 
-      // 7. Debtor clicks "Leave Group"
+      // 7. Debtor clicks "Leave Group" (in sidebar, always visible)
       await pageDebtor.getByRole('button', { name: /leave group/i }).click();
       const leaveModal = pageDebtor.getByRole('dialog');
       await expect(leaveModal).toBeVisible();
@@ -219,9 +202,6 @@ test.describe('[E2E] Social Discovery and Group Exit', () => {
 
   /**
    * AC#3: User with zero balance successfully leaves the group.
-   *
-   * A solo user (no expenses, balance = 0) creates a group and leaves it.
-   * Verifies redirect to /groups and group no longer appears.
    */
   test('User with zero balance successfully leaves group', async ({ page }) => {
     const ts = Date.now();
@@ -250,7 +230,7 @@ test.describe('[E2E] Social Discovery and Group Exit', () => {
     const leaveModal = page.getByRole('dialog');
     await expect(leaveModal).toBeVisible();
 
-    // 5. Verify confirmation prompt (no outstanding balance warning)
+    // 5. Verify confirmation prompt
     await expect(
       leaveModal.getByText(/are you sure you want to leave this group\?/i),
     ).toBeVisible();
