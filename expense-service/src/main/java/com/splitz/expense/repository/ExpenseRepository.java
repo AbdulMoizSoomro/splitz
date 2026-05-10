@@ -38,4 +38,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
       "SELECT COALESCE(SUM(s.shareAmount), 0) FROM Expense e JOIN e.splits s WHERE e.group.id = :groupId AND s.userId = :userId")
   BigDecimal calculateTotalShareForUserInGroup(
       @Param("userId") Long userId, @Param("groupId") Long groupId);
+
+  @Query(
+      "SELECT DISTINCT e FROM Expense e LEFT JOIN e.splits s WHERE e.paidBy = :userId OR s.userId = :userId")
+  List<Expense> findAllByInvolvedUserId(@Param("userId") Long userId);
 }
