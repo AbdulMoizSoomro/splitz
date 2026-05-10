@@ -101,6 +101,8 @@ public class BalanceService {
     List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
     List<Expense> expenses = expenseRepository.findByGroupId(groupId);
     List<Settlement> settlements = settlementRepository.findByGroupId(groupId);
+    List<FriendshipSettlement> friendshipSettlements =
+        friendshipSettlementRepository.findByGroupId(groupId);
 
     Map<Long, BigDecimal> balances = new HashMap<>();
     for (GroupMember member : members) {
@@ -121,6 +123,17 @@ public class BalanceService {
     }
 
     for (Settlement settlement : settlements) {
+      if (settlement.getStatus() == SettlementStatus.COMPLETED) {
+        Long payerId = settlement.getPayerId();
+        Long payeeId = settlement.getPayeeId();
+        BigDecimal amount = settlement.getAmount();
+
+        balances.put(payerId, balances.getOrDefault(payerId, BigDecimal.ZERO).add(amount));
+        balances.put(payeeId, balances.getOrDefault(payeeId, BigDecimal.ZERO).subtract(amount));
+      }
+    }
+
+    for (FriendshipSettlement settlement : friendshipSettlements) {
       if (settlement.getStatus() == SettlementStatus.COMPLETED) {
         Long payerId = settlement.getPayerId();
         Long payeeId = settlement.getPayeeId();
@@ -229,11 +242,20 @@ public class BalanceService {
     BigDecimal settlementsReceived =
         settlementRepository.calculateTotalSettlementsReceivedByUserInGroup(
             userId, groupId, SettlementStatus.COMPLETED);
+    BigDecimal friendshipSettlementsPaid =
+        friendshipSettlementRepository.calculateTotalSettlementsPaidByUserInGroup(
+            userId, groupId, SettlementStatus.COMPLETED);
+    BigDecimal friendshipSettlementsReceived =
+        friendshipSettlementRepository.calculateTotalSettlementsReceivedByUserInGroup(
+            userId, groupId, SettlementStatus.COMPLETED);
 
-    return totalPaid
-        .subtract(totalShare)
-        .add(settlementsPaid)
-        .subtract(settlementsReceived)
+    return (totalPaid != null ? totalPaid : BigDecimal.ZERO)
+        .subtract(totalShare != null ? totalShare : BigDecimal.ZERO)
+        .add(settlementsPaid != null ? settlementsPaid : BigDecimal.ZERO)
+        .subtract(settlementsReceived != null ? settlementsReceived : BigDecimal.ZERO)
+        .add(friendshipSettlementsPaid != null ? friendshipSettlementsPaid : BigDecimal.ZERO)
+        .subtract(
+            friendshipSettlementsReceived != null ? friendshipSettlementsReceived : BigDecimal.ZERO)
         .setScale(2, RoundingMode.HALF_UP);
   }
 
