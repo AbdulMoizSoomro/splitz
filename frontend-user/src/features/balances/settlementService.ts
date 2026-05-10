@@ -18,6 +18,10 @@ export interface Settlement {
   status: "PENDING" | "PAID" | "CONFIRMED" | "REJECTED";
   paidAt?: string;
   confirmedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  markedPaidAt?: string;
+  settledAt?: string;
 }
 
 export const settlementService = {
