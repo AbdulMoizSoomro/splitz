@@ -40,3 +40,4 @@ Task #35: Complete. Remainder handling and strategies verified. Committing chang
 - Implemented Global Friendship Settlements (#39) and Net Balance Tracking. Confidence: High.
 - Optimized Shared Expenses with Bulk API (#38) and refactored Friend Detail Page for performance. Fixed "Leave Group" authorization bug. Confidence: High.
 - Refactored Expense Split Logic into a dedicated, currency-aware module using the Strategy Pattern (#37). Extracted RemainderHandler and implemented domain-specific exceptions. Confidence: High.
+Blocker: Git working tree is not clean. Uncommitted changes in frontend-user/src/features/users/friendService.ts.
