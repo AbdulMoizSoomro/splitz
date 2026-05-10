@@ -15,7 +15,14 @@ class SplitCalculatorTest {
 
   @BeforeEach
   void setUp() {
-    calculator = new SplitCalculator();
+    List<SplitStrategy> strategies =
+        List.of(
+            new EqualSplitStrategy(),
+            new ExactSplitStrategy(),
+            new PercentageSplitStrategy(),
+            new SharesSplitStrategy(),
+            new AdjustmentSplitStrategy());
+    calculator = new SplitCalculator(strategies, new RemainderHandler());
   }
 
   @Test
@@ -150,6 +157,7 @@ class SplitCalculatorTest {
     List<SplitResult> results = calculator.calculate(totalAmount, SplitType.EQUAL, requests, "JPY");
 
     assertThat(results).hasSize(3);
+    // Reminder is given to the first user
     assertThat(results.get(0).shareAmount()).isEqualByComparingTo("34");
     assertThat(results.get(1).shareAmount()).isEqualByComparingTo("33");
     assertThat(results.get(2).shareAmount()).isEqualByComparingTo("33");
