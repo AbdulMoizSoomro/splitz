@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.splitz.expense.dto.CategoryDTO;
 import com.splitz.expense.exception.ResourceNotFoundException;
+import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.mapper.CategoryMapper;
 import com.splitz.expense.model.Category;
 import com.splitz.expense.repository.CategoryRepository;
@@ -28,7 +29,14 @@ class CategoryServiceTest {
 
   @Mock private CategoryMapper categoryMapper;
 
+  @Mock private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
+
   @InjectMocks private CategoryService categoryService;
+
+  @org.junit.jupiter.api.BeforeEach
+  void setUp() {
+    org.mockito.Mockito.lenient().when(splitzAuthorizer.isAdmin()).thenReturn(true);
+  }
 
   @Test
   void getAllCategories_ShouldReturnListOfCategories() {
@@ -74,6 +82,14 @@ class CategoryServiceTest {
   }
 
   @Test
+  void createCategory_NonAdmin_ShouldThrowException() {
+    CategoryDTO request = CategoryDTO.builder().name("Utilities").build();
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+
+    assertThrows(UnauthorizedException.class, () -> categoryService.createCategory(request));
+  }
+
+  @Test
   void updateCategory_ShouldReturnUpdatedCategory() {
     CategoryDTO request =
         CategoryDTO.builder().name("Updated Food").icon("🍔").color("#FF0000").build();
@@ -93,6 +109,14 @@ class CategoryServiceTest {
   }
 
   @Test
+  void updateCategory_NonAdmin_ShouldThrowException() {
+    CategoryDTO request = CategoryDTO.builder().build();
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+
+    assertThrows(UnauthorizedException.class, () -> categoryService.updateCategory(1L, request));
+  }
+
+  @Test
   void deleteCategory_ShouldDeleteCategory() {
     Category category = Category.builder().id(1L).name("Food").defaultCategory(false).build();
     when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
@@ -100,6 +124,13 @@ class CategoryServiceTest {
     categoryService.deleteCategory(1L);
 
     verify(categoryRepository).delete(category);
+  }
+
+  @Test
+  void deleteCategory_NonAdmin_ShouldThrowException() {
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+
+    assertThrows(UnauthorizedException.class, () -> categoryService.deleteCategory(1L));
   }
 
   @Test

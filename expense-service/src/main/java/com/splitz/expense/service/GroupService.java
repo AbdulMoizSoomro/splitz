@@ -9,6 +9,7 @@ import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.dto.UpdateMemberRoleRequest;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
+import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.mapper.GroupMapper;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
@@ -21,7 +22,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -211,7 +211,7 @@ public class GroupService {
 
     // Owner protection
     if (member.getUserId().equals(group.getCreatedBy())) {
-      throw new AccessDeniedException("The group owner cannot be removed from the group");
+      throw new UnauthorizedException("The group owner cannot be removed from the group");
     }
 
     group.removeMember(member);
@@ -230,7 +230,7 @@ public class GroupService {
 
     // Owner protection: The owner cannot be demoted or have their role changed by others.
     if (member.getUserId().equals(group.getCreatedBy())) {
-      throw new AccessDeniedException("The group owner role cannot be modified");
+      throw new UnauthorizedException("The group owner role cannot be modified");
     }
 
     // Admin wars protection: Only owner can demote an Admin (unless self-demoting)
@@ -238,7 +238,7 @@ public class GroupService {
         && request.getRole() == GroupRole.MEMBER
         && !userId.equals(group.getCreatedBy())
         && !userId.equals(memberUserId)) {
-      throw new AccessDeniedException("Only the group owner can demote another admin");
+      throw new UnauthorizedException("Only the group owner can demote another admin");
     }
 
     member.setRole(request.getRole());
@@ -255,7 +255,7 @@ public class GroupService {
     boolean isMember =
         group.getMembers().stream().anyMatch(member -> member.getUserId().equals(userId));
     if (!isMember) {
-      throw new AccessDeniedException("You are not a member of this group");
+      throw new UnauthorizedException("You are not a member of this group");
     }
   }
 
@@ -264,9 +264,9 @@ public class GroupService {
         group.getMembers().stream()
             .filter(member -> member.getUserId().equals(userId))
             .findFirst()
-            .orElseThrow(() -> new AccessDeniedException("You are not a member of this group"));
+            .orElseThrow(() -> new UnauthorizedException("You are not a member of this group"));
     if (membership.getRole() != GroupRole.ADMIN) {
-      throw new AccessDeniedException("Only admins can perform this action");
+      throw new UnauthorizedException("Only admins can perform this action");
     }
   }
 
@@ -275,14 +275,14 @@ public class GroupService {
         group.getMembers().stream()
             .filter(member -> member.getUserId().equals(userId))
             .findFirst()
-            .orElseThrow(() -> new AccessDeniedException("You are not a member of this group"));
+            .orElseThrow(() -> new UnauthorizedException("You are not a member of this group"));
 
     if (membership.getRole() == GroupRole.ADMIN || group.getCreatedBy().equals(userId)) {
       return;
     }
 
     if (!group.isAllowMembersToManageMembers()) {
-      throw new AccessDeniedException("Only admins can manage members in this group");
+      throw new UnauthorizedException("Only admins can manage members in this group");
     }
   }
 }

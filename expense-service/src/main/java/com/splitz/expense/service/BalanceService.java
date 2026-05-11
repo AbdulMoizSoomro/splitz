@@ -42,9 +42,17 @@ public class BalanceService {
   private final SettlementRepository settlementRepository;
   private final FriendshipSettlementRepository friendshipSettlementRepository;
   private final UserClient userClient;
+  private final com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
   @Transactional(readOnly = true)
-  public FriendBalanceResponseDTO getNetBalanceWithFriend(Long userId, Long friendId) {
+  public FriendBalanceResponseDTO getNetBalanceWithFriend(
+      Long userId, Long friendId, Long currentUserId) {
+    if (!currentUserId.equals(userId)
+        && !currentUserId.equals(friendId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "You are not authorized to view this balance");
+    }
     Set<Long> userGroupIds =
         groupMemberRepository.findByUserId(userId).stream()
             .map(gm -> gm.getGroup().getId())
@@ -93,7 +101,12 @@ public class BalanceService {
   }
 
   @Transactional(readOnly = true)
-  public GroupBalanceResponseDTO getGroupBalances(Long groupId) {
+  public GroupBalanceResponseDTO getGroupBalances(Long groupId, Long currentUserId) {
+    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "Only group members can view group balances");
+    }
     if (!groupRepository.existsById(groupId)) {
       throw new ResourceNotFoundException("Group not found with id: " + groupId);
     }
@@ -174,7 +187,11 @@ public class BalanceService {
   }
 
   @Transactional(readOnly = true)
-  public UserBalanceResponseDTO getUserBalances(Long userId) {
+  public UserBalanceResponseDTO getUserBalances(Long userId, Long currentUserId) {
+    if (!currentUserId.equals(userId) && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "You are not authorized to view these balances");
+    }
     List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
     List<UserBalanceResponseDTO.GroupBalanceDTO> groupBalances = new ArrayList<>();
 

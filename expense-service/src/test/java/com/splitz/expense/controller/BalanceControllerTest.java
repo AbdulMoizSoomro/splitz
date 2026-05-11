@@ -1,6 +1,7 @@
 package com.splitz.expense.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -9,9 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.splitz.expense.dto.BalanceDTO;
 import com.splitz.expense.dto.DebtDTO;
+import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
-import com.splitz.expense.security.SecurityExpressions;
 import com.splitz.expense.service.BalanceService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.JwtUtil;
@@ -39,8 +40,7 @@ class BalanceControllerTest {
 
   @MockBean private BalanceService balanceService;
 
-  @MockBean(name = "security")
-  private SecurityExpressions securityExpressions;
+  @MockBean private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
@@ -58,6 +58,8 @@ class BalanceControllerTest {
             })
         .when(jwtRequestFilter)
         .doFilter(any(), any(), any());
+
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
   }
 
   @Test
@@ -77,7 +79,7 @@ class BalanceControllerTest {
                     DebtDTO.builder().from(103L).to(101L).amount(new BigDecimal("20.00")).build()))
             .build();
 
-    when(balanceService.getGroupBalances(1L)).thenReturn(response);
+    when(balanceService.getGroupBalances(eq(1L), eq(101L))).thenReturn(response);
 
     mockMvc
         .perform(get("/groups/1/balances"))
@@ -104,7 +106,7 @@ class BalanceControllerTest {
                         2L, "Group 2", new BigDecimal("-10.00"))))
             .build();
 
-    when(balanceService.getUserBalances(101L)).thenReturn(response);
+    when(balanceService.getUserBalances(eq(101L), eq(101L))).thenReturn(response);
 
     mockMvc
         .perform(get("/users/101/balances"))
@@ -113,5 +115,25 @@ class BalanceControllerTest {
         .andExpect(jsonPath("$.totalBalance").value(15.00))
         .andExpect(jsonPath("$.groupBalances[0].groupId").value(1L))
         .andExpect(jsonPath("$.groupBalances[0].balance").value(25.00));
+  }
+
+  @Test
+  @WithMockUser(username = "101")
+  void getFriendBalance_ShouldReturnNetBalance() throws Exception {
+    FriendBalanceResponseDTO response =
+        FriendBalanceResponseDTO.builder()
+            .userId(101L)
+            .friendId(102L)
+            .netBalance(new BigDecimal("5.00"))
+            .build();
+
+    when(balanceService.getNetBalanceWithFriend(eq(101L), eq(102L), eq(101L))).thenReturn(response);
+
+    mockMvc
+        .perform(get("/users/101/balances/with/102"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.userId").value(101L))
+        .andExpect(jsonPath("$.friendId").value(102L))
+        .andExpect(jsonPath("$.netBalance").value(5.00));
   }
 }

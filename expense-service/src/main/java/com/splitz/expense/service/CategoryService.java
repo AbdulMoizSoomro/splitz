@@ -17,6 +17,7 @@ public class CategoryService {
 
   private final CategoryRepository categoryRepository;
   private final CategoryMapper categoryMapper;
+  private final com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
   @Transactional(readOnly = true)
   public List<CategoryDTO> getAllCategories() {
@@ -27,6 +28,7 @@ public class CategoryService {
 
   @Transactional
   public CategoryDTO createCategory(CategoryDTO request) {
+    checkAdmin();
     Category category = categoryMapper.toEntity(request);
     category.setDefaultCategory(false); // Only seed data should be default
     return categoryMapper.toDTO(categoryRepository.save(category));
@@ -34,6 +36,7 @@ public class CategoryService {
 
   @Transactional
   public CategoryDTO updateCategory(Long id, CategoryDTO request) {
+    checkAdmin();
     Category category =
         categoryRepository
             .findById(id)
@@ -54,6 +57,7 @@ public class CategoryService {
 
   @Transactional
   public void deleteCategory(Long id) {
+    checkAdmin();
     Category category =
         categoryRepository
             .findById(id)
@@ -64,5 +68,12 @@ public class CategoryService {
     }
 
     categoryRepository.delete(category);
+  }
+
+  private void checkAdmin() {
+    if (!splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "Only administrators can manage categories");
+    }
   }
 }

@@ -40,7 +40,12 @@ public class ExpenseService {
   private final SharedSecurityAuthorizer splitzAuthorizer;
 
   @Transactional
-  public ExpenseDTO createExpense(Long groupId, CreateExpenseRequest request) {
+  public ExpenseDTO createExpense(Long groupId, CreateExpenseRequest request, Long currentUserId) {
+    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "Only group members can create expenses");
+    }
     Group group =
         groupRepository
             .findById(groupId)
@@ -107,16 +112,28 @@ public class ExpenseService {
   }
 
   @Transactional(readOnly = true)
-  public ExpenseDTO getExpense(Long id) {
+  public ExpenseDTO getExpense(Long id, Long currentUserId) {
     Expense expense =
         expenseRepository
             .findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + id));
+
+    if (!groupMemberRepository.existsByGroupIdAndUserId(expense.getGroup().getId(), currentUserId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "Only group members can view this expense");
+    }
+
     return expenseMapper.toDTO(expense);
   }
 
   @Transactional(readOnly = true)
-  public List<ExpenseDTO> getExpensesByGroup(Long groupId) {
+  public List<ExpenseDTO> getExpensesByGroup(Long groupId, Long currentUserId) {
+    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "Only group members can view group expenses");
+    }
     if (!groupRepository.existsById(groupId)) {
       throw new ResourceNotFoundException("Group not found with id: " + groupId);
     }
@@ -126,8 +143,22 @@ public class ExpenseService {
   }
 
   @Transactional(readOnly = true)
-  public List<ExpenseDTO> getExpensesByGroupIds(List<Long> groupIds) {
-    return expenseRepository.findByGroupIdIn(groupIds).stream()
+  public List<ExpenseDTO> getExpensesByGroupIds(List<Long> groupIds, Long currentUserId) {
+    List<Long> authorizedGroupIds = groupIds;
+    if (!splitzAuthorizer.isAdmin()) {
+      List<Long> userGroupIds =
+          groupMemberRepository.findByUserId(currentUserId).stream()
+              .map(gm -> gm.getGroup().getId())
+              .toList();
+      authorizedGroupIds =
+          groupIds.stream().filter(userGroupIds::contains).collect(Collectors.toList());
+    }
+
+    if (authorizedGroupIds.isEmpty()) {
+      return java.util.Collections.emptyList();
+    }
+
+    return expenseRepository.findByGroupIdIn(authorizedGroupIds).stream()
         .map(expenseMapper::toDTO)
         .collect(Collectors.toList());
   }
@@ -193,10 +224,13 @@ public class ExpenseService {
     GroupMember member =
         groupMemberRepository
             .findByGroupIdAndUserId(expense.getGroup().getId(), currentUserId)
-            .orElseThrow(() -> new IllegalArgumentException("User is not a member of the group"));
+            .orElseThrow(
+                () ->
+                    new com.splitz.expense.exception.UnauthorizedException(
+                        "User is not a member of the group"));
 
     if (member.getRole() != GroupRole.ADMIN) {
-      throw new IllegalArgumentException(
+      throw new com.splitz.expense.exception.UnauthorizedException(
           "Only the expense creator or a group admin can modify/delete the expense");
     }
   }

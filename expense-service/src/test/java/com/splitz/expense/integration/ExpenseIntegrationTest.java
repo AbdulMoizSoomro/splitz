@@ -185,8 +185,7 @@ public class ExpenseIntegrationTest {
                 .header("Authorization", tokenFor(101L))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updateRequest)))
-        .andExpect(status().isBadRequest()); // ExpenseService throws IllegalArgumentException which
-    // maps to 400
+        .andExpect(status().isForbidden());
   }
 
   private Expense createTestExpense(Long paidBy) {

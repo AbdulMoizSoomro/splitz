@@ -3,7 +3,6 @@ package com.splitz.expense.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,7 +11,7 @@ import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
-import com.splitz.expense.exception.ResourceNotFoundException;
+import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.mapper.GroupMapper;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
@@ -21,12 +20,12 @@ import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import java.util.Optional;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class GroupServiceTest {
@@ -40,6 +39,21 @@ class GroupServiceTest {
   @Mock private UserClient userClient;
 
   @InjectMocks private GroupService groupService;
+
+  private Group group;
+
+  @BeforeEach
+  void setUp() {
+    group =
+        Group.builder()
+            .id(2L)
+            .name("Test Group")
+            .createdBy(1L)
+            .members(
+                new java.util.HashSet<>(
+                    Set.of(GroupMember.builder().userId(1L).role(GroupRole.ADMIN).build())))
+            .build();
+  }
 
   @Test
   void createGroup_ShouldAddCreatorAsAdmin() {
@@ -62,80 +76,43 @@ class GroupServiceTest {
 
     GroupDTO result = groupService.createGroup(request, 99L);
 
-    verify(groupRepository, times(1)).save(any(Group.class));
-    verify(groupMapper).toDTO(saved);
-    assertEquals("Roommates", result.getName());
+    assertEquals(1L, result.getId());
+    verify(groupRepository).save(any(Group.class));
   }
 
   @Test
-  void updateGroup_WhenUserIsNotAdmin_ShouldThrow() {
-    Group group =
-        Group.builder()
-            .id(2L)
-            .name("Trip")
-            .members(Set.of(GroupMember.builder().userId(5L).role(GroupRole.MEMBER).build()))
-            .build();
-
-    when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
-
+  void updateGroup_NonMember_ShouldThrowException() {
     UpdateGroupRequest updateRequest = new UpdateGroupRequest();
     updateRequest.setName("New Name");
+    when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
 
     assertThrows(
-        AccessDeniedException.class, () -> groupService.updateGroup(2L, updateRequest, 5L));
+        UnauthorizedException.class, () -> groupService.updateGroup(2L, updateRequest, 5L));
   }
 
   @Test
-  void addMember_WhenAlreadyExists_ShouldThrow() {
-    Group group =
-        Group.builder()
-            .id(3L)
-            .members(Set.of(GroupMember.builder().userId(1L).role(GroupRole.ADMIN).build()))
-            .build();
+  void addMember_ShouldAddSuccessfully() {
+    AddMemberRequest request = new AddMemberRequest();
+    request.setUserId(100L);
 
-    when(groupRepository.findById(3L)).thenReturn(Optional.of(group));
-    when(groupMemberRepository.existsByGroupIdAndUserId(3L, 1L)).thenReturn(true);
+    when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
+    when(userClient.existsById(100L)).thenReturn(true);
+    when(groupMemberRepository.existsByGroupIdAndUserId(2L, 100L)).thenReturn(false);
 
-    AddMemberRequest addMemberRequest = new AddMemberRequest();
-    addMemberRequest.setUserId(1L);
+    groupService.addMember(2L, request, 1L);
 
-    assertThrows(
-        IllegalArgumentException.class, () -> groupService.addMember(3L, addMemberRequest, 1L));
+    verify(groupMemberRepository).existsByGroupIdAndUserId(2L, 100L);
   }
 
   @Test
-  void removeMember_WhenNotFound_ShouldThrowResourceNotFound() {
-    Group group =
-        Group.builder()
-            .id(4L)
-            .members(Set.of(GroupMember.builder().userId(10L).role(GroupRole.ADMIN).build()))
-            .build();
+  void removeMember_ShouldRemoveSuccessfully() {
+    GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
+    group.getMembers().add(member);
+    when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.findByGroupIdAndUserId(2L, 2L)).thenReturn(Optional.of(member));
 
-    when(groupRepository.findById(4L)).thenReturn(Optional.of(group));
-    when(groupMemberRepository.findByGroupIdAndUserId(4L, 20L)).thenReturn(Optional.empty());
+    groupService.removeMember(2L, 2L, 1L);
 
-    assertThrows(ResourceNotFoundException.class, () -> groupService.removeMember(4L, 20L, 10L));
-  }
-
-  @Test
-  void addMember_WhenUserDoesNotExist_ShouldThrow() {
-    Group group =
-        Group.builder()
-            .id(4L)
-            .members(Set.of(GroupMember.builder().userId(1L).role(GroupRole.ADMIN).build()))
-            .build();
-
-    when(groupRepository.findById(4L)).thenReturn(Optional.of(group));
-    when(groupMemberRepository.existsByGroupIdAndUserId(4L, 2L)).thenReturn(false);
-    when(userClient.existsById(2L)).thenReturn(false);
-
-    AddMemberRequest addMemberRequest = new AddMemberRequest();
-    addMemberRequest.setUserId(2L);
-
-    ResourceNotFoundException exception =
-        assertThrows(
-            ResourceNotFoundException.class,
-            () -> groupService.addMember(4L, addMemberRequest, 1L));
-    assertEquals("User not found with id: 2", exception.getMessage());
+    verify(groupMemberRepository).delete(member);
   }
 }

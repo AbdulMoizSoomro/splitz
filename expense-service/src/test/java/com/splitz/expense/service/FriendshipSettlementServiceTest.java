@@ -22,6 +22,7 @@ class FriendshipSettlementServiceTest {
 
   @Mock private FriendshipSettlementRepository friendshipSettlementRepository;
   @Mock private FriendshipSettlementMapper friendshipSettlementMapper;
+  @Mock private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
   @InjectMocks private FriendshipSettlementService friendshipSettlementService;
 
@@ -56,7 +57,7 @@ class FriendshipSettlementServiceTest {
         .thenReturn(savedSettlement);
     when(friendshipSettlementMapper.toDTO(savedSettlement)).thenReturn(expectedDto);
 
-    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request);
+    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request, 101L);
 
     assertNotNull(result);
     assertEquals(1L, result.getId());
@@ -87,5 +88,24 @@ class FriendshipSettlementServiceTest {
     assertNotNull(result);
     assertEquals(SettlementStatus.COMPLETED, result.getStatus());
     assertEquals(SettlementStatus.COMPLETED, settlement.getStatus());
+  }
+
+  @Test
+  void getSettlementById_Unauthorized() {
+    FriendshipSettlement settlement =
+        FriendshipSettlement.builder()
+            .id(1L)
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .status(SettlementStatus.PENDING)
+            .build();
+
+    when(friendshipSettlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+
+    assertThrows(
+        com.splitz.expense.exception.UnauthorizedException.class,
+        () -> friendshipSettlementService.getSettlementById(1L, 999L));
   }
 }
