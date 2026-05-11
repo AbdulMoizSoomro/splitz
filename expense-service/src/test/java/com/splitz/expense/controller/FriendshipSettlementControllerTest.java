@@ -107,7 +107,7 @@ class FriendshipSettlementControllerTest {
   void markAsPaid_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
     settlementDTO.setStatus(SettlementStatus.MARKED_PAID);
-    when(friendshipSettlementService.markAsPaid(eq(1L), eq(101L))).thenReturn(settlementDTO);
+    when(friendshipSettlementService.markAsPaid(eq(1L))).thenReturn(settlementDTO);
 
     mockMvc
         .perform(put("/friendship-settlements/1/mark-paid"))
@@ -120,7 +120,7 @@ class FriendshipSettlementControllerTest {
   void confirmSettlement_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     settlementDTO.setStatus(SettlementStatus.COMPLETED);
-    when(friendshipSettlementService.confirmSettlement(eq(1L), eq(102L))).thenReturn(settlementDTO);
+    when(friendshipSettlementService.confirmSettlement(eq(1L))).thenReturn(settlementDTO);
 
     mockMvc
         .perform(put("/friendship-settlements/1/confirm"))

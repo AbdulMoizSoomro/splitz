@@ -104,6 +104,11 @@ public class FriendshipSettlementService {
                     new ResourceNotFoundException(
                         "Friendship settlement not found with id: " + settlementId));
 
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
+    if (!currentUserId.equals(settlement.getPayerId()) && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("You are not authorized to mark this settlement as paid");
+    }
+
     if (settlement.getStatus() != SettlementStatus.PENDING) {
       throw new IllegalStateException("Settlement must be in PENDING status to be marked as paid");
     }
@@ -123,6 +128,11 @@ public class FriendshipSettlementService {
                 () ->
                     new ResourceNotFoundException(
                         "Friendship settlement not found with id: " + settlementId));
+
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
+    if (!currentUserId.equals(settlement.getPayeeId()) && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("You are not authorized to confirm this settlement");
+    }
 
     if (settlement.getStatus() != SettlementStatus.MARKED_PAID) {
       throw new IllegalStateException("Settlement must be in MARKED_PAID status to be confirmed");
@@ -156,6 +166,13 @@ public class FriendshipSettlementService {
                 () ->
                     new ResourceNotFoundException(
                         "Friendship settlement not found with id: " + id));
+
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
+    if (!currentUserId.equals(settlement.getPayerId())
+        && !currentUserId.equals(settlement.getPayeeId())
+        && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("You are not authorized to view this settlement");
+    }
 
     return friendshipSettlementMapper.toDTO(settlement);
   }

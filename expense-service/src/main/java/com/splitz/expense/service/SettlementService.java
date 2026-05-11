@@ -72,6 +72,12 @@ public class SettlementService {
                 () ->
                     new ResourceNotFoundException("Settlement not found with id: " + settlementId));
 
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
+    if (!currentUserId.equals(settlement.getPayerId()) && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "You are not authorized to mark this settlement as paid");
+    }
+
     if (settlement.getStatus() != SettlementStatus.PENDING) {
       throw new IllegalStateException("Settlement must be in PENDING status to be marked as paid");
     }
@@ -90,6 +96,12 @@ public class SettlementService {
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException("Settlement not found with id: " + settlementId));
+
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
+    if (!currentUserId.equals(settlement.getPayeeId()) && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "You are not authorized to confirm this settlement");
+    }
 
     if (settlement.getStatus() != SettlementStatus.MARKED_PAID) {
       throw new IllegalStateException("Settlement must be in MARKED_PAID status to be confirmed");
@@ -142,6 +154,14 @@ public class SettlementService {
             .findById(id)
             .orElseThrow(
                 () -> new ResourceNotFoundException("Settlement not found with id: " + id));
+
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
+    if (!currentUserId.equals(settlement.getPayerId())
+        && !currentUserId.equals(settlement.getPayeeId())
+        && !splitzAuthorizer.isAdmin()) {
+      throw new com.splitz.expense.exception.UnauthorizedException(
+          "You are not authorized to view this settlement");
+    }
 
     return settlementMapper.toDTO(settlement);
   }

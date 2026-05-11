@@ -48,6 +48,7 @@ class BalanceServiceTest {
 
   @BeforeEach
   void setUp() {
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
     group = Group.builder().id(1L).name("Test Group").build();
   }
 
@@ -56,7 +57,7 @@ class BalanceServiceTest {
     // Arrange
     GroupMember m1 = GroupMember.builder().userId(1L).group(group).build();
     GroupMember m2 = GroupMember.builder().userId(2L).group(group).build();
-    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 1L)).thenReturn(true);
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
     when(groupRepository.existsById(1L)).thenReturn(true);
     when(groupMemberRepository.findByGroupId(1L)).thenReturn(Arrays.asList(m1, m2));
 
@@ -74,7 +75,7 @@ class BalanceServiceTest {
     when(userClient.getUsersByIds(anyList())).thenReturn(Arrays.asList(u1, u2));
 
     // Act
-    GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L, 1L);
+    GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
 
     // Assert
     assertEquals(1L, response.getGroupId());
@@ -95,12 +96,13 @@ class BalanceServiceTest {
 
   @Test
   void getGroupBalances_Unauthorized() {
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(999L);
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 999L)).thenReturn(false);
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(
         com.splitz.expense.exception.UnauthorizedException.class,
-        () -> balanceService.getGroupBalances(1L, 999L));
+        () -> balanceService.getGroupBalances(1L));
   }
 
   @Test
@@ -139,7 +141,7 @@ class BalanceServiceTest {
     when(friendshipSettlementRepository.findByPayerIdOrPayeeId(101L, 101L))
         .thenReturn(Collections.emptyList());
 
-    UserBalanceResponseDTO response = balanceService.getUserBalances(101L, 101L);
+    UserBalanceResponseDTO response = balanceService.getUserBalances(101L);
 
     assertEquals(101L, response.getUserId());
     assertEquals(0, new BigDecimal("15.00").compareTo(response.getTotalBalance()));
@@ -154,11 +156,12 @@ class BalanceServiceTest {
 
   @Test
   void getUserBalances_Unauthorized() {
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(999L);
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(
         com.splitz.expense.exception.UnauthorizedException.class,
-        () -> balanceService.getUserBalances(101L, 999L));
+        () -> balanceService.getUserBalances(101L));
   }
 
   @Test
@@ -193,7 +196,7 @@ class BalanceServiceTest {
             eq(102L), eq(101L), any()))
         .thenReturn(new BigDecimal("10.00"));
 
-    FriendBalanceResponseDTO result = balanceService.getNetBalanceWithFriend(101L, 102L, 101L);
+    FriendBalanceResponseDTO result = balanceService.getNetBalanceWithFriend(101L, 102L);
 
     // Expected: 15 (owed from expense) - 10 (settled globally) = 5
     assertEquals(0, new BigDecimal("5.00").compareTo(result.getNetBalance()));
@@ -201,11 +204,12 @@ class BalanceServiceTest {
 
   @Test
   void getNetBalanceWithFriend_Unauthorized() {
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(999L);
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(
         com.splitz.expense.exception.UnauthorizedException.class,
-        () -> balanceService.getNetBalanceWithFriend(101L, 102L, 999L));
+        () -> balanceService.getNetBalanceWithFriend(101L, 102L));
   }
 
   private BalanceDTO findBalance(List<BalanceDTO> balances, Long userId) {

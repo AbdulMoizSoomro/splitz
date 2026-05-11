@@ -37,8 +37,6 @@ class SettlementControllerTest {
 
   @MockBean private SettlementService settlementService;
 
-  @MockBean private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
-
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
   @MockBean private SharedSecurityAuthorizer splitzAuthorizer;
@@ -70,7 +68,7 @@ class SettlementControllerTest {
             .amount(new BigDecimal("50.00"))
             .build();
 
-    when(settlementService.createSettlement(any(CreateSettlementRequest.class), eq(101L)))
+    when(settlementService.createSettlement(any(CreateSettlementRequest.class)))
         .thenReturn(settlementDTO);
 
     mockMvc
@@ -86,7 +84,7 @@ class SettlementControllerTest {
   @Test
   @WithMockUser(username = "101")
   void getSettlement_Success() throws Exception {
-    when(settlementService.getSettlementById(eq(1L), eq(101L))).thenReturn(settlementDTO);
+    when(settlementService.getSettlementById(eq(1L))).thenReturn(settlementDTO);
 
     mockMvc
         .perform(get("/settlements/1"))
@@ -99,7 +97,7 @@ class SettlementControllerTest {
   void markAsPaid_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
     settlementDTO.setStatus(SettlementStatus.MARKED_PAID);
-    when(settlementService.markAsPaid(eq(1L), eq(101L))).thenReturn(settlementDTO);
+    when(settlementService.markAsPaid(eq(1L))).thenReturn(settlementDTO);
 
     mockMvc
         .perform(put("/settlements/1/mark-paid"))
@@ -112,7 +110,7 @@ class SettlementControllerTest {
   void confirmSettlement_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     settlementDTO.setStatus(SettlementStatus.COMPLETED);
-    when(settlementService.confirmSettlement(eq(1L), eq(102L))).thenReturn(settlementDTO);
+    when(settlementService.confirmSettlement(eq(1L))).thenReturn(settlementDTO);
 
     mockMvc
         .perform(put("/settlements/1/confirm"))
