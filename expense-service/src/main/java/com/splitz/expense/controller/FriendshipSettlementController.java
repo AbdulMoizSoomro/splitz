@@ -45,15 +45,13 @@ public class FriendshipSettlementController {
   }
 
   @PutMapping("/friendship-settlements/{id}/mark-paid")
-  @PreAuthorize(
-      "@splitzAuthorizer.isAdmin() || @friendshipSettlementService.isPayer(#id)")
+  @PreAuthorize("@splitzAuthorizer.isAdmin() || @friendshipSettlementService.isPayer(#id)")
   public ResponseEntity<FriendshipSettlementDTO> markAsPaid(@PathVariable("id") Long id) {
     return ResponseEntity.ok(friendshipSettlementService.markAsPaid(id));
   }
 
   @PutMapping("/friendship-settlements/{id}/confirm")
-  @PreAuthorize(
-      "@splitzAuthorizer.isAdmin() || @friendshipSettlementService.isPayee(#id)")
+  @PreAuthorize("@splitzAuthorizer.isAdmin() || @friendshipSettlementService.isPayee(#id)")
   public ResponseEntity<FriendshipSettlementDTO> confirmSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(friendshipSettlementService.confirmSettlement(id));
   }

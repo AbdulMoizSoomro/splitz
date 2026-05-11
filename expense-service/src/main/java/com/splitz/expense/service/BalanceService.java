@@ -19,6 +19,7 @@ import com.splitz.expense.repository.FriendshipSettlementRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.expense.repository.SettlementRepository;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -42,11 +43,11 @@ public class BalanceService {
   private final SettlementRepository settlementRepository;
   private final FriendshipSettlementRepository friendshipSettlementRepository;
   private final UserClient userClient;
-  private final com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
+  private final SharedSecurityAuthorizer splitzAuthorizer;
 
   @Transactional(readOnly = true)
-  public FriendBalanceResponseDTO getNetBalanceWithFriend(
-      Long userId, Long friendId, Long currentUserId) {
+  public FriendBalanceResponseDTO getNetBalanceWithFriend(Long userId, Long friendId) {
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
     if (!currentUserId.equals(userId)
         && !currentUserId.equals(friendId)
         && !splitzAuthorizer.isAdmin()) {
@@ -101,8 +102,8 @@ public class BalanceService {
   }
 
   @Transactional(readOnly = true)
-  public GroupBalanceResponseDTO getGroupBalances(Long groupId, Long currentUserId) {
-    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)
+  public GroupBalanceResponseDTO getGroupBalances(Long groupId) {
+    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, splitzAuthorizer.getCurrentUserId())
         && !splitzAuthorizer.isAdmin()) {
       throw new com.splitz.expense.exception.UnauthorizedException(
           "Only group members can view group balances");
@@ -187,17 +188,13 @@ public class BalanceService {
   }
 
   @Transactional(readOnly = true)
-  public UserBalanceResponseDTO getUserBalances(Long userId, Long currentUserId) {
-    if (!currentUserId.equals(userId) && !splitzAuthorizer.isAdmin()) {
+  public UserBalanceResponseDTO getUserBalances(Long userId) {
+    if (!splitzAuthorizer.getCurrentUserId().equals(userId) && !splitzAuthorizer.isAdmin()) {
       throw new com.splitz.expense.exception.UnauthorizedException(
           "You are not authorized to view these balances");
     }
     List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
     List<UserBalanceResponseDTO.GroupBalanceDTO> groupBalances = new ArrayList<>();
-
-    // We still want per-group breakdown, but we can optimize the calculation
-    // For now, let's keep the per-group calls but maybe optimize the total balance
-    // Actually, to fix the finding properly, we should avoid calling getGroupBalances in a loop.
 
     BigDecimal totalBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
@@ -205,7 +202,6 @@ public class BalanceService {
       Long groupId = membership.getGroup().getId();
       String groupName = membership.getGroup().getName();
 
-      // Optimize: only calculate for this specific user in the group
       BigDecimal userBalance = calculateUserBalanceInGroup(userId, groupId);
 
       groupBalances.add(
@@ -217,15 +213,6 @@ public class BalanceService {
 
       totalBalance = totalBalance.add(userBalance);
     }
-
-    // Include global friendship settlements
-    BigDecimal globalSent =
-        friendshipSettlementRepository.calculateTotalSettledBetweenUsers(
-            userId, null, SettlementStatus.COMPLETED);
-    // Wait, the calculateTotalSettledBetweenUsers needs a payeeId.
-    // I should add a more generic one or just use the existing logic for now as global settlements
-    // are few.
-    // Actually, I'll just use the optimized aggregate query for global too.
 
     List<FriendshipSettlement> globalSettlements =
         friendshipSettlementRepository.findByPayerIdOrPayeeId(userId, userId);
