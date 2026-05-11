@@ -79,7 +79,7 @@ class CategoryControllerTest {
   }
 
   @Test
-  @WithMockUser
+  @WithMockUser(roles = "ADMIN")
   void createCategory_ShouldReturnCreatedCategory() throws Exception {
     CategoryDTO request =
         CategoryDTO.builder().name("Utilities").icon("💡").color("#96CEB4").build();
@@ -100,7 +100,23 @@ class CategoryControllerTest {
   }
 
   @Test
-  @WithMockUser
+  @WithMockUser(roles = "USER")
+  void createCategory_NonAdmin_ShouldReturnForbidden() throws Exception {
+    CategoryDTO request = CategoryDTO.builder().name("Utilities").build();
+    when(categoryService.createCategory(any(CategoryDTO.class)))
+        .thenThrow(new com.splitz.expense.exception.UnauthorizedException("Admin only"));
+
+    mockMvc
+        .perform(
+            post("/categories")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @WithMockUser(roles = "ADMIN")
   void updateCategory_ShouldReturnUpdatedCategory() throws Exception {
     CategoryDTO request = CategoryDTO.builder().name("Updated Food").build();
     CategoryDTO response = CategoryDTO.builder().id(1L).name("Updated Food").build();
@@ -119,7 +135,7 @@ class CategoryControllerTest {
   }
 
   @Test
-  @WithMockUser
+  @WithMockUser(roles = "ADMIN")
   void deleteCategory_ShouldReturnNoContent() throws Exception {
     mockMvc.perform(delete("/categories/1").with(csrf())).andExpect(status().isNoContent());
 

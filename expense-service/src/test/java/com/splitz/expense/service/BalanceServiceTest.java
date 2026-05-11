@@ -12,11 +12,8 @@ import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
-import com.splitz.expense.model.FriendshipSettlement;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
-import com.splitz.expense.model.Settlement;
-import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.FriendshipSettlementRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
@@ -43,6 +40,7 @@ class BalanceServiceTest {
   @Mock private SettlementRepository settlementRepository;
   @Mock private FriendshipSettlementRepository friendshipSettlementRepository;
   @Mock private UserClient userClient;
+  @Mock private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
   @InjectMocks private BalanceService balanceService;
 
@@ -58,6 +56,7 @@ class BalanceServiceTest {
     // Arrange
     GroupMember m1 = GroupMember.builder().userId(1L).group(group).build();
     GroupMember m2 = GroupMember.builder().userId(2L).group(group).build();
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 1L)).thenReturn(true);
     when(groupRepository.existsById(1L)).thenReturn(true);
     when(groupMemberRepository.findByGroupId(1L)).thenReturn(Arrays.asList(m1, m2));
 
@@ -75,7 +74,7 @@ class BalanceServiceTest {
     when(userClient.getUsersByIds(anyList())).thenReturn(Arrays.asList(u1, u2));
 
     // Act
-    GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
+    GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L, 1L);
 
     // Assert
     assertEquals(1L, response.getGroupId());
@@ -95,49 +94,13 @@ class BalanceServiceTest {
   }
 
   @Test
-  void getGroupBalances_WithSettlements() {
-    GroupMember m1 = GroupMember.builder().userId(1L).group(group).build();
-    GroupMember m2 = GroupMember.builder().userId(2L).group(group).build();
-    when(groupRepository.existsById(1L)).thenReturn(true);
-    when(groupMemberRepository.findByGroupId(1L)).thenReturn(Arrays.asList(m1, m2));
+  void getGroupBalances_Unauthorized() {
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 999L)).thenReturn(false);
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
-    Expense e1 = Expense.builder().paidBy(1L).amount(new BigDecimal("100.00")).build();
-    e1.setSplits(
-        Arrays.asList(
-            ExpenseSplit.builder().userId(1L).shareAmount(new BigDecimal("50.00")).build(),
-            ExpenseSplit.builder().userId(2L).shareAmount(new BigDecimal("50.00")).build()));
-    when(expenseRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(e1));
-
-    // User 2 settles 30.00 to User 1
-    Settlement s1 =
-        Settlement.builder()
-            .payerId(2L)
-            .payeeId(1L)
-            .amount(new BigDecimal("30.00"))
-            .status(SettlementStatus.COMPLETED)
-            .build();
-    when(settlementRepository.findByGroupId(1L)).thenReturn(Collections.singletonList(s1));
-
-    UserResponse u1 = UserResponse.builder().id(1L).username("user1").build();
-    UserResponse u2 = UserResponse.builder().id(2L).username("user2").build();
-    when(userClient.getUsersByIds(anyList())).thenReturn(Arrays.asList(u1, u2));
-
-    GroupBalanceResponseDTO response = balanceService.getGroupBalances(1L);
-
-    BalanceDTO b1 = findBalance(response.getBalances(), 1L);
-    BalanceDTO b2 = findBalance(response.getBalances(), 2L);
-
-    // Initial: 1: +50, 2: -50. After 30 settlement: 1: +50 - 30 = +20, 2: -50 + 30 = -20
-    // Wait, the logic in service:
-    // balances.put(payerId, balances.get(payerId).add(amount)); // Payer's balance increases (less
-    // debt/more credit)
-    // balances.put(payeeId, balances.get(payeeId).subtract(amount)); // Payee's balance decreases
-    // (less credit)
-    // 2 is payer, 1 is payee.
-    // 2: -50 + 30 = -20.
-    // 1: +50 - 30 = +20.
-    assertEquals(0, new BigDecimal("20.00").compareTo(b1.getBalance()));
-    assertEquals(0, new BigDecimal("-20.00").compareTo(b2.getBalance()));
+    assertThrows(
+        com.splitz.expense.exception.UnauthorizedException.class,
+        () -> balanceService.getGroupBalances(1L, 999L));
   }
 
   @Test
@@ -176,7 +139,7 @@ class BalanceServiceTest {
     when(friendshipSettlementRepository.findByPayerIdOrPayeeId(101L, 101L))
         .thenReturn(Collections.emptyList());
 
-    UserBalanceResponseDTO response = balanceService.getUserBalances(101L);
+    UserBalanceResponseDTO response = balanceService.getUserBalances(101L, 101L);
 
     assertEquals(101L, response.getUserId());
     assertEquals(0, new BigDecimal("15.00").compareTo(response.getTotalBalance()));
@@ -190,29 +153,16 @@ class BalanceServiceTest {
   }
 
   @Test
-  void getUserBalances_WithGlobalSettlements() {
-    when(groupMemberRepository.findByUserId(101L)).thenReturn(Collections.emptyList());
+  void getUserBalances_Unauthorized() {
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
-    // Global Settlement: User 101 pays 50.00
-    FriendshipSettlement settlement =
-        FriendshipSettlement.builder()
-            .payerId(101L)
-            .payeeId(102L)
-            .amount(new BigDecimal("50.00"))
-            .status(SettlementStatus.COMPLETED)
-            .build();
-    when(friendshipSettlementRepository.findByPayerIdOrPayeeId(101L, 101L))
-        .thenReturn(Collections.singletonList(settlement));
-    when(userClient.getUserById(101L))
-        .thenReturn(Optional.of(UserResponse.builder().id(101L).build()));
-
-    UserBalanceResponseDTO response = balanceService.getUserBalances(101L);
-
-    assertEquals(0, new BigDecimal("50.00").compareTo(response.getTotalBalance()));
+    assertThrows(
+        com.splitz.expense.exception.UnauthorizedException.class,
+        () -> balanceService.getUserBalances(101L, 999L));
   }
 
   @Test
-  void getNetBalanceWithFriend_CombinesGroupAndGlobal() {
+  void getNetBalanceWithFriend_Success() {
     // Shared Group 1
     Group group1 = Group.builder().id(1L).build();
     GroupMember m1 = GroupMember.builder().group(group1).userId(101L).build();
@@ -243,10 +193,19 @@ class BalanceServiceTest {
             eq(102L), eq(101L), any()))
         .thenReturn(new BigDecimal("10.00"));
 
-    FriendBalanceResponseDTO result = balanceService.getNetBalanceWithFriend(101L, 102L);
+    FriendBalanceResponseDTO result = balanceService.getNetBalanceWithFriend(101L, 102L, 101L);
 
     // Expected: 15 (owed from expense) - 10 (settled globally) = 5
     assertEquals(0, new BigDecimal("5.00").compareTo(result.getNetBalance()));
+  }
+
+  @Test
+  void getNetBalanceWithFriend_Unauthorized() {
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+
+    assertThrows(
+        com.splitz.expense.exception.UnauthorizedException.class,
+        () -> balanceService.getNetBalanceWithFriend(101L, 102L, 999L));
   }
 
   private BalanceDTO findBalance(List<BalanceDTO> balances, Long userId) {

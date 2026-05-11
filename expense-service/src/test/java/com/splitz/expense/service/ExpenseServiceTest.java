@@ -15,6 +15,7 @@ import com.splitz.expense.dto.ExpenseDTO;
 import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.dto.UpdateExpenseRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
+import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.mapper.ExpenseMapper;
 import com.splitz.expense.model.Category;
 import com.splitz.expense.model.Expense;
@@ -116,7 +117,7 @@ class ExpenseServiceTest {
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
-    ExpenseDTO result = expenseService.createExpense(1L, request);
+    ExpenseDTO result = expenseService.createExpense(1L, request, 100L);
 
     assertNotNull(result);
     assertEquals("Dinner", result.getDescription());
@@ -143,7 +144,7 @@ class ExpenseServiceTest {
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
 
-    ExpenseDTO result = expenseService.createExpense(1L, request);
+    ExpenseDTO result = expenseService.createExpense(1L, request, 100L);
 
     assertNotNull(result);
     verify(expenseRepository).save(any(Expense.class));
@@ -172,7 +173,7 @@ class ExpenseServiceTest {
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
 
-    ExpenseDTO result = expenseService.createExpense(1L, request);
+    ExpenseDTO result = expenseService.createExpense(1L, request, 100L);
 
     assertNotNull(result);
     verify(expenseRepository).save(any(Expense.class));
@@ -198,7 +199,8 @@ class ExpenseServiceTest {
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
 
-    assertThrows(IllegalArgumentException.class, () -> expenseService.createExpense(1L, request));
+    assertThrows(
+        IllegalArgumentException.class, () -> expenseService.createExpense(1L, request, 100L));
   }
 
   @Test
@@ -224,7 +226,7 @@ class ExpenseServiceTest {
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
 
-    ExpenseDTO result = expenseService.createExpense(1L, request);
+    ExpenseDTO result = expenseService.createExpense(1L, request, 100L);
 
     assertNotNull(result);
     verify(expenseRepository).save(any(Expense.class));
@@ -250,7 +252,8 @@ class ExpenseServiceTest {
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
 
-    assertThrows(IllegalArgumentException.class, () -> expenseService.createExpense(1L, request));
+    assertThrows(
+        IllegalArgumentException.class, () -> expenseService.createExpense(1L, request, 100L));
   }
 
   @Test
@@ -273,7 +276,7 @@ class ExpenseServiceTest {
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
 
-    ExpenseDTO result = expenseService.createExpense(1L, request);
+    ExpenseDTO result = expenseService.createExpense(1L, request, 100L);
 
     assertNotNull(result);
     verify(expenseRepository).save(any(Expense.class));
@@ -295,7 +298,8 @@ class ExpenseServiceTest {
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
 
-    assertThrows(IllegalArgumentException.class, () -> expenseService.createExpense(1L, request));
+    assertThrows(
+        IllegalArgumentException.class, () -> expenseService.createExpense(1L, request, 100L));
   }
 
   @Test
@@ -322,7 +326,7 @@ class ExpenseServiceTest {
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
 
-    ExpenseDTO result = expenseService.createExpense(1L, request);
+    ExpenseDTO result = expenseService.createExpense(1L, request, 100L);
 
     assertNotNull(result);
     verify(expenseRepository).save(any(Expense.class));
@@ -345,7 +349,8 @@ class ExpenseServiceTest {
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
 
-    assertThrows(IllegalArgumentException.class, () -> expenseService.createExpense(1L, request));
+    assertThrows(
+        IllegalArgumentException.class, () -> expenseService.createExpense(1L, request, 100L));
   }
 
   @Test
@@ -386,24 +391,40 @@ class ExpenseServiceTest {
             });
     when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
 
-    expenseService.createExpense(1L, request);
+    expenseService.createExpense(1L, request, 100L);
   }
 
   @Test
   void createExpense_GroupNotFound_ThrowsException() {
     CreateExpenseRequest request = CreateExpenseRequest.builder().build();
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(groupRepository.findById(1L)).thenReturn(Optional.empty());
 
-    assertThrows(ResourceNotFoundException.class, () -> expenseService.createExpense(1L, request));
+    assertThrows(
+        ResourceNotFoundException.class, () -> expenseService.createExpense(1L, request, 100L));
   }
 
   @Test
   void createExpense_NotGroupMember_ThrowsException() {
     CreateExpenseRequest request = CreateExpenseRequest.builder().paidBy(100L).build();
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    // Creator 101L is member
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
+    // Payer 100L is NOT member
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(false);
 
-    assertThrows(IllegalArgumentException.class, () -> expenseService.createExpense(1L, request));
+    assertThrows(
+        IllegalArgumentException.class, () -> expenseService.createExpense(1L, request, 101L));
+  }
+
+  @Test
+  void createExpense_RequesterNotMember_ThrowsException() {
+    CreateExpenseRequest request = CreateExpenseRequest.builder().build();
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(false);
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+
+    assertThrows(
+        UnauthorizedException.class, () -> expenseService.createExpense(1L, request, 101L));
   }
 
   @Test
@@ -418,9 +439,10 @@ class ExpenseServiceTest {
     expense.setSplits(List.of(split));
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
-    ExpenseDTO result = expenseService.getExpense(1L);
+    ExpenseDTO result = expenseService.getExpense(1L, 100L);
 
     assertNotNull(result);
     assertEquals(1L, result.getId());
@@ -428,11 +450,12 @@ class ExpenseServiceTest {
 
   @Test
   void getExpensesByGroup_Success() {
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(groupRepository.existsById(1L)).thenReturn(true);
     when(expenseRepository.findByGroupId(1L)).thenReturn(List.of(expense));
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
-    List<ExpenseDTO> result = expenseService.getExpensesByGroup(1L);
+    List<ExpenseDTO> result = expenseService.getExpensesByGroup(1L, 100L);
 
     assertFalse(result.isEmpty());
     assertEquals(1, result.size());
@@ -504,7 +527,7 @@ class ExpenseServiceTest {
         .thenReturn(Optional.of(GroupMember.builder().role(GroupRole.MEMBER).build()));
 
     assertThrows(
-        IllegalArgumentException.class, () -> expenseService.updateExpense(1L, request, 101L));
+        UnauthorizedException.class, () -> expenseService.updateExpense(1L, request, 101L));
   }
 
   @Test
@@ -514,7 +537,7 @@ class ExpenseServiceTest {
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 101L)).thenReturn(Optional.empty());
 
     assertThrows(
-        IllegalArgumentException.class, () -> expenseService.updateExpense(1L, request, 101L));
+        UnauthorizedException.class, () -> expenseService.updateExpense(1L, request, 101L));
   }
 
   @Test
@@ -537,13 +560,29 @@ class ExpenseServiceTest {
   void getExpense_NotFound_ThrowsException() {
     when(expenseRepository.findById(1L)).thenReturn(Optional.empty());
 
-    assertThrows(ResourceNotFoundException.class, () -> expenseService.getExpense(1L));
+    assertThrows(ResourceNotFoundException.class, () -> expenseService.getExpense(1L, 100L));
   }
 
   @Test
   void getExpensesByGroup_GroupNotFound_ThrowsException() {
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(groupRepository.existsById(1L)).thenReturn(false);
 
-    assertThrows(ResourceNotFoundException.class, () -> expenseService.getExpensesByGroup(1L));
+    assertThrows(
+        ResourceNotFoundException.class, () -> expenseService.getExpensesByGroup(1L, 100L));
+  }
+
+  @Test
+  void getExpensesByGroupIds_Success() {
+    List<Long> groupIds = Arrays.asList(1L, 2L);
+    when(groupMemberRepository.findByUserId(100L))
+        .thenReturn(List.of(GroupMember.builder().group(group).build()));
+    when(expenseRepository.findByGroupIdIn(any())).thenReturn(List.of(expense));
+    when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
+
+    List<ExpenseDTO> result = expenseService.getExpensesByGroupIds(groupIds, 100L);
+
+    assertFalse(result.isEmpty());
+    assertEquals(1, result.size());
   }
 }

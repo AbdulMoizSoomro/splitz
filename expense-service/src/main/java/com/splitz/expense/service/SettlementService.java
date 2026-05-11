@@ -26,9 +26,15 @@ public class SettlementService {
   private final GroupRepository groupRepository;
   private final GroupMemberRepository groupMemberRepository;
   private final SettlementMapper settlementMapper;
+  private final com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
   @Transactional
-  public SettlementDTO createSettlement(CreateSettlementRequest request) {
+  public SettlementDTO createSettlement(CreateSettlementRequest request, Long currentUserId) {
+    if (!groupMemberRepository.existsByGroupIdAndUserId(request.getGroupId(), currentUserId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("Only group members can create settlements");
+    }
+
     Group group =
         groupRepository
             .findById(request.getGroupId())
@@ -67,7 +73,7 @@ public class SettlementService {
                 () ->
                     new ResourceNotFoundException("Settlement not found with id: " + settlementId));
 
-    if (!settlement.getPayerId().equals(currentUserId)) {
+    if (!settlement.getPayerId().equals(currentUserId) && !splitzAuthorizer.isAdmin()) {
       throw new UnauthorizedException("Only the payer can mark a settlement as paid");
     }
 
@@ -90,7 +96,7 @@ public class SettlementService {
                 () ->
                     new ResourceNotFoundException("Settlement not found with id: " + settlementId));
 
-    if (!settlement.getPayeeId().equals(currentUserId)) {
+    if (!settlement.getPayeeId().equals(currentUserId) && !splitzAuthorizer.isAdmin()) {
       throw new UnauthorizedException("Only the payee can confirm a settlement");
     }
 
@@ -105,17 +111,30 @@ public class SettlementService {
   }
 
   @Transactional(readOnly = true)
-  public List<SettlementDTO> getSettlementsByGroup(Long groupId) {
+  public List<SettlementDTO> getSettlementsByGroup(Long groupId, Long currentUserId) {
+    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("Only group members can view group settlements");
+    }
     return settlementRepository.findByGroupId(groupId).stream()
         .map(settlementMapper::toDTO)
         .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
-  public SettlementDTO getSettlementById(Long id) {
-    return settlementRepository
-        .findById(id)
-        .map(settlementMapper::toDTO)
-        .orElseThrow(() -> new ResourceNotFoundException("Settlement not found with id: " + id));
+  public SettlementDTO getSettlementById(Long id, Long currentUserId) {
+    Settlement settlement =
+        settlementRepository
+            .findById(id)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Settlement not found with id: " + id));
+
+    if (!groupMemberRepository.existsByGroupIdAndUserId(
+            settlement.getGroup().getId(), currentUserId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("Only group members can view this settlement");
+    }
+
+    return settlementMapper.toDTO(settlement);
   }
 }

@@ -71,7 +71,7 @@ class ExpenseControllerTest {
             .splits(List.of(SplitRequest.builder().userId(100L).build()))
             .build();
 
-    when(expenseService.createExpense(eq(1L), any(CreateExpenseRequest.class)))
+    when(expenseService.createExpense(eq(1L), any(CreateExpenseRequest.class), eq(100L)))
         .thenReturn(expenseDTO);
 
     mockMvc
@@ -102,7 +102,7 @@ class ExpenseControllerTest {
 
   @Test
   void getExpense_Success() throws Exception {
-    when(expenseService.getExpense(1L)).thenReturn(expenseDTO);
+    when(expenseService.getExpense(1L, 100L)).thenReturn(expenseDTO);
 
     mockMvc
         .perform(get("/expenses/1"))
@@ -112,7 +112,7 @@ class ExpenseControllerTest {
 
   @Test
   void getExpense_NotFound_ReturnsNotFound() throws Exception {
-    when(expenseService.getExpense(1L))
+    when(expenseService.getExpense(1L, 100L))
         .thenThrow(new com.splitz.expense.exception.ResourceNotFoundException("Expense not found"));
 
     mockMvc.perform(get("/expenses/1")).andExpect(status().isNotFound());
@@ -120,10 +120,21 @@ class ExpenseControllerTest {
 
   @Test
   void getExpensesByGroup_Success() throws Exception {
-    when(expenseService.getExpensesByGroup(1L)).thenReturn(List.of(expenseDTO));
+    when(expenseService.getExpensesByGroup(1L, 100L)).thenReturn(List.of(expenseDTO));
 
     mockMvc
         .perform(get("/groups/1/expenses"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(1L));
+  }
+
+  @Test
+  void getExpensesByGroupIds_Success() throws Exception {
+    when(expenseService.getExpensesByGroupIds(List.of(1L, 2L), 100L))
+        .thenReturn(List.of(expenseDTO));
+
+    mockMvc
+        .perform(get("/groups/expenses/bulk?groupIds=1,2"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].id").value(1L));
   }

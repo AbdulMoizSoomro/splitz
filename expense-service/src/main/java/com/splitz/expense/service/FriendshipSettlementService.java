@@ -22,14 +22,22 @@ public class FriendshipSettlementService {
 
   private final FriendshipSettlementRepository friendshipSettlementRepository;
   private final FriendshipSettlementMapper friendshipSettlementMapper;
+  private final com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
   @Transactional
-  public FriendshipSettlementDTO createSettlement(CreateFriendshipSettlementRequest request) {
+  public FriendshipSettlementDTO createSettlement(
+      CreateFriendshipSettlementRequest request, Long currentUserId) {
     if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("Settlement amount must be positive");
     }
     if (request.getPayerId().equals(request.getPayeeId())) {
       throw new IllegalArgumentException("Payer and payee cannot be the same user");
+    }
+
+    if (!currentUserId.equals(request.getPayerId())
+        && !currentUserId.equals(request.getPayeeId())
+        && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("You are not authorized to create this settlement");
     }
 
     FriendshipSettlement settlement =
@@ -62,7 +70,7 @@ public class FriendshipSettlementService {
                     new ResourceNotFoundException(
                         "Friendship settlement not found with id: " + settlementId));
 
-    if (!settlement.getPayerId().equals(currentUserId)) {
+    if (!settlement.getPayerId().equals(currentUserId) && !splitzAuthorizer.isAdmin()) {
       throw new UnauthorizedException("Only the payer can mark a settlement as paid");
     }
 
@@ -86,7 +94,7 @@ public class FriendshipSettlementService {
                     new ResourceNotFoundException(
                         "Friendship settlement not found with id: " + settlementId));
 
-    if (!settlement.getPayeeId().equals(currentUserId)) {
+    if (!settlement.getPayeeId().equals(currentUserId) && !splitzAuthorizer.isAdmin()) {
       throw new UnauthorizedException("Only the payee can confirm a settlement");
     }
 
@@ -101,18 +109,34 @@ public class FriendshipSettlementService {
   }
 
   @Transactional(readOnly = true)
-  public List<FriendshipSettlementDTO> getSettlementsBetweenUsers(Long userId1, Long userId2) {
+  public List<FriendshipSettlementDTO> getSettlementsBetweenUsers(
+      Long userId1, Long userId2, Long currentUserId) {
+    if (!currentUserId.equals(userId1)
+        && !currentUserId.equals(userId2)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("You are not authorized to view these settlements");
+    }
     return friendshipSettlementRepository.findBetweenUsers(userId1, userId2).stream()
         .map(friendshipSettlementMapper::toDTO)
         .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
-  public FriendshipSettlementDTO getSettlementById(Long id) {
-    return friendshipSettlementRepository
-        .findById(id)
-        .map(friendshipSettlementMapper::toDTO)
-        .orElseThrow(
-            () -> new ResourceNotFoundException("Friendship settlement not found with id: " + id));
+  public FriendshipSettlementDTO getSettlementById(Long id, Long currentUserId) {
+    FriendshipSettlement settlement =
+        friendshipSettlementRepository
+            .findById(id)
+            .orElseThrow(
+                () ->
+                    new ResourceNotFoundException(
+                        "Friendship settlement not found with id: " + id));
+
+    if (!settlement.getPayerId().equals(currentUserId)
+        && !settlement.getPayeeId().equals(currentUserId)
+        && !splitzAuthorizer.isAdmin()) {
+      throw new UnauthorizedException("You are not authorized to view this settlement");
+    }
+
+    return friendshipSettlementMapper.toDTO(settlement);
   }
 }

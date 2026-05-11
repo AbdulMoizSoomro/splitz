@@ -35,6 +35,8 @@ class SettlementServiceTest {
 
   @Mock private SettlementMapper settlementMapper;
 
+  @Mock private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
+
   @InjectMocks private SettlementService settlementService;
 
   private Group group;
@@ -76,13 +78,14 @@ class SettlementServiceTest {
 
   @Test
   void createSettlement_Success() {
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 102L)).thenReturn(true);
     when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
     when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
 
-    SettlementDTO result = settlementService.createSettlement(request);
+    SettlementDTO result = settlementService.createSettlement(request, 101L);
 
     assertNotNull(result);
     assertEquals(SettlementStatus.PENDING, result.getStatus());
@@ -91,19 +94,21 @@ class SettlementServiceTest {
 
   @Test
   void createSettlement_GroupNotFound() {
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
     when(groupRepository.findById(1L)).thenReturn(Optional.empty());
 
     assertThrows(
-        ResourceNotFoundException.class, () -> settlementService.createSettlement(request));
+        ResourceNotFoundException.class, () -> settlementService.createSettlement(request, 101L));
   }
 
   @Test
   void createSettlement_PayerNotMember() {
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 103L)).thenReturn(true);
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(false);
 
     assertThrows(
-        ResourceNotFoundException.class, () -> settlementService.createSettlement(request));
+        ResourceNotFoundException.class, () -> settlementService.createSettlement(request, 103L));
   }
 
   @Test
@@ -123,6 +128,7 @@ class SettlementServiceTest {
   @Test
   void markAsPaid_Unauthorized() {
     when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(UnauthorizedException.class, () -> settlementService.markAsPaid(1L, 999L));
   }
@@ -154,6 +160,7 @@ class SettlementServiceTest {
   void confirmSettlement_Unauthorized() {
     settlement.setStatus(SettlementStatus.MARKED_PAID);
     when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(UnauthorizedException.class, () -> settlementService.confirmSettlement(1L, 101L));
   }
@@ -164,5 +171,14 @@ class SettlementServiceTest {
     when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
 
     assertThrows(IllegalStateException.class, () -> settlementService.confirmSettlement(1L, 102L));
+  }
+
+  @Test
+  void getSettlementById_Unauthorized() {
+    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 999L)).thenReturn(false);
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+
+    assertThrows(UnauthorizedException.class, () -> settlementService.getSettlementById(1L, 999L));
   }
 }

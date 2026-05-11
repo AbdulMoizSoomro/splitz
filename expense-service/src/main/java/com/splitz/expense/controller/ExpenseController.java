@@ -30,7 +30,7 @@ public class ExpenseController {
   public ResponseEntity<ExpenseDTO> createExpense(
       @PathVariable("groupId") Long groupId, @Valid @RequestBody CreateExpenseRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(expenseService.createExpense(groupId, request));
+        .body(expenseService.createExpense(groupId, request, splitzAuthorizer.getCurrentUserId()));
   }
 
   @PutMapping("/groups/{groupId}/expenses/{expenseId}")
@@ -51,19 +51,21 @@ public class ExpenseController {
 
   @GetMapping("/expenses/{id}")
   public ResponseEntity<ExpenseDTO> getExpense(@PathVariable("id") Long id) {
-    return ResponseEntity.ok(expenseService.getExpense(id));
+    return ResponseEntity.ok(expenseService.getExpense(id, splitzAuthorizer.getCurrentUserId()));
   }
 
   @GetMapping("/groups/{groupId}/expenses")
   public ResponseEntity<List<ExpenseDTO>> getExpensesByGroup(
       @PathVariable("groupId") Long groupId) {
-    return ResponseEntity.ok(expenseService.getExpensesByGroup(groupId));
+    return ResponseEntity.ok(
+        expenseService.getExpensesByGroup(groupId, splitzAuthorizer.getCurrentUserId()));
   }
 
   @GetMapping("/groups/expenses/bulk")
   public ResponseEntity<List<ExpenseDTO>> getExpensesByGroupIds(
       @RequestParam("groupIds") List<Long> groupIds) {
-    return ResponseEntity.ok(expenseService.getExpensesByGroupIds(groupIds));
+    return ResponseEntity.ok(
+        expenseService.getExpensesByGroupIds(groupIds, splitzAuthorizer.getCurrentUserId()));
   }
 
   @PutMapping("/expenses/{id}")

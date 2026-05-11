@@ -36,6 +36,8 @@ class SettlementControllerTest {
 
   @MockBean private SettlementService settlementService;
 
+  @MockBean private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
+
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
   private SettlementDTO settlementDTO;
@@ -51,6 +53,7 @@ class SettlementControllerTest {
             .amount(new BigDecimal("50.00"))
             .status(SettlementStatus.PENDING)
             .build();
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
   }
 
   @Test
@@ -64,7 +67,7 @@ class SettlementControllerTest {
             .amount(new BigDecimal("50.00"))
             .build();
 
-    when(settlementService.createSettlement(any(CreateSettlementRequest.class)))
+    when(settlementService.createSettlement(any(CreateSettlementRequest.class), eq(101L)))
         .thenReturn(settlementDTO);
 
     mockMvc
@@ -80,7 +83,7 @@ class SettlementControllerTest {
   @Test
   @WithMockUser(username = "101")
   void getSettlement_Success() throws Exception {
-    when(settlementService.getSettlementById(1L)).thenReturn(settlementDTO);
+    when(settlementService.getSettlementById(eq(1L), eq(101L))).thenReturn(settlementDTO);
 
     mockMvc
         .perform(get("/settlements/1"))
@@ -103,6 +106,7 @@ class SettlementControllerTest {
   @Test
   @WithMockUser(username = "102")
   void confirmSettlement_Success() throws Exception {
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     settlementDTO.setStatus(SettlementStatus.COMPLETED);
     when(settlementService.confirmSettlement(eq(1L), eq(102L))).thenReturn(settlementDTO);
 
