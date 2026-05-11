@@ -11,6 +11,7 @@ import com.splitz.expense.repository.FriendshipSettlementRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,8 @@ public class FriendshipSettlementService {
   private final SharedSecurityAuthorizer splitzAuthorizer;
 
   @Transactional
-  public FriendshipSettlementDTO createSettlement(CreateFriendshipSettlementRequest request) {
+  public List<FriendshipSettlementDTO> createSettlements(
+      CreateFriendshipSettlementRequest request) {
     if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("Settlement amount must be positive");
     }
@@ -53,18 +55,51 @@ public class FriendshipSettlementService {
       markedPaidAt = LocalDateTime.now();
     }
 
-    FriendshipSettlement settlement =
-        FriendshipSettlement.builder()
-            .payerId(request.getPayerId())
-            .payeeId(request.getPayeeId())
-            .groupId(request.getGroupId())
-            .amount(request.getAmount())
-            .status(status)
-            .markedPaidAt(markedPaidAt)
-            .settledAt(settledAt)
-            .build();
+    List<FriendshipSettlement> settlements = new ArrayList<>();
 
-    return friendshipSettlementMapper.toDTO(friendshipSettlementRepository.save(settlement));
+    if (request.getAllocations() != null && !request.getAllocations().isEmpty()) {
+      BigDecimal totalAllocated =
+          request.getAllocations().stream()
+              .map(CreateFriendshipSettlementRequest.Allocation::getAmount)
+              .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+      if (totalAllocated.compareTo(request.getAmount()) != 0) {
+        throw new IllegalArgumentException(
+            "Total allocated amount ("
+                + totalAllocated
+                + ") must match settlement amount ("
+                + request.getAmount()
+                + ")");
+      }
+
+      for (CreateFriendshipSettlementRequest.Allocation allocation : request.getAllocations()) {
+        settlements.add(
+            FriendshipSettlement.builder()
+                .payerId(request.getPayerId())
+                .payeeId(request.getPayeeId())
+                .groupId(allocation.getGroupId())
+                .amount(allocation.getAmount())
+                .status(status)
+                .markedPaidAt(markedPaidAt)
+                .settledAt(settledAt)
+                .build());
+      }
+    } else {
+      settlements.add(
+          FriendshipSettlement.builder()
+              .payerId(request.getPayerId())
+              .payeeId(request.getPayeeId())
+              .groupId(request.getGroupId())
+              .amount(request.getAmount())
+              .status(status)
+              .markedPaidAt(markedPaidAt)
+              .settledAt(settledAt)
+              .build());
+    }
+
+    return friendshipSettlementRepository.saveAll(settlements).stream()
+        .map(friendshipSettlementMapper::toDTO)
+        .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)

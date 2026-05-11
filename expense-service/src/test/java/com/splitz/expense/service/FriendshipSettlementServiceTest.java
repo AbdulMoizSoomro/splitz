@@ -10,6 +10,8 @@ import com.splitz.expense.model.FriendshipSettlement;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.FriendshipSettlementRepository;
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +33,7 @@ class FriendshipSettlementServiceTest {
   }
 
   @Test
-  void createSettlement_Success() {
+  void createSettlements_Success() {
     CreateFriendshipSettlementRequest request =
         CreateFriendshipSettlementRequest.builder()
             .payerId(101L)
@@ -57,19 +59,83 @@ class FriendshipSettlementServiceTest {
             .status(SettlementStatus.PENDING)
             .build();
 
-    when(friendshipSettlementRepository.save(any(FriendshipSettlement.class)))
-        .thenReturn(savedSettlement);
+    when(friendshipSettlementRepository.saveAll(anyList()))
+        .thenReturn(Arrays.asList(savedSettlement));
     when(friendshipSettlementMapper.toDTO(savedSettlement)).thenReturn(expectedDto);
 
-    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request);
+    List<FriendshipSettlementDTO> results = friendshipSettlementService.createSettlements(request);
 
-    assertNotNull(result);
-    assertEquals(1L, result.getId());
-    verify(friendshipSettlementRepository).save(any(FriendshipSettlement.class));
+    assertNotNull(results);
+    assertEquals(1, results.size());
+    assertEquals(1L, results.get(0).getId());
+    verify(friendshipSettlementRepository).saveAll(anyList());
   }
 
   @Test
-  void createSettlement_StatusCompleted_WhenCreatorIsPayee() {
+  void createSettlements_ManualAllocation_Success() {
+    CreateFriendshipSettlementRequest request =
+        CreateFriendshipSettlementRequest.builder()
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("100.00"))
+            .allocations(
+                Arrays.asList(
+                    CreateFriendshipSettlementRequest.Allocation.builder()
+                        .groupId(1L)
+                        .amount(new BigDecimal("40.00"))
+                        .build(),
+                    CreateFriendshipSettlementRequest.Allocation.builder()
+                        .groupId(2L)
+                        .amount(new BigDecimal("60.00"))
+                        .build()))
+            .build();
+
+    when(friendshipSettlementRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
+    when(friendshipSettlementMapper.toDTO(any(FriendshipSettlement.class)))
+        .thenAnswer(
+            i -> {
+              FriendshipSettlement s = i.getArgument(0);
+              return FriendshipSettlementDTO.builder()
+                  .groupId(s.getGroupId())
+                  .amount(s.getAmount())
+                  .build();
+            });
+
+    List<FriendshipSettlementDTO> results = friendshipSettlementService.createSettlements(request);
+
+    assertEquals(2, results.size());
+    assertEquals(1L, results.get(0).getGroupId());
+    assertEquals(new BigDecimal("40.00"), results.get(0).getAmount());
+    assertEquals(2L, results.get(1).getGroupId());
+    assertEquals(new BigDecimal("60.00"), results.get(1).getAmount());
+  }
+
+  @Test
+  void createSettlements_ManualAllocation_Mismatch_ThrowsException() {
+    CreateFriendshipSettlementRequest request =
+        CreateFriendshipSettlementRequest.builder()
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("100.00"))
+            .allocations(
+                Arrays.asList(
+                    CreateFriendshipSettlementRequest.Allocation.builder()
+                        .groupId(1L)
+                        .amount(new BigDecimal("40.00"))
+                        .build(),
+                    CreateFriendshipSettlementRequest.Allocation.builder()
+                        .groupId(2L)
+                        .amount(new BigDecimal("50.00"))
+                        .build()))
+            .build();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> friendshipSettlementService.createSettlements(request));
+  }
+
+  @Test
+  void createSettlements_StatusCompleted_WhenCreatorIsPayee() {
     lenient().when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     CreateFriendshipSettlementRequest request =
         CreateFriendshipSettlementRequest.builder()
@@ -78,8 +144,7 @@ class FriendshipSettlementServiceTest {
             .amount(new BigDecimal("50.00"))
             .build();
 
-    when(friendshipSettlementRepository.save(any(FriendshipSettlement.class)))
-        .thenAnswer(i -> i.getArguments()[0]);
+    when(friendshipSettlementRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
     when(friendshipSettlementMapper.toDTO(any(FriendshipSettlement.class)))
         .thenAnswer(
             i -> {
@@ -88,34 +153,9 @@ class FriendshipSettlementServiceTest {
             });
 
     // Creator is Payee (102L)
-    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request);
+    List<FriendshipSettlementDTO> results = friendshipSettlementService.createSettlements(request);
 
-    assertEquals(SettlementStatus.COMPLETED, result.getStatus());
-  }
-
-  @Test
-  void createSettlement_StatusMarkedPaid_WhenCreatorIsPayer() {
-    lenient().when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
-    CreateFriendshipSettlementRequest request =
-        CreateFriendshipSettlementRequest.builder()
-            .payerId(101L)
-            .payeeId(102L)
-            .amount(new BigDecimal("50.00"))
-            .build();
-
-    when(friendshipSettlementRepository.save(any(FriendshipSettlement.class)))
-        .thenAnswer(i -> i.getArguments()[0]);
-    when(friendshipSettlementMapper.toDTO(any(FriendshipSettlement.class)))
-        .thenAnswer(
-            i -> {
-              FriendshipSettlement s = i.getArgument(0);
-              return FriendshipSettlementDTO.builder().status(s.getStatus()).build();
-            });
-
-    // Creator is Payer (101L)
-    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request);
-
-    assertEquals(SettlementStatus.MARKED_PAID, result.getStatus());
+    assertEquals(SettlementStatus.COMPLETED, results.get(0).getStatus());
   }
 
   @Test

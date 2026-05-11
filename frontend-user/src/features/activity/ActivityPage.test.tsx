@@ -48,7 +48,7 @@ describe("ActivityPage", () => {
         { id: 2, description: "New Expense", amount: 20, currency: "USD", expenseDate: "2023-01-05", groupId: 1, paidBy: 1, splits: [], createdAt: "2023-01-05", updatedAt: "2023-01-05" },
       ],
       settlements: [
-        { id: 1, amount: 5, currency: "USD", paidAt: "2023-01-03", fromUserId: 1, toUserId: 2, groupId: 1, status: "PAID", createdAt: "2023-01-03", updatedAt: "2023-01-03" },
+        { id: 1, amount: 5, currency: "USD", paidAt: "2023-01-03", payerId: 1, payeeId: 2, groupId: 1, status: "PAID", createdAt: "2023-01-03", updatedAt: "2023-01-03" },
       ],
     };
     vi.mocked(activityService.getGlobalActivity).mockResolvedValue(mockData);

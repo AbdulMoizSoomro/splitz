@@ -1,7 +1,6 @@
 package com.splitz.expense.dto;
 
 import java.math.BigDecimal;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,10 +10,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class FriendBalanceResponseDTO {
-
-  private Long userId;
-  private Long friendId;
-  private BigDecimal netBalance;
-  private List<FriendGroupBalanceDTO> groupBalances;
+public class FriendGroupBalanceDTO {
+  private Long groupId;
+  private String groupName;
+  private BigDecimal balance;
 }

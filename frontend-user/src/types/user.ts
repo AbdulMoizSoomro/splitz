@@ -39,6 +39,13 @@ export interface UserBalanceResponse {
   groupBalances: GroupBalance[];
 }
 
+export interface FriendBalanceResponse {
+  userId: number;
+  friendId: number;
+  netBalance: number;
+  groupBalances: GroupBalance[];
+}
+
 export interface FriendshipSettlementDTO {
   id: number;
   payerId: number;

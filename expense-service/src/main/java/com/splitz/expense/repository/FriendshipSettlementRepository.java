@@ -47,6 +47,16 @@ public interface FriendshipSettlementRepository extends JpaRepository<Friendship
       @Param("status") SettlementStatus status);
 
   @Query(
+      "SELECT COALESCE(SUM(fs.amount), 0) FROM FriendshipSettlement fs WHERE "
+          + "((:groupId IS NULL AND fs.groupId IS NULL) OR (fs.groupId = :groupId)) AND "
+          + "fs.payerId = :payerId AND fs.payeeId = :payeeId AND fs.status = :status")
+  BigDecimal calculateTotalSettledBetweenUsersInGroup(
+      @Param("payerId") Long payerId,
+      @Param("payeeId") Long payeeId,
+      @Param("groupId") Long groupId,
+      @Param("status") SettlementStatus status);
+
+  @Query(
       "SELECT COALESCE(SUM(fs.amount), 0) FROM FriendshipSettlement fs WHERE fs.payerId ="
           + " :payerId AND fs.payeeId = :payeeId AND fs.status = :status")
   BigDecimal calculateTotalSettledBetweenUsers(

@@ -3,6 +3,7 @@ import type {
   User,
   Friendship,
   FriendshipSettlementDTO,
+  FriendBalanceResponse,
 } from "../../types/user";
 
 export const friendService = {
@@ -52,8 +53,8 @@ export const friendService = {
   getNetBalance: async (
     userId: number,
     friendId: number,
-  ): Promise<{ netBalance: number }> => {
-    const response = await expenseApi.get<{ netBalance: number }>(
+  ): Promise<FriendBalanceResponse> => {
+    const response = await expenseApi.get<FriendBalanceResponse>(
       `/users/${userId}/balances/with/${friendId}`,
     );
     return response.data;
@@ -73,8 +74,9 @@ export const friendService = {
     payerId: number;
     payeeId: number;
     amount: number;
-  }): Promise<FriendshipSettlementDTO> => {
-    const response = await expenseApi.post<FriendshipSettlementDTO>(
+    allocations?: { groupId: number; amount: number }[];
+  }): Promise<FriendshipSettlementDTO[]> => {
+    const response = await expenseApi.post<FriendshipSettlementDTO[]>(
       "/friendship-settlements",
       data,
     );

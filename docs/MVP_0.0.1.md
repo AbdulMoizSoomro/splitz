@@ -38,7 +38,8 @@ A user can register, login, create a group with friends, add expenses, and see c
 | Expenses | Create/edit/delete expenses | ✅ Done |
 | Split Types | EQUAL and EXACT splits | ✅ Done |
 | Balances | Calculate who owes whom | ✅ Done |
-| Settlements | Record debt payments (manual) | ✅ Done |
+| Settlements | Record group-specific debt payments (manual) | ✅ Done |
+| Friendship Settlements | Record global settlements with manual allocation to group debts | ✅ Done |
 | Global Activity Feed | Unified list of all expenses and settlements involving the user | ✅ Done |
 
 ### Infrastructure
@@ -113,13 +114,19 @@ These features are explicitly **NOT** part of MVP 0.0.1:
 ### Journey 4: Settling Up
 
 ```
-1. User B owes User A $20
-2. User B pays User A (outside app - cash/Venmo/etc)
-3. User B creates settlement POST /settlements
-   { groupId, payerId: B, payeeId: A, amount: 20.00 }
-4. User B marks as paid PUT /settlements/{id}/mark-paid
-5. User A confirms PUT /settlements/{id}/confirm
-6. Balances updated to reflect settlement
+1. User B owes User A €70 across multiple groups
+2. User B pays User A (cash/Venmo/etc)
+3. Either party creates a friendship settlement POST /friendship-settlements
+   { 
+     payerId: B, payeeId: A, amount: 70.00,
+     allocations: [
+       { groupId: 1, amount: 20.00 },
+       { groupId: 2, amount: 50.00 }
+     ]
+   }
+4. If Payer (B) records, status is MARKED_PAID. If Payee (A) records, status is COMPLETED.
+5. If MARKED_PAID, Payee (A) confirms receipt PUT /friendship-settlements/{id}/confirm
+6. Balances and individual group debts updated to reflect settlement
 ```
 
 ---

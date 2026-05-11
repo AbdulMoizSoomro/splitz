@@ -19,7 +19,6 @@ export interface Settlement {
   createdAt: string;
   paidAt?: string;
   confirmedAt?: string;
-  createdAt: string;
   updatedAt: string;
   markedPaidAt?: string;
   settledAt?: string;

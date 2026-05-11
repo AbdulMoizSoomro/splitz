@@ -66,8 +66,9 @@ class FriendshipSettlementControllerTest {
             .amount(new BigDecimal("50.00"))
             .build();
 
-    when(friendshipSettlementService.createSettlement(any(CreateFriendshipSettlementRequest.class)))
-        .thenReturn(settlementDTO);
+    when(friendshipSettlementService.createSettlements(
+            any(CreateFriendshipSettlementRequest.class)))
+        .thenReturn(List.of(settlementDTO));
 
     mockMvc
         .perform(
@@ -75,8 +76,8 @@ class FriendshipSettlementControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.id").value(1))
-        .andExpect(jsonPath("$.status").value("PENDING"));
+        .andExpect(jsonPath("$[0].id").value(1))
+        .andExpect(jsonPath("$[0].status").value("PENDING"));
   }
 
   @Test
