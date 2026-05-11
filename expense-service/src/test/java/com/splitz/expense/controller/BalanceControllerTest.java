@@ -15,6 +15,7 @@ import com.splitz.expense.security.SecurityExpressions;
 import com.splitz.expense.service.BalanceService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.JwtUtil;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
@@ -45,6 +46,8 @@ class BalanceControllerTest {
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
   @MockBean private JwtUtil jwtUtil;
+
+  @MockBean private SharedSecurityAuthorizer splitzAuthorizer;
 
   @BeforeEach
   void setUp() throws ServletException, IOException {
