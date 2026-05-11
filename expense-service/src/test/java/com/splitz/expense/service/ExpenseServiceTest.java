@@ -575,14 +575,30 @@ class ExpenseServiceTest {
   @Test
   void getExpensesByGroupIds_Success() {
     List<Long> groupIds = Arrays.asList(1L, 2L);
+    Group group2 = Group.builder().id(2L).name("Group 2").build();
     when(groupMemberRepository.findByUserId(100L))
-        .thenReturn(List.of(GroupMember.builder().group(group).build()));
-    when(expenseRepository.findByGroupIdIn(any())).thenReturn(List.of(expense));
+        .thenReturn(
+            List.of(
+                GroupMember.builder().group(group).build(),
+                GroupMember.builder().group(group2).build()));
+    when(expenseRepository.findByGroupIdIn(groupIds)).thenReturn(List.of(expense));
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
     List<ExpenseDTO> result = expenseService.getExpensesByGroupIds(groupIds, 100L);
 
     assertFalse(result.isEmpty());
     assertEquals(1, result.size());
+  }
+
+  @Test
+  void getExpensesByGroupIds_PartialAccess_ThrowsUnauthorizedException() {
+    List<Long> groupIds = Arrays.asList(1L, 2L);
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByUserId(100L))
+        .thenReturn(List.of(GroupMember.builder().group(group).build())); // Only belongs to group 1
+
+    assertThrows(
+        com.splitz.expense.exception.UnauthorizedException.class,
+        () -> expenseService.getExpensesByGroupIds(groupIds, 100L));
   }
 }

@@ -144,21 +144,23 @@ public class ExpenseService {
 
   @Transactional(readOnly = true)
   public List<ExpenseDTO> getExpensesByGroupIds(List<Long> groupIds, Long currentUserId) {
-    List<Long> authorizedGroupIds = groupIds;
     if (!splitzAuthorizer.isAdmin()) {
       List<Long> userGroupIds =
           groupMemberRepository.findByUserId(currentUserId).stream()
               .map(gm -> gm.getGroup().getId())
               .toList();
-      authorizedGroupIds =
-          groupIds.stream().filter(userGroupIds::contains).collect(Collectors.toList());
+
+      if (!userGroupIds.containsAll(groupIds)) {
+        throw new com.splitz.expense.exception.UnauthorizedException(
+            "You are not authorized to view expenses for one or more of the requested groups");
+      }
     }
 
-    if (authorizedGroupIds.isEmpty()) {
+    if (groupIds.isEmpty()) {
       return java.util.Collections.emptyList();
     }
 
-    return expenseRepository.findByGroupIdIn(authorizedGroupIds).stream()
+    return expenseRepository.findByGroupIdIn(groupIds).stream()
         .map(expenseMapper::toDTO)
         .collect(Collectors.toList());
   }
