@@ -8,6 +8,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,36 +21,37 @@ import org.springframework.web.bind.annotation.RestController;
 public class SettlementController {
 
   private final SettlementService settlementService;
-  private final com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
   @PostMapping("/settlements")
+  @PreAuthorize("@security.isGroupMember(#request.groupId)")
   public ResponseEntity<SettlementDTO> createSettlement(
       @Valid @RequestBody CreateSettlementRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(settlementService.createSettlement(request, splitzAuthorizer.getCurrentUserId()));
+        .body(settlementService.createSettlement(request));
   }
 
   @GetMapping("/settlements/{id}")
+  @PreAuthorize("@settlementService.isParticipant(#id)")
   public ResponseEntity<SettlementDTO> getSettlement(@PathVariable("id") Long id) {
-    return ResponseEntity.ok(
-        settlementService.getSettlementById(id, splitzAuthorizer.getCurrentUserId()));
+    return ResponseEntity.ok(settlementService.getSettlementById(id));
   }
 
   @GetMapping("/groups/{groupId}/settlements")
+  @PreAuthorize("@security.isGroupMember(#groupId)")
   public ResponseEntity<List<SettlementDTO>> getSettlementsByGroup(
       @PathVariable("groupId") Long groupId) {
-    return ResponseEntity.ok(
-        settlementService.getSettlementsByGroup(groupId, splitzAuthorizer.getCurrentUserId()));
+    return ResponseEntity.ok(settlementService.getSettlementsByGroup(groupId));
   }
 
   @PutMapping("/settlements/{id}/mark-paid")
+  @PreAuthorize("@splitzAuthorizer.isAdmin() || @settlementService.isPayer(#id)")
   public ResponseEntity<SettlementDTO> markAsPaid(@PathVariable("id") Long id) {
-    return ResponseEntity.ok(settlementService.markAsPaid(id, splitzAuthorizer.getCurrentUserId()));
+    return ResponseEntity.ok(settlementService.markAsPaid(id));
   }
 
   @PutMapping("/settlements/{id}/confirm")
+  @PreAuthorize("@splitzAuthorizer.isAdmin() || @settlementService.isPayee(#id)")
   public ResponseEntity<SettlementDTO> confirmSettlement(@PathVariable("id") Long id) {
-    return ResponseEntity.ok(
-        settlementService.confirmSettlement(id, splitzAuthorizer.getCurrentUserId()));
+    return ResponseEntity.ok(settlementService.confirmSettlement(id));
   }
 }
