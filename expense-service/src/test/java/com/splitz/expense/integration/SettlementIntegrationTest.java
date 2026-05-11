@@ -83,7 +83,7 @@ public class SettlementIntegrationTest {
 
   @Test
   void testSettlementLifecycle() throws Exception {
-    // 1. Create Settlement
+    // 1. Create Settlement (by Payer)
     CreateSettlementRequest request =
         CreateSettlementRequest.builder()
             .groupId(group.getId())
@@ -100,28 +100,22 @@ public class SettlementIntegrationTest {
                     .contentType(APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.status").value("PENDING"))
+            .andExpect(jsonPath("$.status").value("MARKED_PAID"))
+            .andExpect(jsonPath("$.markedPaidAt").isNotEmpty())
             .andReturn()
             .getResponse()
             .getContentAsString();
 
     Long settlementId = objectMapper.readTree(response).get("id").asLong();
 
-    // 2. Mark as Paid (by Payer)
-    mockMvc
-        .perform(
-            put("/settlements/" + settlementId + "/mark-paid").header("Authorization", payerToken))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("MARKED_PAID"));
-
-    // 3. Confirm (by Payee)
+    // 2. Confirm (by Payee)
     mockMvc
         .perform(
             put("/settlements/" + settlementId + "/confirm").header("Authorization", payeeToken))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("COMPLETED"));
 
-    // 4. Verify in DB
+    // 3. Verify in DB
     Settlement settlement = settlementRepository.findById(settlementId).orElseThrow();
     assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.COMPLETED);
     assertThat(settlement.getSettledAt()).isNotNull();

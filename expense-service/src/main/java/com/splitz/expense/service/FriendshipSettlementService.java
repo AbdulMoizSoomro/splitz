@@ -40,13 +40,27 @@ public class FriendshipSettlementService {
       throw new UnauthorizedException("You are not authorized to create this settlement");
     }
 
+    SettlementStatus status = SettlementStatus.PENDING;
+    LocalDateTime markedPaidAt = null;
+    LocalDateTime settledAt = null;
+
+    if (currentUserId.equals(request.getPayeeId())) {
+      status = SettlementStatus.COMPLETED;
+      settledAt = LocalDateTime.now();
+    } else if (currentUserId.equals(request.getPayerId())) {
+      status = SettlementStatus.MARKED_PAID;
+      markedPaidAt = LocalDateTime.now();
+    }
+
     FriendshipSettlement settlement =
         FriendshipSettlement.builder()
             .payerId(request.getPayerId())
             .payeeId(request.getPayeeId())
             .groupId(request.getGroupId())
             .amount(request.getAmount())
-            .status(SettlementStatus.PENDING)
+            .status(status)
+            .markedPaidAt(markedPaidAt)
+            .settledAt(settledAt)
             .build();
 
     return friendshipSettlementMapper.toDTO(friendshipSettlementRepository.save(settlement));
@@ -64,7 +78,7 @@ public class FriendshipSettlementService {
   public FriendshipSettlementDTO markAsPaid(Long settlementId, Long currentUserId) {
     FriendshipSettlement settlement =
         friendshipSettlementRepository
-            .findById(settlementId)
+            .findByIdWithLock(settlementId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException(
@@ -88,7 +102,7 @@ public class FriendshipSettlementService {
   public FriendshipSettlementDTO confirmSettlement(Long settlementId, Long currentUserId) {
     FriendshipSettlement settlement =
         friendshipSettlementRepository
-            .findById(settlementId)
+            .findByIdWithLock(settlementId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException(
