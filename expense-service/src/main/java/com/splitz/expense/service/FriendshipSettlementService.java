@@ -52,6 +52,22 @@ public class FriendshipSettlementService {
         .orElse(false);
   }
 
+  @Transactional(readOnly = true)
+  public boolean isPayer(Long settlementId, Long userId) {
+    return friendshipSettlementRepository
+        .findById(settlementId)
+        .map(s -> s.getPayerId().equals(userId))
+        .orElse(false);
+  }
+
+  @Transactional(readOnly = true)
+  public boolean isPayee(Long settlementId, Long userId) {
+    return friendshipSettlementRepository
+        .findById(settlementId)
+        .map(s -> s.getPayeeId().equals(userId))
+        .orElse(false);
+  }
+
   @Transactional
   public FriendshipSettlementDTO markAsPaid(Long settlementId, Long currentUserId) {
     FriendshipSettlement settlement =

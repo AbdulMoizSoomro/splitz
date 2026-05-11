@@ -10,13 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.splitz.expense.dto.CreateSettlementRequest;
-import com.splitz.expense.dto.SettlementDTO;
+import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
+import com.splitz.expense.dto.FriendshipSettlementDTO;
 import com.splitz.expense.model.SettlementStatus;
-import com.splitz.expense.service.SettlementService;
+import com.splitz.expense.service.FriendshipSettlementService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,28 +28,27 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(SettlementController.class)
+@WebMvcTest(FriendshipSettlementController.class)
 @AutoConfigureMockMvc(addFilters = false)
-class SettlementControllerTest {
+class FriendshipSettlementControllerTest {
 
   @Autowired private MockMvc mockMvc;
 
   @Autowired private ObjectMapper objectMapper;
 
-  @MockBean private SettlementService settlementService;
+  @MockBean private FriendshipSettlementService friendshipSettlementService;
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
   @MockBean private SharedSecurityAuthorizer splitzAuthorizer;
 
-  private SettlementDTO settlementDTO;
+  private FriendshipSettlementDTO settlementDTO;
 
   @BeforeEach
   void setUp() {
     settlementDTO =
-        SettlementDTO.builder()
+        FriendshipSettlementDTO.builder()
             .id(1L)
-            .groupId(1L)
             .payerId(101L)
             .payeeId(102L)
             .amount(new BigDecimal("50.00"))
@@ -59,20 +59,19 @@ class SettlementControllerTest {
   @Test
   @WithMockUser(username = "101")
   void createSettlement_Success() throws Exception {
-    CreateSettlementRequest request =
-        CreateSettlementRequest.builder()
-            .groupId(1L)
+    CreateFriendshipSettlementRequest request =
+        CreateFriendshipSettlementRequest.builder()
             .payerId(101L)
             .payeeId(102L)
             .amount(new BigDecimal("50.00"))
             .build();
 
-    when(settlementService.createSettlement(any(CreateSettlementRequest.class)))
+    when(friendshipSettlementService.createSettlement(any(CreateFriendshipSettlementRequest.class)))
         .thenReturn(settlementDTO);
 
     mockMvc
         .perform(
-            post("/settlements")
+            post("/friendship-settlements")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
@@ -83,12 +82,24 @@ class SettlementControllerTest {
   @Test
   @WithMockUser(username = "101")
   void getSettlement_Success() throws Exception {
-    when(settlementService.getSettlementById(1L)).thenReturn(settlementDTO);
+    when(friendshipSettlementService.getSettlementById(1L)).thenReturn(settlementDTO);
 
     mockMvc
-        .perform(get("/settlements/1"))
+        .perform(get("/friendship-settlements/1"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(1));
+  }
+
+  @Test
+  @WithMockUser(username = "101")
+  void getSettlementsBetweenUsers_Success() throws Exception {
+    when(friendshipSettlementService.getSettlementsBetweenUsers(101L, 102L))
+        .thenReturn(List.of(settlementDTO));
+
+    mockMvc
+        .perform(get("/users/101/friendships/102/settlements"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(1));
   }
 
   @Test
@@ -96,10 +107,10 @@ class SettlementControllerTest {
   void markAsPaid_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
     settlementDTO.setStatus(SettlementStatus.MARKED_PAID);
-    when(settlementService.markAsPaid(eq(1L), eq(101L))).thenReturn(settlementDTO);
+    when(friendshipSettlementService.markAsPaid(eq(1L), eq(101L))).thenReturn(settlementDTO);
 
     mockMvc
-        .perform(put("/settlements/1/mark-paid"))
+        .perform(put("/friendship-settlements/1/mark-paid"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("MARKED_PAID"));
   }
@@ -109,10 +120,10 @@ class SettlementControllerTest {
   void confirmSettlement_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     settlementDTO.setStatus(SettlementStatus.COMPLETED);
-    when(settlementService.confirmSettlement(eq(1L), eq(102L))).thenReturn(settlementDTO);
+    when(friendshipSettlementService.confirmSettlement(eq(1L), eq(102L))).thenReturn(settlementDTO);
 
     mockMvc
-        .perform(put("/settlements/1/confirm"))
+        .perform(put("/friendship-settlements/1/confirm"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("COMPLETED"));
   }

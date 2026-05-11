@@ -105,6 +105,22 @@ public class SettlementService {
   }
 
   @Transactional(readOnly = true)
+  public boolean isPayer(Long settlementId, Long userId) {
+    return settlementRepository
+        .findById(settlementId)
+        .map(s -> s.getPayerId().equals(userId))
+        .orElse(false);
+  }
+
+  @Transactional(readOnly = true)
+  public boolean isPayee(Long settlementId, Long userId) {
+    return settlementRepository
+        .findById(settlementId)
+        .map(s -> s.getPayeeId().equals(userId))
+        .orElse(false);
+  }
+
+  @Transactional(readOnly = true)
   public List<SettlementDTO> getSettlementsByGroup(Long groupId) {
     return settlementRepository.findByGroupId(groupId).stream()
         .map(settlementMapper::toDTO)

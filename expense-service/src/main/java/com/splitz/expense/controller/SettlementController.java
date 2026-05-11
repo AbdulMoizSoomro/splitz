@@ -3,14 +3,13 @@ package com.splitz.expense.controller;
 import com.splitz.expense.dto.CreateSettlementRequest;
 import com.splitz.expense.dto.SettlementDTO;
 import com.splitz.expense.service.SettlementService;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SettlementController {
 
   private final SettlementService settlementService;
+  private final SharedSecurityAuthorizer splitzAuthorizer;
 
   @PostMapping("/settlements")
   public ResponseEntity<SettlementDTO> createSettlement(
@@ -43,24 +43,17 @@ public class SettlementController {
   }
 
   @PutMapping("/settlements/{id}/mark-paid")
+  @PreAuthorize(
+      "@splitzAuthorizer.isAdmin() || @settlementService.isPayer(#id, @splitzAuthorizer.currentUserId)")
   public ResponseEntity<SettlementDTO> markAsPaid(@PathVariable("id") Long id) {
-    return ResponseEntity.ok(settlementService.markAsPaid(id, currentUserId()));
+    return ResponseEntity.ok(settlementService.markAsPaid(id, splitzAuthorizer.getCurrentUserId()));
   }
 
   @PutMapping("/settlements/{id}/confirm")
+  @PreAuthorize(
+      "@splitzAuthorizer.isAdmin() || @settlementService.isPayee(#id, @splitzAuthorizer.currentUserId)")
   public ResponseEntity<SettlementDTO> confirmSettlement(@PathVariable("id") Long id) {
-    return ResponseEntity.ok(settlementService.confirmSettlement(id, currentUserId()));
-  }
-
-  private Long currentUserId() {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (authentication == null || authentication.getName() == null) {
-      throw new AccessDeniedException("No authenticated user found");
-    }
-    try {
-      return Long.parseLong(authentication.getName());
-    } catch (NumberFormatException ex) {
-      throw new AccessDeniedException("Authenticated username must be a numeric user id");
-    }
+    return ResponseEntity.ok(
+        settlementService.confirmSettlement(id, splitzAuthorizer.getCurrentUserId()));
   }
 }

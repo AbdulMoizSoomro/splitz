@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,8 +29,7 @@ public class BalanceController {
       summary = "Get group balances",
       description = "Returns balance per member and simplified debts for a group")
   @PreAuthorize("@security.isGroupMember(#id)")
-  public ResponseEntity<GroupBalanceResponseDTO> getGroupBalances(
-      @P("id") @PathVariable("id") Long id) {
+  public ResponseEntity<GroupBalanceResponseDTO> getGroupBalances(@PathVariable("id") Long id) {
     return ResponseEntity.ok(balanceService.getGroupBalances(id));
   }
 
@@ -40,8 +38,7 @@ public class BalanceController {
       summary = "Get user balances",
       description = "Returns user's balances across all groups")
   @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#id)")
-  public ResponseEntity<UserBalanceResponseDTO> getUserBalances(
-      @P("id") @PathVariable("id") Long id) {
+  public ResponseEntity<UserBalanceResponseDTO> getUserBalances(@PathVariable("id") Long id) {
     return ResponseEntity.ok(balanceService.getUserBalances(id));
   }
 
@@ -52,8 +49,7 @@ public class BalanceController {
           "Returns net balance between two friends across all shared groups and global settlements")
   @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
   public ResponseEntity<FriendBalanceResponseDTO> getFriendBalance(
-      @P("userId") @PathVariable("userId") Long userId,
-      @P("friendId") @PathVariable("friendId") Long friendId) {
+      @PathVariable("userId") Long userId, @PathVariable("friendId") Long friendId) {
     return ResponseEntity.ok(balanceService.getNetBalanceWithFriend(userId, friendId));
   }
 }
