@@ -85,11 +85,51 @@ class SettlementServiceTest {
     when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
     when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
 
+    // Creator is Payer (101L), so status should be MARKED_PAID
     SettlementDTO result = settlementService.createSettlement(request, 101L);
 
     assertNotNull(result);
-    assertEquals(SettlementStatus.PENDING, result.getStatus());
     verify(settlementRepository).save(any(Settlement.class));
+  }
+
+  @Test
+  void createSettlement_StatusCompleted_WhenCreatorIsPayee() {
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 102L)).thenReturn(true);
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 102L)).thenReturn(true);
+    when(settlementRepository.save(any(Settlement.class))).thenAnswer(i -> i.getArguments()[0]);
+    when(settlementMapper.toDTO(any(Settlement.class)))
+        .thenAnswer(
+            i -> {
+              Settlement s = i.getArgument(0);
+              return SettlementDTO.builder().status(s.getStatus()).build();
+            });
+
+    // Creator is Payee (102L)
+    SettlementDTO result = settlementService.createSettlement(request, 102L);
+
+    assertEquals(SettlementStatus.COMPLETED, result.getStatus());
+  }
+
+  @Test
+  void createSettlement_StatusMarkedPaid_WhenCreatorIsPayer() {
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 102L)).thenReturn(true);
+    when(settlementRepository.save(any(Settlement.class))).thenAnswer(i -> i.getArguments()[0]);
+    when(settlementMapper.toDTO(any(Settlement.class)))
+        .thenAnswer(
+            i -> {
+              Settlement s = i.getArgument(0);
+              return SettlementDTO.builder().status(s.getStatus()).build();
+            });
+
+    // Creator is Payer (101L)
+    SettlementDTO result = settlementService.createSettlement(request, 101L);
+
+    assertEquals(SettlementStatus.MARKED_PAID, result.getStatus());
   }
 
   @Test
@@ -113,7 +153,7 @@ class SettlementServiceTest {
 
   @Test
   void markAsPaid_Success() {
-    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(settlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
     when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
     when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
 
@@ -127,7 +167,7 @@ class SettlementServiceTest {
 
   @Test
   void markAsPaid_Unauthorized() {
-    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(settlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(UnauthorizedException.class, () -> settlementService.markAsPaid(1L, 999L));
@@ -136,7 +176,7 @@ class SettlementServiceTest {
   @Test
   void markAsPaid_InvalidStatus() {
     settlement.setStatus(SettlementStatus.COMPLETED);
-    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(settlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
 
     assertThrows(IllegalStateException.class, () -> settlementService.markAsPaid(1L, 101L));
   }
@@ -144,7 +184,7 @@ class SettlementServiceTest {
   @Test
   void confirmSettlement_Success() {
     settlement.setStatus(SettlementStatus.MARKED_PAID);
-    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(settlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
     when(settlementRepository.save(any(Settlement.class))).thenReturn(settlement);
     when(settlementMapper.toDTO(any(Settlement.class))).thenReturn(settlementDTO);
 
@@ -159,7 +199,7 @@ class SettlementServiceTest {
   @Test
   void confirmSettlement_Unauthorized() {
     settlement.setStatus(SettlementStatus.MARKED_PAID);
-    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(settlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(UnauthorizedException.class, () -> settlementService.confirmSettlement(1L, 101L));
@@ -168,7 +208,7 @@ class SettlementServiceTest {
   @Test
   void confirmSettlement_InvalidStatus() {
     settlement.setStatus(SettlementStatus.PENDING);
-    when(settlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(settlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
 
     assertThrows(IllegalStateException.class, () -> settlementService.confirmSettlement(1L, 102L));
   }

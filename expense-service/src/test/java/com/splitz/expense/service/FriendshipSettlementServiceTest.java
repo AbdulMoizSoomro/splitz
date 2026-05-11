@@ -61,8 +61,93 @@ class FriendshipSettlementServiceTest {
 
     assertNotNull(result);
     assertEquals(1L, result.getId());
-    assertEquals(SettlementStatus.PENDING, result.getStatus());
     verify(friendshipSettlementRepository).save(any(FriendshipSettlement.class));
+  }
+
+  @Test
+  void createSettlement_StatusCompleted_WhenCreatorIsPayee() {
+    CreateFriendshipSettlementRequest request =
+        CreateFriendshipSettlementRequest.builder()
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .build();
+
+    when(friendshipSettlementRepository.save(any(FriendshipSettlement.class)))
+        .thenAnswer(i -> i.getArguments()[0]);
+    when(friendshipSettlementMapper.toDTO(any(FriendshipSettlement.class)))
+        .thenAnswer(
+            i -> {
+              FriendshipSettlement s = i.getArgument(0);
+              return FriendshipSettlementDTO.builder().status(s.getStatus()).build();
+            });
+
+    // Creator is Payee (102L)
+    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request, 102L);
+
+    assertEquals(SettlementStatus.COMPLETED, result.getStatus());
+  }
+
+  @Test
+  void createSettlement_StatusMarkedPaid_WhenCreatorIsPayer() {
+    CreateFriendshipSettlementRequest request =
+        CreateFriendshipSettlementRequest.builder()
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .build();
+
+    when(friendshipSettlementRepository.save(any(FriendshipSettlement.class)))
+        .thenAnswer(i -> i.getArguments()[0]);
+    when(friendshipSettlementMapper.toDTO(any(FriendshipSettlement.class)))
+        .thenAnswer(
+            i -> {
+              FriendshipSettlement s = i.getArgument(0);
+              return FriendshipSettlementDTO.builder().status(s.getStatus()).build();
+            });
+
+    // Creator is Payer (101L)
+    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request, 101L);
+
+    assertEquals(SettlementStatus.MARKED_PAID, result.getStatus());
+  }
+
+  @Test
+  void markAsPaid_Success() {
+    FriendshipSettlement settlement =
+        FriendshipSettlement.builder()
+            .id(1L)
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .status(SettlementStatus.PENDING)
+            .build();
+
+    when(friendshipSettlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
+    when(friendshipSettlementRepository.save(any(FriendshipSettlement.class)))
+        .thenAnswer(i -> i.getArguments()[0]);
+    when(friendshipSettlementMapper.toDTO(any()))
+        .thenAnswer(
+            i -> FriendshipSettlementDTO.builder().status(SettlementStatus.MARKED_PAID).build());
+
+    FriendshipSettlementDTO result = friendshipSettlementService.markAsPaid(1L, 101L);
+
+    assertNotNull(result);
+    assertEquals(SettlementStatus.MARKED_PAID, result.getStatus());
+    assertEquals(SettlementStatus.MARKED_PAID, settlement.getStatus());
+  }
+
+  @Test
+  void markAsPaid_Unauthorized() {
+    FriendshipSettlement settlement =
+        FriendshipSettlement.builder().id(1L).payerId(101L).payeeId(102L).build();
+
+    when(friendshipSettlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+
+    assertThrows(
+        com.splitz.expense.exception.UnauthorizedException.class,
+        () -> friendshipSettlementService.markAsPaid(1L, 102L));
   }
 
   @Test
@@ -76,7 +161,7 @@ class FriendshipSettlementServiceTest {
             .status(SettlementStatus.MARKED_PAID)
             .build();
 
-    when(friendshipSettlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
+    when(friendshipSettlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
     when(friendshipSettlementRepository.save(any(FriendshipSettlement.class)))
         .thenAnswer(i -> i.getArguments()[0]);
     when(friendshipSettlementMapper.toDTO(any()))

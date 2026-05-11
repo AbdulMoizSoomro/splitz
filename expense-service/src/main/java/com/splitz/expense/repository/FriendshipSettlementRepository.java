@@ -2,15 +2,22 @@ package com.splitz.expense.repository;
 
 import com.splitz.expense.model.FriendshipSettlement;
 import com.splitz.expense.model.SettlementStatus;
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FriendshipSettlementRepository extends JpaRepository<FriendshipSettlement, Long> {
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT fs FROM FriendshipSettlement fs WHERE fs.id = :id")
+  Optional<FriendshipSettlement> findByIdWithLock(@Param("id") Long id);
 
   @Query(
       "SELECT fs FROM FriendshipSettlement fs WHERE "

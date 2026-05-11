@@ -55,6 +55,8 @@ public class FriendshipSettlement {
   @Column(name = "updated_at")
   private LocalDateTime updatedAt;
 
+  @jakarta.persistence.Version private Integer version;
+
   @Column(name = "marked_paid_at")
   private LocalDateTime markedPaidAt;
 

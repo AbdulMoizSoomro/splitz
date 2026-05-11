@@ -52,13 +52,27 @@ public class SettlementService {
       throw new ResourceNotFoundException("Payee is not a member of the group");
     }
 
+    SettlementStatus status = SettlementStatus.PENDING;
+    LocalDateTime markedPaidAt = null;
+    LocalDateTime settledAt = null;
+
+    if (currentUserId.equals(request.getPayeeId())) {
+      status = SettlementStatus.COMPLETED;
+      settledAt = LocalDateTime.now();
+    } else if (currentUserId.equals(request.getPayerId())) {
+      status = SettlementStatus.MARKED_PAID;
+      markedPaidAt = LocalDateTime.now();
+    }
+
     Settlement settlement =
         Settlement.builder()
             .group(group)
             .payerId(request.getPayerId())
             .payeeId(request.getPayeeId())
             .amount(request.getAmount())
-            .status(SettlementStatus.PENDING)
+            .status(status)
+            .markedPaidAt(markedPaidAt)
+            .settledAt(settledAt)
             .build();
 
     return settlementMapper.toDTO(settlementRepository.save(settlement));
@@ -68,7 +82,7 @@ public class SettlementService {
   public SettlementDTO markAsPaid(Long settlementId, Long currentUserId) {
     Settlement settlement =
         settlementRepository
-            .findById(settlementId)
+            .findByIdWithLock(settlementId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException("Settlement not found with id: " + settlementId));
@@ -91,7 +105,7 @@ public class SettlementService {
   public SettlementDTO confirmSettlement(Long settlementId, Long currentUserId) {
     Settlement settlement =
         settlementRepository
-            .findById(settlementId)
+            .findByIdWithLock(settlementId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException("Settlement not found with id: " + settlementId));
