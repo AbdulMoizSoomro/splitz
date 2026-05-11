@@ -145,8 +145,8 @@ test.describe("[E2E] Friend Detail Page", () => {
       await pageAlice.getByText("Bob User").click();
       await expect(pageAlice).toHaveURL(/\/friends\/\d+/);
 
-      // 10. Assert Shared Expenses
-      await expect(pageAlice.getByText("Shared Expenses")).toBeVisible();
+      // 10. Assert Shared Activity
+      await expect(pageAlice.getByText("Shared Activity")).toBeVisible();
       await expect(pageAlice.getByText("Pizza Party")).toBeVisible();
     } finally {
       await ctxAlice.close();
