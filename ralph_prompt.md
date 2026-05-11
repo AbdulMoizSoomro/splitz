@@ -134,5 +134,3 @@ Repeat the loop untill all tasks labeled `ready-for-agent` are done.
 ## Completion
 
 If all MVP features in the PRD are marked ✅ Done → output `<promise>COMPLETE</promise>`
-
-Ralph is happy when the circle is closed! 🎡
