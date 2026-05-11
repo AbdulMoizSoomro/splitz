@@ -188,12 +188,20 @@ class BalanceServiceTest {
             eq(102L), eq(101L), anySet(), any()))
         .thenReturn(BigDecimal.ZERO);
 
-    // Mocks for calculateTotalSettledBetweenUsers (Global)
-    when(friendshipSettlementRepository.calculateTotalSettledBetweenUsers(
-            eq(101L), eq(102L), any()))
+    // Mocks for calculateTotalSettledBetweenUsersInGroup (Group)
+    when(friendshipSettlementRepository.calculateTotalSettledBetweenUsersInGroup(
+            eq(101L), eq(102L), eq(1L), any()))
         .thenReturn(BigDecimal.ZERO);
-    when(friendshipSettlementRepository.calculateTotalSettledBetweenUsers(
-            eq(102L), eq(101L), any()))
+    when(friendshipSettlementRepository.calculateTotalSettledBetweenUsersInGroup(
+            eq(102L), eq(101L), eq(1L), any()))
+        .thenReturn(BigDecimal.ZERO);
+
+    // Mocks for calculateTotalSettledBetweenUsersInGroup (Global)
+    when(friendshipSettlementRepository.calculateTotalSettledBetweenUsersInGroup(
+            eq(101L), eq(102L), eq(null), any()))
+        .thenReturn(BigDecimal.ZERO);
+    when(friendshipSettlementRepository.calculateTotalSettledBetweenUsersInGroup(
+            eq(102L), eq(101L), eq(null), any()))
         .thenReturn(new BigDecimal("10.00"));
 
     FriendBalanceResponseDTO result = balanceService.getNetBalanceWithFriend(101L, 102L);
