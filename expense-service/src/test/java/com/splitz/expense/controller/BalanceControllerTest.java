@@ -41,8 +41,6 @@ class BalanceControllerTest {
 
   @MockBean private BalanceService balanceService;
 
-  @MockBean private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
-
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
   @MockBean private JwtUtil jwtUtil;
@@ -82,7 +80,7 @@ class BalanceControllerTest {
                     DebtDTO.builder().from(103L).to(101L).amount(new BigDecimal("20.00")).build()))
             .build();
 
-    when(balanceService.getGroupBalances(eq(1L), eq(101L))).thenReturn(response);
+    when(balanceService.getGroupBalances(eq(1L))).thenReturn(response);
 
     mockMvc
         .perform(get("/groups/1/balances"))
@@ -109,7 +107,7 @@ class BalanceControllerTest {
                         2L, "Group 2", new BigDecimal("-10.00"))))
             .build();
 
-    when(balanceService.getUserBalances(eq(101L), eq(101L))).thenReturn(response);
+    when(balanceService.getUserBalances(eq(101L))).thenReturn(response);
 
     mockMvc
         .perform(get("/users/101/balances"))
@@ -130,7 +128,7 @@ class BalanceControllerTest {
             .netBalance(new BigDecimal("5.00"))
             .build();
 
-    when(balanceService.getNetBalanceWithFriend(eq(101L), eq(102L), eq(101L))).thenReturn(response);
+    when(balanceService.getNetBalanceWithFriend(eq(101L), eq(102L))).thenReturn(response);
 
     mockMvc
         .perform(get("/users/101/balances/with/102"))

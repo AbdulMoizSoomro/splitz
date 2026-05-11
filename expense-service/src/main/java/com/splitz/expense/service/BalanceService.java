@@ -103,7 +103,8 @@ public class BalanceService {
 
   @Transactional(readOnly = true)
   public GroupBalanceResponseDTO getGroupBalances(Long groupId) {
-    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, splitzAuthorizer.getCurrentUserId())
+    if (!groupMemberRepository.existsByGroupIdAndUserId(
+            groupId, splitzAuthorizer.getCurrentUserId())
         && !splitzAuthorizer.isAdmin()) {
       throw new com.splitz.expense.exception.UnauthorizedException(
           "Only group members can view group balances");

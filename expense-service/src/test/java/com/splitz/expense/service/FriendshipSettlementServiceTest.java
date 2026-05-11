@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -24,7 +23,12 @@ class FriendshipSettlementServiceTest {
   @Mock private FriendshipSettlementMapper friendshipSettlementMapper;
   @Mock private com.splitz.security.authorization.SharedSecurityAuthorizer splitzAuthorizer;
 
-  @InjectMocks private FriendshipSettlementService friendshipSettlementService;
+  @org.mockito.InjectMocks private FriendshipSettlementService friendshipSettlementService;
+
+  @org.junit.jupiter.api.BeforeEach
+  void setUp() {
+    lenient().when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
+  }
 
   @Test
   void createSettlement_Success() {
@@ -57,7 +61,7 @@ class FriendshipSettlementServiceTest {
         .thenReturn(savedSettlement);
     when(friendshipSettlementMapper.toDTO(savedSettlement)).thenReturn(expectedDto);
 
-    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request, 101L);
+    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request);
 
     assertNotNull(result);
     assertEquals(1L, result.getId());
@@ -66,6 +70,7 @@ class FriendshipSettlementServiceTest {
 
   @Test
   void createSettlement_StatusCompleted_WhenCreatorIsPayee() {
+    lenient().when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     CreateFriendshipSettlementRequest request =
         CreateFriendshipSettlementRequest.builder()
             .payerId(101L)
@@ -83,13 +88,14 @@ class FriendshipSettlementServiceTest {
             });
 
     // Creator is Payee (102L)
-    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request, 102L);
+    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request);
 
     assertEquals(SettlementStatus.COMPLETED, result.getStatus());
   }
 
   @Test
   void createSettlement_StatusMarkedPaid_WhenCreatorIsPayer() {
+    lenient().when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
     CreateFriendshipSettlementRequest request =
         CreateFriendshipSettlementRequest.builder()
             .payerId(101L)
@@ -107,7 +113,7 @@ class FriendshipSettlementServiceTest {
             });
 
     // Creator is Payer (101L)
-    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request, 101L);
+    FriendshipSettlementDTO result = friendshipSettlementService.createSettlement(request);
 
     assertEquals(SettlementStatus.MARKED_PAID, result.getStatus());
   }
@@ -130,7 +136,7 @@ class FriendshipSettlementServiceTest {
         .thenAnswer(
             i -> FriendshipSettlementDTO.builder().status(SettlementStatus.MARKED_PAID).build());
 
-    FriendshipSettlementDTO result = friendshipSettlementService.markAsPaid(1L, 101L);
+    FriendshipSettlementDTO result = friendshipSettlementService.markAsPaid(1L);
 
     assertNotNull(result);
     assertEquals(SettlementStatus.MARKED_PAID, result.getStatus());
@@ -143,15 +149,17 @@ class FriendshipSettlementServiceTest {
         FriendshipSettlement.builder().id(1L).payerId(101L).payeeId(102L).build();
 
     when(friendshipSettlementRepository.findByIdWithLock(1L)).thenReturn(Optional.of(settlement));
-    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    lenient().when(splitzAuthorizer.getCurrentUserId()).thenReturn(999L);
+    lenient().when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(
         com.splitz.expense.exception.UnauthorizedException.class,
-        () -> friendshipSettlementService.markAsPaid(1L, 102L));
+        () -> friendshipSettlementService.markAsPaid(1L));
   }
 
   @Test
   void confirmSettlement_Success() {
+    lenient().when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     FriendshipSettlement settlement =
         FriendshipSettlement.builder()
             .id(1L)
@@ -168,7 +176,7 @@ class FriendshipSettlementServiceTest {
         .thenAnswer(
             i -> FriendshipSettlementDTO.builder().status(SettlementStatus.COMPLETED).build());
 
-    FriendshipSettlementDTO result = friendshipSettlementService.confirmSettlement(1L, 102L);
+    FriendshipSettlementDTO result = friendshipSettlementService.confirmSettlement(1L);
 
     assertNotNull(result);
     assertEquals(SettlementStatus.COMPLETED, result.getStatus());
@@ -187,10 +195,11 @@ class FriendshipSettlementServiceTest {
             .build();
 
     when(friendshipSettlementRepository.findById(1L)).thenReturn(Optional.of(settlement));
-    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    lenient().when(splitzAuthorizer.getCurrentUserId()).thenReturn(999L);
+    lenient().when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
     assertThrows(
         com.splitz.expense.exception.UnauthorizedException.class,
-        () -> friendshipSettlementService.getSettlementById(1L, 999L));
+        () -> friendshipSettlementService.getSettlementById(1L));
   }
 }
