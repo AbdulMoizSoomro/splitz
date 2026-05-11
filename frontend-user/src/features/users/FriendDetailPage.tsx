@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
   Mail,
@@ -18,6 +18,7 @@ import { groupService } from "../groups/groupService";
 import { expenseService } from "../expenses/expenseService";
 import { friendService } from "./friendService";
 import { useAuthStore } from "../../store/authStore";
+import { useToastStore } from "../../store/toastStore";
 import type { User, FriendshipSettlementDTO } from "../../types/user";
 import type { Expense } from "../../types/expense";
 import DashboardLayout from "../../components/layout/DashboardLayout";
@@ -41,6 +42,8 @@ const FriendDetailPage = () => {
   const friendId = Number(id);
   const { user: currentUser } = useAuthStore();
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
 
   const { data: friend, isLoading: isLoadingFriend } = useQuery({
     queryKey: ["users", id],
@@ -97,6 +100,18 @@ const FriendDetailPage = () => {
     queryFn: () =>
       friendService.getSettlementsWithFriend(Number(currentUser!.id), friendId),
     enabled: !!currentUser && !!friendId,
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: (settlementId: number) => friendService.confirmSettlement(settlementId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["friend-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
+      addToast("Payment confirmed", "success");
+    },
+    onError: () => {
+      addToast("Failed to confirm payment", "error");
+    },
   });
 
   const unifiedActivity = useMemo(() => {
@@ -320,7 +335,7 @@ const FriendDetailPage = () => {
                     } else {
                       const settlement = activity.data as FriendshipSettlementDTO;
                       const isPayer = settlement.payerId === Number(currentUser?.id);
-                      
+
                       let badgeVariant: 'success' | 'warning' | 'default' = 'default';
                       if (settlement.status === 'COMPLETED') badgeVariant = 'success';
                       else if (settlement.status === 'MARKED_PAID') badgeVariant = 'warning';
@@ -334,8 +349,8 @@ const FriendDetailPage = () => {
                             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
                               <DollarSign size={20} />
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-medium text-gray-900">
                                   {isPayer ? `You paid ${friend.firstName}` : `${friend.firstName} paid you`}
                                 </p>
@@ -343,6 +358,17 @@ const FriendDetailPage = () => {
                                   {settlement.status === 'MARKED_PAID' ? 'Pending Confirmation' :
                                    settlement.status === 'COMPLETED' ? 'Settled' : 'Pending'}
                                 </Badge>
+                                {!isPayer && settlement.status === 'MARKED_PAID' && (
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={() => confirmMutation.mutate(settlement.id)}
+                                    disabled={confirmMutation.isPending}
+                                    className="h-6 py-0 px-2 text-[10px]"
+                                  >
+                                    {confirmMutation.isPending ? <Loader2 className="animate-spin" size={12} /> : 'Confirm Receipt'}
+                                  </Button>
+                                )}
                               </div>
                               <p className="text-xs text-gray-500">
                                 {new Date(
@@ -367,7 +393,8 @@ const FriendDetailPage = () => {
                 </p>
               )}
             </CardContent>
-            </Card>          </div>
+            </Card>
+          </div>
         </div>
       </div>
 

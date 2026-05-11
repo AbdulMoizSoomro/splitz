@@ -23,11 +23,13 @@ public class FriendshipSettlementController {
   private final FriendshipSettlementService friendshipSettlementService;
 
   @PostMapping("/friendship-settlements")
-  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#request.payerId)")
-  public ResponseEntity<FriendshipSettlementDTO> createSettlement(
+  @PreAuthorize(
+      "@splitzAuthorizer.isSelfOrAdmin(#request.payerId) ||"
+          + " @splitzAuthorizer.isSelfOrAdmin(#request.payeeId)")
+  public ResponseEntity<List<FriendshipSettlementDTO>> createSettlement(
       @Valid @RequestBody CreateFriendshipSettlementRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(friendshipSettlementService.createSettlement(request));
+        .body(friendshipSettlementService.createSettlements(request));
   }
 
   @GetMapping("/friendship-settlements/{id}")
