@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Authentication Flow", () => {
   test("should allow a user to register and then login", async ({ page }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     page.on("console", (msg) => console.log("BROWSER:", msg.text()));
     const username = `user_${timestamp}`;
     const email = `user_${timestamp}@example.com`;

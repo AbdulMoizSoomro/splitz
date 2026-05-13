@@ -92,7 +92,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
   test("Temp Friend badge appears for non-friend group members", async ({
     browser,
   }) => {
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const ownerName = `owner_temp_${ts}`;
     const nonFriendName = `nonfriend_temp_${ts}`;
     const memberName = `member_temp_${ts}`;
@@ -172,7 +172,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
   test("User with non-zero balance is blocked from leaving group", async ({
     browser,
   }) => {
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const payerName = `payer_exit_${ts}`;
     const debtorName = `debtor_exit_${ts}`;
 
@@ -248,7 +248,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
    * AC#3: User with zero balance successfully leaves the group.
    */
   test("User with zero balance successfully leaves group", async ({ page }) => {
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const username = `zero_exit_${ts}`;
 
     // 1. Register and login

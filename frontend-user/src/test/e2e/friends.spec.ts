@@ -26,7 +26,7 @@ test.describe("Friend Request Management", () => {
   test("should allow sending, accepting, viewing, and removing friends", async ({
     browser,
   }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const usernameA = `userA_${timestamp}`;
     const usernameB = `userB_${timestamp}`;
 
@@ -81,7 +81,7 @@ test.describe("Friend Request Management", () => {
   });
 
   test("should allow rejecting a friend request", async ({ browser }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const usernameC = `userC_${timestamp}`;
     const usernameD = `userD_${timestamp}`;
 

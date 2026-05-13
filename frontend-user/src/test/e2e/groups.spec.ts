@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Group Management", () => {
   test("should allow a user to create a new group", async ({ page }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const username = `user_groups_${timestamp}`;
     const email = `user_groups_${timestamp}@example.com`;
     const password = "Password123!";
@@ -74,7 +74,7 @@ test.describe("Group Management", () => {
   });
 
   test("should display member roles in group details", async ({ page }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const username = `role_tester_${timestamp}`;
     const email = `role_tester_${timestamp}@example.com`;
     const password = "Password123!";
@@ -121,7 +121,7 @@ test.describe("Group Management", () => {
   });
 
   test("should allow owner to promote a member to admin", async ({ page }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const ownerUser = `owner_${timestamp}`;
     const memberUser = `member_${timestamp}`;
     const password = "Password123!";

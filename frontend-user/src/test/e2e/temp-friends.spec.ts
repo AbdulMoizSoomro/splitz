@@ -15,7 +15,7 @@ async function registerUser(
   await page.getByLabel(/email/i).fill(`${username}@example.com`);
   await page.getByLabel(/password/i).fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
-  await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/login/);
 }
 
 async function loginUser(page: Page, username: string) {
@@ -23,28 +23,22 @@ async function loginUser(page: Page, username: string) {
   await page.getByLabel(/username/i).fill(username);
   await page.getByLabel(/password/i).fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
-  await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/$/);
 }
 
 async function sendFriendRequest(pageA: Page, targetUsername: string) {
   await pageA.goto("/friends");
   await pageA.getByPlaceholder(/search by name or email/i).fill(targetUsername);
-  await expect(pageA.getByText(`@${targetUsername}`)).toBeVisible({
-    timeout: 10000,
-  });
+  await expect(pageA.getByText(`@${targetUsername}`)).toBeVisible();
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByText(/pending/i)).toBeVisible({ timeout: 5000 });
+  await expect(pageA.getByText(/pending/i)).toBeVisible();
 }
 
 async function acceptFriendRequest(pageB: Page, fromUsername: string) {
   await pageB.goto("/friends");
-  await expect(pageB.getByText(`@${fromUsername}`)).toBeVisible({
-    timeout: 10000,
-  });
+  await expect(pageB.getByText(`@${fromUsername}`)).toBeVisible();
   await pageB.getByTitle("Accept").click();
-  await expect(pageB.getByText(/no pending friend requests/i)).toBeVisible({
-    timeout: 5000,
-  });
+  await expect(pageB.getByText(/no pending friend requests/i)).toBeVisible();
 }
 
 async function createGroupWithMember(
@@ -65,15 +59,15 @@ async function createGroupWithMember(
   const friendEntry = friendPicker.getByText(
     new RegExp(friendDisplayFirstName, "i"),
   );
-  await expect(friendEntry).toBeVisible({ timeout: 10000 });
+  await expect(friendEntry).toBeVisible();
   await friendEntry.first().click();
 
   await modal.getByRole("button", { name: /create group/i }).click();
-  await expect(modal).not.toBeVisible({ timeout: 10000 });
+  await expect(modal).not.toBeVisible();
 
-  await expect(pageOwner.getByText(groupName)).toBeVisible({ timeout: 10000 });
+  await expect(pageOwner.getByText(groupName)).toBeVisible();
   await pageOwner.getByText(groupName).click();
-  await expect(pageOwner).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
+  await expect(pageOwner).toHaveURL(/\/groups\/\d+/);
 
   return pageOwner.url();
 }
@@ -82,7 +76,7 @@ test.describe("[E2E] Temporary Friends List", () => {
   test("should show temporary friends with group badges and allow request cancellation", async ({
     browser,
   }) => {
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const aliceName = `alice_${ts}`;
     const bobName = `bob_${ts}`;
 
@@ -121,23 +115,17 @@ test.describe("[E2E] Temporary Friends List", () => {
       await expenseModal.getByLabel(/description/i).fill("Lunch");
       await expenseModal.getByLabel(/amount/i).fill("10.00");
       await expenseModal.getByRole("button", { name: /add expense/i }).click();
-      await expect(expenseModal).not.toBeVisible({ timeout: 10000 });
+      await expect(expenseModal).not.toBeVisible();
 
       // 6. Alice removes Bob from friends
-      pageAlice.on("dialog", (dialog) => dialog.accept());
       await pageAlice.goto("/friends");
-      await expect(pageAlice.getByText(`@${bobName}`)).toBeVisible({
-        timeout: 10000,
-      });
+      await expect(pageAlice.getByText(`@${bobName}`)).toBeVisible();
+      pageAlice.once("dialog", (dialog) => dialog.accept());
       await pageAlice.getByTitle("Remove Friend").click();
-      await expect(pageAlice.getByText(/no friends added yet/i)).toBeVisible({
-        timeout: 5000,
-      });
+      await expect(pageAlice.getByText(/no friends added yet/i)).toBeVisible();
 
       // 7. Alice should now see Bob in the "Temporary Friends" list
-      await expect(pageAlice.getByText("Temporary Friends")).toBeVisible({
-        timeout: 10000,
-      });
+      await expect(pageAlice.getByText("Temporary Friends")).toBeVisible();
       const tempFriendCard = pageAlice.locator(".bg-orange-50\\/30");
       await expect(tempFriendCard.getByText(bobName)).toBeVisible();
 
@@ -150,7 +138,7 @@ test.describe("[E2E] Temporary Friends List", () => {
       // 10. Verify "Cancel Request" button appears
       await expect(
         tempFriendCard.getByRole("button", { name: /cancel request/i }),
-      ).toBeVisible({ timeout: 5000 });
+      ).toBeVisible();
 
       // 11. Alice cancels the request
       await tempFriendCard
@@ -160,7 +148,7 @@ test.describe("[E2E] Temporary Friends List", () => {
       // 12. Verify "Add Friend" button returns
       await expect(
         tempFriendCard.getByRole("button", { name: /add friend/i }),
-      ).toBeVisible({ timeout: 5000 });
+      ).toBeVisible();
     } finally {
       await ctxAlice.close();
       await ctxBob.close();
