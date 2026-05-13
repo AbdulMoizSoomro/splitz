@@ -1,4 +1,4 @@
-# Ralph Loop Workflow
+# Loop Workflow
 
 ## Core Context
 
@@ -71,7 +71,7 @@ Assign an overall confidence: **High / Medium / Low**.
 - Checkout or create `feature/issue-<id>` from the latest `main`/`develop`.
 - Never reuse a branch from a previous failed attempt without a clean reset.
 
-### 4. TDD Execution (Use `/tdd` skill)
+### 4. TDD Execution (Use `/tdd` skill) **Important**
 
 - **RED**: Write a failing test that captures the acceptance criteria exactly.
 - **GREEN**: Write the minimal code to make it pass — no speculative additions.
@@ -81,7 +81,7 @@ Assign an overall confidence: **High / Medium / Low**.
 ### 5. Quality Gates (hard stop on failure)
 
 Use Grep aggressively to *limit* the LOGS.
-/
+
 Use `/feature-feedback-loop` skill to review the code.
 
 **Java**: `mvn -q -B spotless:apply && mvn -q -B verify`
@@ -122,7 +122,7 @@ feat(auth): add JWT refresh endpoint
 Confidence: High
 ```
 
-update the the Issue to `ready-for-human` using gh and DO NOT CLOSE THE ISSUE   .
+update the the Issue using gh and CLOSE THE ISSUE.
 
 ### 9. Single Task Policy
 
