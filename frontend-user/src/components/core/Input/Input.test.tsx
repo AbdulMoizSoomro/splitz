@@ -26,4 +26,20 @@ describe("Input", () => {
     render(<Input label="Disabled" disabled />);
     expect(screen.getByLabelText("Disabled")).toBeDisabled();
   });
+
+  it("renders rightElement correctly", () => {
+    const rightElement = <span data-testid="right-icon">👁️</span>;
+    render(<Input label="Password" rightElement={rightElement} />);
+    expect(screen.getByTestId("right-icon")).toBeInTheDocument();
+  });
+
+  it("applies extra padding when rightElement is present", () => {
+    const { rerender } = render(<Input label="No Icon" />);
+    let input = screen.getByLabelText("No Icon");
+    expect(input).not.toHaveClass("pr-10");
+
+    rerender(<Input label="With Icon" rightElement={<span>Icon</span>} />);
+    input = screen.getByLabelText("With Icon");
+    expect(input).toHaveClass("pr-10");
+  });
 });
