@@ -1,0 +1,21 @@
+# Splitz - Expense Service Configuration Template
+# Copy this file to application.properties and adjust as needed.
+# This file is ignored by Git to prevent local environment leakage.
+
+# Select the active profile (dev, prod, test)
+spring.profiles.active=dev
+
+# Server Configuration
+server.port=8081
+
+# JWT Configuration
+# ⚠️ SECURITY WARNING: Externalize these in production!
+# jwt.secret=${JWT_SECRET:c2RqZmhzZGZoc2Rma3NkZmtzZGZrc2Rma3Nka3Nka3Nka3Nka3Nka3Nka3Nka3Nka3Nka3Nka3Nka3Nk}
+# jwt.expiration=86400000
+
+# Flyway Configuration
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+
+# Service URLs
+services.user-service.url=http://localhost:8080
