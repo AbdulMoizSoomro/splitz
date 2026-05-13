@@ -50,3 +50,5 @@ Task #45: UI: Global Activity Page & Navigation. Confidence: High. Decision: Imp
 Task #47: Infrastructure & Identity Standardization. Confidence: High. Decisions: Enabled -parameters compiler flag in expense-service, refactored controllers to use centralized SharedSecurityAuthorizer bean, and removed local currentUserId() methods. Updated E2E tests to match UI terminology (Shared Activity).
 
 - Issue 51: Implemented Strict Manual Debt Allocation. Added per-group balance breakdown to BalanceService. Updated FriendshipSettlementService to handle multi-group allocations. Added 'Confirm Receipt' functionality to Friend Detail Page. Verified with curl integration tests (Payee and Payer flows). Confidence: High.
+
+- Issue 54: Enhanced core Input component with rightElement support and automatic padding management. Added unit tests for rendering and dynamic styling. Confidence: High.
