@@ -82,7 +82,7 @@ test.describe("[E2E] Friend Detail Page", () => {
   test("should navigate to friend detail page and show basic info, groups, and expenses", async ({
     browser,
   }) => {
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const aliceName = `alice_${ts}`;
     const bobName = `bob_${ts}`;
 

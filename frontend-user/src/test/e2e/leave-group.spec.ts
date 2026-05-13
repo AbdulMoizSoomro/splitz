@@ -51,7 +51,7 @@ async function acceptFriendRequest(pageB: Page, fromUsername: string) {
 
 test.describe("Leave Group", () => {
   test("should allow a member to leave a group", async ({ browser }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const ownerName = `owner_leave_${timestamp}`;
     const memberName = `member_leave_${timestamp}`;
 

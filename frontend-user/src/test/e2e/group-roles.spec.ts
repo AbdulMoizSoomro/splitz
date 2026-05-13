@@ -95,7 +95,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
   test("Owner promotes a Member to Admin; new Admin sees Admin badge", async ({
     browser,
   }) => {
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const ownerName = `owner_promo_${ts}`;
     const memberName = `member_promo_${ts}`;
 
@@ -192,7 +192,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
   test("Owner restricts member management; regular member cannot see role management controls", async ({
     browser,
   }) => {
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const ownerName = `owner_gov_${ts}`;
     const memberName = `member_gov_${ts}`;
 
@@ -263,7 +263,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
    * Verify the badge reverts to "Member" on both sides.
    */
   test("Admin demotes another Admin back to Member", async ({ browser }) => {
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const ownerName = `owner_demote_${ts}`;
     const adminName = `admin_demote_${ts}`;
 

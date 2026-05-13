@@ -80,7 +80,7 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
     browser,
   }) => {
     test.setTimeout(120000); // High timeout for slow CI/container environment
-    const ts = Date.now();
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const aliceName = `alice_51_${ts}`;
     const bobName = `bob_51_${ts}`;
 
@@ -111,7 +111,7 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
       await pageAlice.getByLabel(/description/i).fill("Dinner");
       await pageAlice.getByLabel(/amount/i).fill("40.00");
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
-      await expect(pageAlice.getByText("Dinner")).toBeVisible({ timeout: 15000 });
+      await expect(pageAlice.getByText("Dinner")).toBeVisible();
 
       await pageAlice.goto("/groups");
       const travelCard = pageAlice.locator(".bg-white", { hasText: groupTravel });
@@ -119,12 +119,12 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
       await pageAlice.getByLabel(/description/i).fill("Flight");
       await pageAlice.getByLabel(/amount/i).fill("100.00");
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
-      await expect(pageAlice.getByText("Flight")).toBeVisible({ timeout: 15000 });
+      await expect(pageAlice.getByText("Flight")).toBeVisible();
 
       // 4. Alice navigates to Bob's detail page
       await pageAlice.goto("/friends");
       await pageAlice.getByText("Bob User").click();
-      await expect(pageAlice.getByText("+70.00")).toBeVisible({ timeout: 15000 });
+      await expect(pageAlice.getByText("+70.00")).toBeVisible();
 // 5. Alice opens Settle Debt modal
 await pageAlice.getByRole("button", { name: /settle debt/i }).click();
 const modal = pageAlice.getByRole("dialog");
@@ -135,8 +135,8 @@ await expect(modal.getByText("I Received")).toHaveClass(/bg-white/);
 
 // 6. Alice expands manual allocation
 await modal.getByText(/allocate to group debts/i).click();
-await expect(modal.getByLabel(new RegExp(`Allocate to ${groupDinner}`, "i"))).toBeVisible({ timeout: 15000 });
-await expect(modal.getByLabel(new RegExp(`Allocate to ${groupTravel}`, "i"))).toBeVisible({ timeout: 15000 });
+await expect(modal.getByLabel(new RegExp(`Allocate to ${groupDinner}`, "i"))).toBeVisible();
+await expect(modal.getByLabel(new RegExp(`Allocate to ${groupTravel}`, "i"))).toBeVisible();
 
 // 7. Alice enters allocated amounts
 await modal.getByLabel(new RegExp(`Allocate to ${groupDinner}`, "i")).fill("20.00");

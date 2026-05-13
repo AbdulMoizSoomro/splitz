@@ -4,7 +4,7 @@ test.describe("Expense Management", () => {
   test("should allow a user to create an expense with equal split", async ({
     page,
   }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const username = `user_exp_${timestamp}`;
     const email = `user_exp_${timestamp}@example.com`;
     const password = "Password123!";
@@ -60,7 +60,7 @@ test.describe("Expense Management", () => {
   test("should display exact split inputs and validation when toggled", async ({
     page,
   }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const username = `user_exact_${timestamp}`;
     const email = `user_exact_${timestamp}@example.com`;
     const password = "Password123!";

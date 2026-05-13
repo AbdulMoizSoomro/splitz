@@ -4,7 +4,7 @@ test.describe("Stale Token Handling", () => {
   test("should redirect to login when token is stale (401/403)", async ({
     page,
   }) => {
-    const timestamp = Date.now();
+    const timestamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const username = `stale_user_${timestamp}`;
     const email = `stale_${timestamp}@example.com`;
     const password = "Password123!";
