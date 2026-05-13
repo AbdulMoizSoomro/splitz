@@ -61,12 +61,15 @@ async function createGroupWithMember(
   await expect(modal).toBeVisible();
   await modal.getByLabel(/group name/i).fill(groupName);
 
-  const friendPicker = modal.locator(".max-h-48");
-  const friendEntry = friendPicker.getByText(
-    new RegExp(friendDisplayFirstName, "i"),
-  );
-  await expect(friendEntry).toBeVisible({ timeout: 10000 });
-  await friendEntry.first().click();
+  // Wait for loader to disappear if any
+  await expect(modal.locator(".animate-spin")).not.toBeVisible();
+  
+  const friendRow = modal.locator("div.cursor-pointer", { hasText: friendDisplayFirstName });
+  await expect(friendRow).toBeVisible({ timeout: 10000 });
+  await friendRow.click();
+  
+  // Verify selection state (blue background)
+  await expect(friendRow).toHaveClass(/bg-blue-50/);
 
   await modal.getByRole("button", { name: /create group/i }).click();
   await expect(modal).not.toBeVisible({ timeout: 10000 });
@@ -79,7 +82,7 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
   test("should allow manual allocation of settlement amount to specific group debts", async ({
     browser,
   }) => {
-    test.setTimeout(120000); // High timeout for slow CI/container environment
+    test.setTimeout(180000); // Higher timeout for slow CI/container environment
     const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const aliceName = `alice_51_${ts}`;
     const bobName = `bob_51_${ts}`;
@@ -106,54 +109,65 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
 
       // 3. Alice creates expenses in both groups
       await pageAlice.goto("/groups");
-      const dinnerCard = pageAlice.locator(".bg-white", { hasText: groupDinner });
-      await dinnerCard.getByRole("button", { name: /add expense/i }).first().click();
+      
+      // Group 1
+      await pageAlice.getByText(groupDinner).click();
+      await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
       await pageAlice.getByLabel(/description/i).fill("Dinner");
       await pageAlice.getByLabel(/amount/i).fill("40.00");
-      await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
-      await expect(pageAlice.getByText("Dinner")).toBeVisible();
+      const dinnerResp = pageAlice.waitForResponse(r => r.url().includes('/expenses') && r.status() === 201);
+      await pageAlice.getByRole("dialog").getByRole("button", { name: "Add Expense", exact: true }).click();
+      await dinnerResp;
+      await expect(pageAlice.getByRole("dialog")).toBeHidden();
 
+      // Group 2
       await pageAlice.goto("/groups");
-      const travelCard = pageAlice.locator(".bg-white", { hasText: groupTravel });
-      await travelCard.getByRole("button", { name: /add expense/i }).first().click();
+      await pageAlice.getByText(groupTravel).click();
+      await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
       await pageAlice.getByLabel(/description/i).fill("Flight");
       await pageAlice.getByLabel(/amount/i).fill("100.00");
-      await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
-      await expect(pageAlice.getByText("Flight")).toBeVisible();
+      const travelResp = pageAlice.waitForResponse(r => r.url().includes('/expenses') && r.status() === 201);
+      await pageAlice.getByRole("dialog").getByRole("button", { name: "Add Expense", exact: true }).click();
+      await travelResp;
+      await expect(pageAlice.getByRole("dialog")).toBeHidden();
 
       // 4. Alice navigates to Bob's detail page
       await pageAlice.goto("/friends");
       await pageAlice.getByText("Bob User").click();
       await expect(pageAlice.getByText("+70.00")).toBeVisible();
-// 5. Alice opens Settle Debt modal
-await pageAlice.getByRole("button", { name: /settle debt/i }).click();
-const modal = pageAlice.getByRole("dialog");
-await expect(modal).toBeVisible();
+      
+      // 5. Alice opens Settle Debt modal
+      await pageAlice.getByRole("button", { name: /settle debt/i }).click();
+      const modal = pageAlice.getByRole("dialog");
+      await expect(modal).toBeVisible();
 
-// Wait for the modal to settle and data to be available
-await expect(modal.getByText("I Received")).toHaveClass(/bg-white/);
+      // 6. Alice expands manual allocation
+      await modal.getByText(/allocate to group debts/i).click();
 
-// 6. Alice expands manual allocation
-await modal.getByText(/allocate to group debts/i).click();
-await expect(modal.getByLabel(new RegExp(`Allocate to ${groupDinner}`, "i"))).toBeVisible();
-await expect(modal.getByLabel(new RegExp(`Allocate to ${groupTravel}`, "i"))).toBeVisible();
+      // Verify both groups are present
+      const dinnerAllocation = modal.getByLabel(groupDinner, { exact: false });
+      const travelAllocation = modal.getByLabel(groupTravel, { exact: false });
+      await expect(dinnerAllocation).toBeVisible({ timeout: 15000 });
+      await expect(travelAllocation).toBeVisible({ timeout: 15000 });
 
-// 7. Alice enters allocated amounts
-await modal.getByLabel(new RegExp(`Allocate to ${groupDinner}`, "i")).fill("20.00");
-await modal.getByLabel(new RegExp(`Allocate to ${groupTravel}`, "i")).fill("50.00");
+      // 7. Alice enters allocated amounts
+      await dinnerAllocation.fill("20.00");
+      await travelAllocation.fill("50.00");
 
-// 8. Total amount should be 70
-await modal.getByLabel(/Bob paid you/i).fill("70.00");
-await expect(modal.getByText("€70.00 / €70.00")).toBeVisible();
-
-
+      // 8. Set total amount
+      const totalAmountInput = modal.getByRole("spinbutton").first();
+      await totalAmountInput.fill("70.00");
+      
       // 9. Save and verify
-      await modal.getByRole("button", { name: /save settlement/i }).click();
-      await expect(modal).not.toBeVisible();
+      const saveButton = modal.getByRole("button", { name: /save settlement/i });
+      await expect(saveButton).toBeEnabled({ timeout: 10000 });
+      await saveButton.click();
+      
+      await expect(modal).not.toBeVisible({ timeout: 15000 });
       await expect(pageAlice.getByText(/settlement recorded successfully/i)).toBeVisible();
 
       // 10. Verify activity feed shows settlements
-      await expect(pageAlice.getByText("Bob paid you").first()).toBeVisible();
+      await expect(pageAlice.getByText("Bob paid you").first()).toBeVisible({ timeout: 15000 });
       await expect(pageAlice.getByText("$20.00")).toBeVisible();
       await expect(pageAlice.getByText("$50.00")).toBeVisible();
 

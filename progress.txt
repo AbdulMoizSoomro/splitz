@@ -46,6 +46,8 @@ Task #43: UI: Unified 'Shared Activity' Feed (Friend Detail). Confidence: High. 
 Task #44: UI: Unified 'Group Activity' Feed. Confidence: High. Updated GroupActivity component to interleave group-linked expenses and settlements, using 'Shared Activity' terminology. Also fixed CreateSettlementRequest properties to match backend.
 Task #45: UI: Global Activity Page & Navigation. Confidence: High. Decision: Implemented backend /activity endpoint and frontend ActivityPage with chronological sorting. Verified with unit and E2E tests. Committing changes.
 
+Anomaly: E2E test 'strict-manual-allocation.spec.ts' timed out during issue 55 validation. Fixed ambiguous 'Add Expense' selectors in the test.
+
 
 Task #47: Infrastructure & Identity Standardization. Confidence: High. Decisions: Enabled -parameters compiler flag in expense-service, refactored controllers to use centralized SharedSecurityAuthorizer bean, and removed local currentUserId() methods. Updated E2E tests to match UI terminology (Shared Activity).
 

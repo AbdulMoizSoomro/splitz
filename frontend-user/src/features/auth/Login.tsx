@@ -18,6 +18,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const [error, setError] = useState("");
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
@@ -26,10 +27,21 @@ const Login = () => {
     setShowPassword(!showPassword);
   };
 
+  const validate = () => {
+    const newErrors: { username?: string; password?: string } = {};
+    if (!username) newErrors.username = "Username is required";
+    if (!password) newErrors.password = "Password is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError("");
+
+    if (!validate()) return;
+
+    setIsLoading(true);
 
     try {
       const response = await api.post("/authenticate", { username, password });
@@ -61,22 +73,32 @@ const Login = () => {
         <CardHeader>
           <CardTitle className="text-center">Login to Splitz</CardTitle>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <CardContent className="space-y-4">
             <Input
               label="Username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (errors.username) {
+                  setErrors((prev) => ({ ...prev, username: undefined }));
+                }
+              }}
               placeholder="yourusername"
-              required
+              error={errors.username}
             />
             <Input
               label="Password"
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errors.password) {
+                  setErrors((prev) => ({ ...prev, password: undefined }));
+                }
+              }}
               placeholder="••••••••"
-              required
+              error={errors.password}
               rightElement={
                 <button
                   type="button"
