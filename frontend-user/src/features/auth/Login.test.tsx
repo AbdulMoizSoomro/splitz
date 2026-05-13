@@ -18,6 +18,7 @@ describe("Login", () => {
   const mockNavigate = vi.fn();
 
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
     useAuthStore.getState().logout();
   });
@@ -93,6 +94,43 @@ describe("Login", () => {
     await waitFor(() => {
       expect(screen.getByText(/failed to login/i)).toBeInTheDocument();
     });
+  });
+
+  it("shows validation errors for empty fields", async () => {
+    render(
+      <BrowserRouter>
+        <Login />
+      </BrowserRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+
+    expect(screen.getByText(/username is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/password is required/i)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it("clears validation errors on input change", async () => {
+    render(
+      <BrowserRouter>
+        <Login />
+      </BrowserRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+
+    const usernameInput = screen.getByLabelText(/username/i);
+    const passwordInput = screen.getByLabelText(/password/i, { selector: "input" });
+
+    expect(screen.getByText(/username is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/password is required/i)).toBeInTheDocument();
+
+    fireEvent.change(usernameInput, { target: { value: "u" } });
+    expect(screen.queryByText(/username is required/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/password is required/i)).toBeInTheDocument();
+
+    fireEvent.change(passwordInput, { target: { value: "p" } });
+    expect(screen.queryByText(/password is required/i)).not.toBeInTheDocument();
   });
 
   it("toggles password visibility when clicking the eye icon", () => {
