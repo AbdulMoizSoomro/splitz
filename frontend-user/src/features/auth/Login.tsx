@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -15,10 +16,15 @@ import { useAuthStore } from "../../store/authStore";
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,11 +72,25 @@ const Login = () => {
             />
             <Input
               label="Password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
+              rightElement={
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                  aria-label="Toggle visibility"
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} data-lucide="eye-off" />
+                  ) : (
+                    <Eye size={20} data-lucide="eye" />
+                  )}
+                </button>
+              }
             />
             {error && (
               <p className="text-sm font-medium text-red-500">{error}</p>
