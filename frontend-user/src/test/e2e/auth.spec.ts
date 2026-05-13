@@ -38,4 +38,22 @@ test.describe("Authentication Flow", () => {
     await page.getByRole("button", { name: /logout/i }).click();
     await expect(page).toHaveURL(/\/login/);
   });
+
+  test("should toggle password visibility on login page", async ({ page }) => {
+    await page.goto("/login");
+
+    const passwordInput = page.getByLabel(/password/i);
+    const toggleButton = page.getByRole("button", { name: /toggle visibility/i });
+
+    // Initial state: password hidden
+    await expect(passwordInput).toHaveAttribute("type", "password");
+
+    // Click to show
+    await toggleButton.click();
+    await expect(passwordInput).toHaveAttribute("type", "text");
+
+    // Click to hide
+    await toggleButton.click();
+    await expect(passwordInput).toHaveAttribute("type", "password");
+  });
 });

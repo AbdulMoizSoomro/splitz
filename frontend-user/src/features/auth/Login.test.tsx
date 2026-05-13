@@ -29,7 +29,7 @@ describe("Login", () => {
       </BrowserRouter>,
     );
     expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i, { selector: "input" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /login/i })).toBeInTheDocument();
   });
 
@@ -54,7 +54,7 @@ describe("Login", () => {
     fireEvent.change(screen.getByLabelText(/username/i), {
       target: { value: "testuser" },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/password/i, { selector: "input" }), {
       target: { value: "password123" },
     });
     fireEvent.click(screen.getByRole("button", { name: /login/i }));
@@ -85,7 +85,7 @@ describe("Login", () => {
     fireEvent.change(screen.getByLabelText(/username/i), {
       target: { value: "wronguser" },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/password/i, { selector: "input" }), {
       target: { value: "wrongpass" },
     });
     fireEvent.click(screen.getByRole("button", { name: /login/i }));
@@ -93,5 +93,31 @@ describe("Login", () => {
     await waitFor(() => {
       expect(screen.getByText(/failed to login/i)).toBeInTheDocument();
     });
+  });
+
+  it("toggles password visibility when clicking the eye icon", () => {
+    render(
+      <BrowserRouter>
+        <Login />
+      </BrowserRouter>,
+    );
+
+    const passwordInput = screen.getByLabelText(/password/i, { selector: "input" }) as HTMLInputElement;
+    expect(passwordInput.type).toBe("password");
+
+    const toggleButton = screen.getByRole("button", {
+      name: /toggle visibility/i,
+    });
+    
+    // Initial state: password hidden, should show Eye icon
+    expect(toggleButton.querySelector("svg")).toHaveAttribute("data-lucide", "eye");
+
+    fireEvent.click(toggleButton);
+    expect(passwordInput.type).toBe("text");
+    expect(toggleButton.querySelector("svg")).toHaveAttribute("data-lucide", "eye-off");
+
+    fireEvent.click(toggleButton);
+    expect(passwordInput.type).toBe("password");
+    expect(toggleButton.querySelector("svg")).toHaveAttribute("data-lucide", "eye");
   });
 });
