@@ -115,4 +115,4 @@ progress.txt
 **/application-local.properties
 **/application-dev-local.properties
 # If you explicitly want to ignore ALL application.properties (use with caution)
-# **/application.properties
+**/application.properties
