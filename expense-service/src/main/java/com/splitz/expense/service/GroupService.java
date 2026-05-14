@@ -291,10 +291,7 @@ public class GroupService {
 
   public boolean canManageExpenses(Group group, Long userId, Long payerId) {
     GroupMember membership =
-        group.getMembers().stream()
-            .filter(member -> member.getUserId().equals(userId))
-            .findFirst()
-            .orElse(null);
+        groupMemberRepository.findByGroupIdAndUserId(group.getId(), userId).orElse(null);
 
     if (membership == null) {
       return false;

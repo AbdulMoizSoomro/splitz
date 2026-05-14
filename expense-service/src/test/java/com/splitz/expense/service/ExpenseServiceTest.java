@@ -22,7 +22,6 @@ import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
-import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.model.SplitType;
 import com.splitz.expense.repository.CategoryRepository;
 import com.splitz.expense.repository.ExpenseRepository;
@@ -67,6 +66,8 @@ class ExpenseServiceTest {
 
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
+  @Mock private GroupService groupService;
+
   @InjectMocks private ExpenseService expenseService;
 
   private Group group;
@@ -97,6 +98,7 @@ class ExpenseServiceTest {
             .categoryId(1L)
             .build();
     lenient().when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(false);
   }
 
   @Test
@@ -470,6 +472,7 @@ class ExpenseServiceTest {
             .build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     // Mocking current user as creator (100L)
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
@@ -486,9 +489,8 @@ class ExpenseServiceTest {
         UpdateExpenseRequest.builder().description("Admin Update").build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    // Current user 101L is not creator (100L) but is admin
-    when(groupMemberRepository.findByGroupIdAndUserId(1L, 101L))
-        .thenReturn(Optional.of(GroupMember.builder().role(GroupRole.ADMIN).build()));
+    // Current user 101L is not creator (100L) but is admin (handled by groupService)
+    when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
@@ -511,6 +513,7 @@ class ExpenseServiceTest {
   void updateExpense_CategoryNotFound_ThrowsException() {
     UpdateExpenseRequest request = UpdateExpenseRequest.builder().categoryId(99L).build();
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
     assertThrows(
@@ -522,10 +525,6 @@ class ExpenseServiceTest {
     UpdateExpenseRequest request = UpdateExpenseRequest.builder().build();
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
 
-    // Current user 101L is not creator (100L) and not admin
-    when(groupMemberRepository.findByGroupIdAndUserId(1L, 101L))
-        .thenReturn(Optional.of(GroupMember.builder().role(GroupRole.MEMBER).build()));
-
     assertThrows(
         UnauthorizedException.class, () -> expenseService.updateExpense(1L, request, 101L));
   }
@@ -534,7 +533,6 @@ class ExpenseServiceTest {
   void updateExpense_UserNotMember_ThrowsException() {
     UpdateExpenseRequest request = UpdateExpenseRequest.builder().build();
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    when(groupMemberRepository.findByGroupIdAndUserId(1L, 101L)).thenReturn(Optional.empty());
 
     assertThrows(
         UnauthorizedException.class, () -> expenseService.updateExpense(1L, request, 101L));
@@ -543,8 +541,20 @@ class ExpenseServiceTest {
   @Test
   void deleteExpense_Success() {
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
 
     expenseService.deleteExpense(1L, 100L);
+
+    verify(expenseRepository).delete(expense);
+  }
+
+  @Test
+  void deleteExpense_Collaborative_Success() {
+    when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    // User 101L is not creator (100L) but group allows members to manage expenses
+    when(groupService.canManageExpenses(group, 101L, 100L)).thenReturn(true);
+
+    expenseService.deleteExpense(1L, 101L);
 
     verify(expenseRepository).delete(expense);
   }

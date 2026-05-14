@@ -3,6 +3,7 @@ package com.splitz.expense.integration;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -148,5 +149,59 @@ public class BalanceIntegrationTest {
         .andExpect(jsonPath("$.userId").value(100L))
         .andExpect(jsonPath("$.username").value("alice"))
         .andExpect(jsonPath("$.email").value("alice@example.com"));
+  }
+
+  @Test
+  void deleteExpense_UpdatesBalances() throws Exception {
+    // 1. Create an expense (Alice pays 90, shared with Bob and Charlie)
+    CreateExpenseRequest expenseRequest =
+        CreateExpenseRequest.builder()
+            .description("Dinner")
+            .amount(new BigDecimal("90.00"))
+            .paidBy(100L)
+            .splitType(SplitType.EQUAL)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).build(),
+                    SplitRequest.builder().userId(101L).build(),
+                    SplitRequest.builder().userId(102L).build()))
+            .build();
+
+    String response =
+        mockMvc
+            .perform(
+                post("/groups/" + group.getId() + "/expenses")
+                    .header("Authorization", tokenFor(100L))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(expenseRequest)))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    Long expenseId = objectMapper.readTree(response).get("id").asLong();
+
+    // 2. Verify balances (Alice: +60, Bob: -30, Charlie: -30)
+    mockMvc
+        .perform(
+            get("/groups/" + group.getId() + "/balances").header("Authorization", tokenFor(100L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.balances[?(@.userId==100)].balance").value(60.0))
+        .andExpect(jsonPath("$.balances[?(@.userId==101)].balance").value(-30.0));
+
+    // 3. Delete expense
+    mockMvc
+        .perform(
+            delete("/groups/" + group.getId() + "/expenses/" + expenseId)
+                .header("Authorization", tokenFor(100L)))
+        .andExpect(status().isNoContent());
+
+    // 4. Verify balances are back to zero
+    mockMvc
+        .perform(
+            get("/groups/" + group.getId() + "/balances").header("Authorization", tokenFor(100L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.balances[?(@.userId==100)].balance").value(0.0))
+        .andExpect(jsonPath("$.balances[?(@.userId==101)].balance").value(0.0));
   }
 }

@@ -12,8 +12,6 @@ import com.splitz.expense.model.Category;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
-import com.splitz.expense.model.GroupMember;
-import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.model.SplitType;
 import com.splitz.expense.repository.CategoryRepository;
 import com.splitz.expense.repository.ExpenseRepository;
@@ -38,6 +36,7 @@ public class ExpenseService {
   private final ExpenseMapper expenseMapper;
   private final SplitCalculator splitCalculator;
   private final SharedSecurityAuthorizer splitzAuthorizer;
+  private final GroupService groupService;
 
   @Transactional
   public ExpenseDTO createExpense(Long groupId, CreateExpenseRequest request, Long currentUserId) {
@@ -219,21 +218,15 @@ public class ExpenseService {
   }
 
   private void checkAuthorization(Expense expense, Long currentUserId) {
-    if (expense.getPaidBy().equals(currentUserId) || splitzAuthorizer.isAdmin()) {
+    if (splitzAuthorizer.isAdmin()) {
       return;
     }
 
-    GroupMember member =
-        groupMemberRepository
-            .findByGroupIdAndUserId(expense.getGroup().getId(), currentUserId)
-            .orElseThrow(
-                () ->
-                    new com.splitz.expense.exception.UnauthorizedException(
-                        "User is not a member of the group"));
-
-    if (member.getRole() != GroupRole.ADMIN) {
-      throw new com.splitz.expense.exception.UnauthorizedException(
-          "Only the expense creator or a group admin can modify/delete the expense");
+    if (groupService.canManageExpenses(expense.getGroup(), currentUserId, expense.getPaidBy())) {
+      return;
     }
+
+    throw new com.splitz.expense.exception.UnauthorizedException(
+        "Only the expense creator or a group admin can modify/delete the expense");
   }
 }

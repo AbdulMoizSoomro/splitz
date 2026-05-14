@@ -174,6 +174,10 @@ public class ExpenseIntegrationTest {
 
   @Test
   void updateExpense_NonOwnerNonAdmin_Forbidden() throws Exception {
+    // Disable collaborative editing for this test
+    group.setAllowMembersToEditExpenses(false);
+    groupRepository.save(group);
+
     // 101L is member but not owner, 100L is owner
     Expense expense = createTestExpense(100L);
     UpdateExpenseRequest updateRequest =
