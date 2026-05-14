@@ -19,6 +19,7 @@ public class GroupDTO {
   private Long createdBy;
   private boolean active;
   private boolean allowMembersToManageMembers;
+  private boolean allowMembersToEditExpenses;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
   private List<GroupMemberDTO> members;

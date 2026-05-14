@@ -95,6 +95,9 @@ public class GroupService {
     if (request.getAllowMembersToManageMembers() != null) {
       group.setAllowMembersToManageMembers(request.getAllowMembersToManageMembers());
     }
+    if (request.getAllowMembersToEditExpenses() != null) {
+      group.setAllowMembersToEditExpenses(request.getAllowMembersToEditExpenses());
+    }
     return groupMapper.toDTO(groupRepository.save(group));
   }
 
@@ -284,5 +287,30 @@ public class GroupService {
     if (!group.isAllowMembersToManageMembers()) {
       throw new UnauthorizedException("Only admins can manage members in this group");
     }
+  }
+
+  public boolean canManageExpenses(Group group, Long userId, Long payerId) {
+    GroupMember membership =
+        group.getMembers().stream()
+            .filter(member -> member.getUserId().equals(userId))
+            .findFirst()
+            .orElse(null);
+
+    if (membership == null) {
+      return false;
+    }
+
+    // 1. Admin can always manage
+    if (membership.getRole() == GroupRole.ADMIN) {
+      return true;
+    }
+
+    // 2. Payer (creator of expense) can always manage
+    if (userId.equals(payerId)) {
+      return true;
+    }
+
+    // 3. Any member can manage if group setting is enabled
+    return group.isAllowMembersToEditExpenses();
   }
 }

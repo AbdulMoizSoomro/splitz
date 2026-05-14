@@ -115,4 +115,38 @@ class GroupServiceTest {
 
     verify(groupMemberRepository).delete(member);
   }
+
+  @Test
+  void canManageExpenses_Admin_ShouldReturnTrue() {
+    group.setAllowMembersToEditExpenses(false);
+    // User 1 is ADMIN
+    assertEquals(true, groupService.canManageExpenses(group, 1L, 99L));
+  }
+
+  @Test
+  void canManageExpenses_Payer_ShouldReturnTrue() {
+    group.setAllowMembersToEditExpenses(false);
+    GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
+    group.addMember(member);
+    // User 2 is PAYER
+    assertEquals(true, groupService.canManageExpenses(group, 2L, 2L));
+  }
+
+  @Test
+  void canManageExpenses_Member_FlagTrue_ShouldReturnTrue() {
+    group.setAllowMembersToEditExpenses(true);
+    GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
+    group.addMember(member);
+    // User 2 is MEMBER, flag is TRUE
+    assertEquals(true, groupService.canManageExpenses(group, 2L, 99L));
+  }
+
+  @Test
+  void canManageExpenses_Member_FlagFalse_ShouldReturnFalse() {
+    group.setAllowMembersToEditExpenses(false);
+    GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
+    group.addMember(member);
+    // User 2 is MEMBER, flag is FALSE, not Payer
+    assertEquals(false, groupService.canManageExpenses(group, 2L, 99L));
+  }
 }

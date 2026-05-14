@@ -223,6 +223,28 @@ public class GroupControllerIntegrationTest {
   }
 
   @Test
+  void updateGroup_shouldUpdateAllowMembersToEditExpenses() throws Exception {
+    Group g = Group.builder().name("SettingsTest").createdBy(100L).active(true).build();
+    g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());
+    Group saved = groupRepository.save(g);
+
+    UpdateGroupRequest update = new UpdateGroupRequest();
+    update.setAllowMembersToEditExpenses(false);
+
+    mockMvc
+        .perform(
+            put("/groups/" + saved.getId())
+                .header("Authorization", tokenFor(100L))
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(update)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.allowMembersToEditExpenses").value(false));
+
+    Group persisted = groupRepository.findById(saved.getId()).orElseThrow();
+    assertThat(persisted.isAllowMembersToEditExpenses()).isFalse();
+  }
+
+  @Test
   void bulkAddMembers_addsNewMembersAndIgnoresExisting() throws Exception {
     Group g = Group.builder().name("BulkTest").createdBy(100L).active(true).build();
     g.addMember(GroupMember.builder().userId(100L).role(GroupRole.ADMIN).build());

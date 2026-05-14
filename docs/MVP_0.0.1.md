@@ -258,6 +258,7 @@ Group
 ├── createdBy: Long (userId)
 ├── isActive: boolean
 ├── allowMembersToManageMembers: boolean
+├── allowMembersToEditExpenses: boolean
 ├── createdAt: DateTime
 └── updatedAt: DateTime
 

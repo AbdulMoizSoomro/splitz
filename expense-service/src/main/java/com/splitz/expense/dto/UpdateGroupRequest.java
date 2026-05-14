@@ -16,4 +16,6 @@ public class UpdateGroupRequest {
   private String imageUrl;
 
   private Boolean allowMembersToManageMembers;
+
+  private Boolean allowMembersToEditExpenses;
 }

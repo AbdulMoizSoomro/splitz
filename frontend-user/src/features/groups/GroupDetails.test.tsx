@@ -38,6 +38,7 @@ const mockGroup: Group = {
   createdBy: 1,
   active: true,
   allowMembersToManageMembers: true,
+  allowMembersToEditExpenses: true,
   createdAt: "2025-01-01T10:00:00Z",
   updatedAt: "2025-01-01T10:00:00Z",
 };
