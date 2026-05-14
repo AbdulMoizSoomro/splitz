@@ -59,8 +59,20 @@ class GroupTest {
   }
 
   @Test
+  void shouldHaveAllowMembersToEditExpensesDefaultToTrue() {
+    Group group = new Group();
+    assertTrue(group.isAllowMembersToEditExpenses(), "Default should be true");
+  }
+
+  @Test
   void builderShouldSupportAllowMembersToManageMembers() {
     Group group = Group.builder().allowMembersToManageMembers(false).build();
     assertFalse(group.isAllowMembersToManageMembers());
+  }
+
+  @Test
+  void builderShouldSupportAllowMembersToEditExpenses() {
+    Group group = Group.builder().allowMembersToEditExpenses(false).build();
+    assertFalse(group.isAllowMembersToEditExpenses());
   }
 }

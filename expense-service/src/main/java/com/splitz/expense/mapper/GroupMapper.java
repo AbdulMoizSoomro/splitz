@@ -32,6 +32,7 @@ public class GroupMapper {
         .createdBy(group.getCreatedBy())
         .active(group.isActive())
         .allowMembersToManageMembers(group.isAllowMembersToManageMembers())
+        .allowMembersToEditExpenses(group.isAllowMembersToEditExpenses())
         .createdAt(group.getCreatedAt())
         .updatedAt(group.getUpdatedAt())
         .members(mapMembers(group.getMembers()))

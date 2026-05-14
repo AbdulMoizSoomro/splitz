@@ -14,6 +14,7 @@ export interface Group {
   createdBy: number;
   active: boolean;
   allowMembersToManageMembers: boolean;
+  allowMembersToEditExpenses: boolean;
   createdAt: string;
   updatedAt: string;
   members: GroupMember[];

@@ -1,58 +1,9 @@
-- Implemented Dashboard and User Search in the frontend (#7)
-- Implemented Friend Request Management (send, accept, reject) and Friends List (#8)
-- Improved Group Management by implementing atomic group creation with members in both frontend and backend (#9)
-- Standardized Cross-Service JWT Identity to use numeric userId in 'sub' claim (#13)
-- Implemented Frontend Expense Creation with Equal Split (#10)
-- Enhanced Friend Request Management with sent request visibility and cancellation support (#15)
-- Implemented Stateless Identity Propagation by including userId and roles in JWT claims, enabling DB-less authorization (#28)
-- Implemented SharedSecurityAuthorizer in common-security with full unit and integration test coverage (#29)
-- Migrated user-service to Stateless Auth using SharedSecurityAuthorizer and standardized numeric userIds (#30)
-- Implemented 'Leave Group' functionality with UI workflow and confirmation dialog (#21)
-- Implemented Debt-Based Blocking Logic for leaving a group (#22)
-
-- Implemented E2E tests for Exact Split UI and validation (#25)
-- Implemented E2E tests for real-time balance validation during exact splits (#26)
-- Implemented E2E tests for submission guard and API payload integration for exact splits (#27)
-- Validated atomic group creation flow in containerized production environment (Docker) with E2E coverage and DB persistence verification (#14)
-- Implemented visual role indicators (badges) for group members in GroupDetails UI (#15)
-- Implemented group role management (promote/demote) with Owner protection and UI feedback (#16)
-- Implemented Group Settings with 'Allow members to manage members' toggle, Owner-only visibility, and backend persistence (#17)
-- Implemented 'Temp Friend' badge for non-friends in group member lists with dedicated UI styling and service integration (#19)
-
-- Implemented 'Temp Friend' tracking on global Friends page with balance-based pinning and auto-dismissal (#20)
-
-Issue 24 blocked by #22 (CLOSED) and #23 (OPEN). Issue 23 is the next candidate.
-
-- Implemented E2E test suite: Group Roles and Permissions — 3 tests covering promotion/demotion/governance (#23). Confidence: Medium (AC#2 adapted: no Add Member button exists in GroupDetails; tested governance toggle behaviour and member role-gate instead). 13/13 E2E tests green.
-
-- Implemented E2E test suite: Social Discovery and Group Exit — 3 tests covering Temp Friend badge, non-zero balance leave block, and zero balance leave (#24). Confidence: High. 16/16 E2E tests green.
-
-- Implemented Bulk Add Members: POST /groups/{id}/members/bulk backend endpoint (transactional, ignores existing members) + AddMemberModal frontend component + Add Member button in GroupDetails Members card header (#32). Confidence: Medium. Backend: 2 new integration tests green. Frontend: lint + build + 16/16 E2E green.
-
-- Enhanced Member Selection: Added search bar to AddMemberModal, integrated useTempFriends hook to list non-friends with shared debts for selection, and improved empty state with link to Friends Page (#33). Confidence: High. Frontend: lint + build green. Reused Temp Friend tracking logic (#20/24).
-
-- Implemented Pagination for User Service List Endpoints: Added PaginationValidator with sort allow-list, InvalidPaginationException, GlobalExceptionHandler integration, and default sort behavior for getAllUsers and searchUsers (#3). Confidence: High. Backend: 123 tests green, verify suite passes.
-Task #35: Add Remaining Split Strategies. Confidence: High. Decision: Branch feature/issue-35 created. Starting TDD for EQUAL, PERCENTAGE, SHARES, ADJUSTMENT strategies.
-Task #35: Complete. Strategies implemented and verified. Committing changes.
-Task #34: Implement Currency-Aware Precision & Remainder Post-Processor. Confidence: High. Decision: Branch feature/issue-34 created. Starting unit tests.
-Task #35: Complete. Remainder handling and strategies verified. Committing changes.
-- Implemented Advanced Split Strategies (PERCENTAGE, SHARES, ADJUSTMENT) in frontend CreateExpenseModal with real-time validation and comprehensive tests. Confidence: High.
-- Implemented Global Friendship Settlements (#39) and Net Balance Tracking. Confidence: High.
-- Optimized Shared Expenses with Bulk API (#38) and refactored Friend Detail Page for performance. Fixed "Leave Group" authorization bug. Confidence: High.
-- Refactored Expense Split Logic into a dedicated, currency-aware module using the Strategy Pattern (#37). Extracted RemainderHandler and implemented domain-specific exceptions. Confidence: High.
-- Implemented Concurrency & Intelligent Lifecycle (#49): Added @Version to FriendshipSettlement and Settlement models, implemented intelligent status assignment in createSettlement (COMPLETED if creator is Payee, MARKED_PAID if Payer), and added row-level locking (PESSIMISTIC_WRITE) in update transactions. Updated unit and integration tests. Confidence: High.
-Blocker: Git working tree is not clean. Uncommitted changes in frontend-user/src/features/users/friendService.ts.
-Task #43: UI: Unified 'Shared Activity' Feed (Friend Detail). Confidence: High. Decisions: Implemented the unified feed with fetching settlements. Added success and warning to Badge component. Passed all tests.
-Task #44: UI: Unified 'Group Activity' Feed. Confidence: High. Updated GroupActivity component to interleave group-linked expenses and settlements, using 'Shared Activity' terminology. Also fixed CreateSettlementRequest properties to match backend.
-Task #45: UI: Global Activity Page & Navigation. Confidence: High. Decision: Implemented backend /activity endpoint and frontend ActivityPage with chronological sorting. Verified with unit and E2E tests. Committing changes.
-
-Anomaly: E2E test 'strict-manual-allocation.spec.ts' timed out during issue 55 validation. Fixed ambiguous 'Add Expense' selectors in the test.
-
-
-Task #47: Infrastructure & Identity Standardization. Confidence: High. Decisions: Enabled -parameters compiler flag in expense-service, refactored controllers to use centralized SharedSecurityAuthorizer bean, and removed local currentUserId() methods. Updated E2E tests to match UI terminology (Shared Activity).
-
-- Issue 51: Implemented Strict Manual Debt Allocation. Added per-group balance breakdown to BalanceService. Updated FriendshipSettlementService to handle multi-group allocations. Added 'Confirm Receipt' functionality to Friend Detail Page. Verified with curl integration tests (Payee and Payer flows). Confidence: High.
-
-- Issue 54: Enhanced core Input component with rightElement support and automatic padding management. Added unit tests for rendering and dynamic styling. Confidence: High.
-
-- Issue 53: Implemented Password Visibility Toggle in Login page. Added showPassword state and lucide-react icons (Eye/EyeOff) using the new rightElement prop of the Input component. Fixed label ambiguity in E2E tests by renaming the button aria-label to 'Toggle visibility'. Verified with unit and 20/20 E2E tests. Confidence: High.
+- Task: #57
+- Summary: Implemented allowMembersToEditExpenses toggle for groups.
+- Confidence: High
+- Decisions:
+  - Added BOOLEAN column to groups table with default TRUE.
+  - Updated Backend: Group model, DTOs, Mapper, and Service.
+  - Implemented base authorization logic canManageExpenses in GroupService.
+  - Updated Frontend: Group type and GroupDetails UI with a new toggle in Settings.
+  - Verified with unit, integration, and E2E tests.

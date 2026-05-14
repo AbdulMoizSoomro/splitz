@@ -408,6 +408,32 @@ const GroupDetails = () => {
                         />
                       </button>
                     </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900">
+                          Collaborative Editing
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Allow members to edit/delete expenses
+                        </span>
+                      </div>
+                      <button
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${group.allowMembersToEditExpenses ? "bg-blue-600" : "bg-gray-200"} ${updateGroupMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
+                        onClick={() =>
+                          updateGroupMutation.mutate({
+                            allowMembersToEditExpenses:
+                              !group.allowMembersToEditExpenses,
+                          })
+                        }
+                        disabled={updateGroupMutation.isPending}
+                        aria-label="Toggle allow members to edit expenses"
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${group.allowMembersToEditExpenses ? "translate-x-6" : "translate-x-1"}`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
