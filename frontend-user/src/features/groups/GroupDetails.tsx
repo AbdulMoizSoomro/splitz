@@ -252,6 +252,7 @@ const GroupDetails = () => {
                   groupId={Number(id)}
                   balancesResponse={balancesResponse}
                   onAddExpense={() => setIsAddExpenseModalOpen(true)}
+                  group={group}
                 />
               </div>
             )}
