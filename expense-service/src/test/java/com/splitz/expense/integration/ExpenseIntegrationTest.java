@@ -173,6 +173,25 @@ public class ExpenseIntegrationTest {
   }
 
   @Test
+  void updateExpense_Owner_BaseLevelAuth_Success() throws Exception {
+    // 101L is a regular member (not a group admin) and is the owner of the expense.
+    // This verifies that the SharedSecurityAuthorizer's base-level identity check (isSelf) allows
+    // the modification.
+    Expense expense = createTestExpense(101L);
+    UpdateExpenseRequest updateRequest =
+        UpdateExpenseRequest.builder().description("Base Level Auth Update").build();
+
+    mockMvc
+        .perform(
+            put("/expenses/" + expense.getId())
+                .header("Authorization", tokenFor(101L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updateRequest)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.description").value("Base Level Auth Update"));
+  }
+
+  @Test
   void updateExpense_NonOwnerNonAdmin_Forbidden() throws Exception {
     // Disable collaborative editing for this test
     group.setAllowMembersToEditExpenses(false);

@@ -316,7 +316,7 @@ public class ExpenseService {
   }
 
   private void checkAuthorization(Expense expense, Long currentUserId) {
-    if (splitzAuthorizer.isAdmin()) {
+    if (splitzAuthorizer.isSelfOrAdmin(expense.getPaidBy())) {
       return;
     }
 
