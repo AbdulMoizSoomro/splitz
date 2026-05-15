@@ -41,10 +41,8 @@ A user can register, login, create a group with friends, add expenses, and see c
 | Settlements | Record group-specific debt payments (manual) | ✅ Done |
 | Friendship Settlements | Record global settlements with manual allocation to group debts | ✅ Done |
 | Global Activity Feed | Unified list of all expenses and settlements involving the user | ✅ Done |
-
-### Infrastructure
-
-| Feature | Description | Status |
+| Activity Logging | Group-specific audit log for creation/deletion of events | ✅ Done |
+| Infrastructure | Description | Status |
 |---------|-------------|--------|
 | CI Pipeline | GitHub Actions build/test | ✅ Done |
 | API Docs | Swagger UI for both services | ✅ Done |

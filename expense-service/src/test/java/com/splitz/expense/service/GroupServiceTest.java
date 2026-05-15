@@ -119,6 +119,8 @@ class GroupServiceTest {
   @Test
   void canManageExpenses_Admin_ShouldReturnTrue() {
     group.setAllowMembersToEditExpenses(false);
+    GroupMember adminMember = GroupMember.builder().userId(1L).role(GroupRole.ADMIN).build();
+    when(groupMemberRepository.findByGroupIdAndUserId(2L, 1L)).thenReturn(Optional.of(adminMember));
     // User 1 is ADMIN
     assertEquals(true, groupService.canManageExpenses(group, 1L, 99L));
   }
@@ -128,6 +130,7 @@ class GroupServiceTest {
     group.setAllowMembersToEditExpenses(false);
     GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
     group.addMember(member);
+    when(groupMemberRepository.findByGroupIdAndUserId(2L, 2L)).thenReturn(Optional.of(member));
     // User 2 is PAYER
     assertEquals(true, groupService.canManageExpenses(group, 2L, 2L));
   }
@@ -137,6 +140,7 @@ class GroupServiceTest {
     group.setAllowMembersToEditExpenses(true);
     GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
     group.addMember(member);
+    when(groupMemberRepository.findByGroupIdAndUserId(2L, 2L)).thenReturn(Optional.of(member));
     // User 2 is MEMBER, flag is TRUE
     assertEquals(true, groupService.canManageExpenses(group, 2L, 99L));
   }
@@ -146,6 +150,7 @@ class GroupServiceTest {
     group.setAllowMembersToEditExpenses(false);
     GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
     group.addMember(member);
+    when(groupMemberRepository.findByGroupIdAndUserId(2L, 2L)).thenReturn(Optional.of(member));
     // User 2 is MEMBER, flag is FALSE, not Payer
     assertEquals(false, groupService.canManageExpenses(group, 2L, 99L));
   }

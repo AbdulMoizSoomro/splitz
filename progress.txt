@@ -19,3 +19,16 @@
   - Verified full loop (Step 6) using Docker-Compose and Playwright.
 
 Issue 59: Slice 3: Full Expense Update & 'Last Edited' Audit | Confidence: High | Status: Done
+
+- Task: #60
+- Summary: Implemented Activity Logging Infrastructure (Creation & Deletion).
+- Status: Done
+- Confidence: High
+- Decisions:
+  - Created ActivityLog schema, model, and repository.
+  - Implemented ActivityLogService and integrated it into ExpenseService for create/delete events.
+  - Added /groups/{id}/activity endpoint to GroupController.
+  - Refactored GroupActivity UI to display activity logs instead of a static expense list.
+  - Fixed interface vs type imports in frontend to resolve Vite runtime errors.
+  - Updated existing E2E tests (expense-deletion) to account for activity log presence.
+  - Verified with full Docker-Compose stack and Playwright E2E suite.

@@ -8,6 +8,8 @@ import type {
 } from "../../types/group";
 import type { UserBalanceResponse } from "../../types/user";
 
+import type { ActivityLog } from "../../types/activity";
+
 export const groupService = {
   getGroups: async (): Promise<Group[]> => {
     const response = await expenseApi.get<Group[]>("/groups");
@@ -78,6 +80,11 @@ export const groupService = {
     const response = await expenseApi.get<UserBalanceResponse>(
       `/users/${userId}/balances`,
     );
+    return response.data;
+  },
+
+  getGroupActivity: async (groupId: number): Promise<ActivityLog[]> => {
+    const response = await expenseApi.get<ActivityLog[]>(`/groups/${groupId}/activity`);
     return response.data;
   },
 };
