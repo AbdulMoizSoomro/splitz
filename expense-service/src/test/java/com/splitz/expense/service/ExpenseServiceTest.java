@@ -744,4 +744,39 @@ class ExpenseServiceTest {
             org.mockito.ArgumentMatchers.eq("Dinner"),
             org.mockito.ArgumentMatchers.nullable(String.class));
   }
+
+  @Test
+  void updateExpense_LogsActivityWithDiff() {
+    com.splitz.expense.dto.UpdateExpenseRequest request =
+        com.splitz.expense.dto.UpdateExpenseRequest.builder()
+            .description("Updated Dinner")
+            .amount(new BigDecimal("100.00"))
+            .build();
+
+    when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
+    when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
+    when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
+
+    expenseService.updateExpense(1L, request, 100L);
+
+    verify(activityLogService)
+        .logActivity(
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq(
+                com.splitz.expense.model.ActivityLogType.EXPENSE_UPDATED),
+            org.mockito.ArgumentMatchers.eq(100L),
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq("Updated Dinner"),
+            org.mockito.ArgumentMatchers.contains("description: Dinner -> Updated Dinner"));
+
+    verify(activityLogService)
+        .logActivity(
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            org.mockito.ArgumentMatchers.contains("amount: 60.00 -> 100.00"));
+  }
 }

@@ -170,7 +170,8 @@ const GroupActivity = ({
             Icon = Edit2;
             iconBg = "bg-blue-100 text-blue-700";
             title = `${actorName} updated "${activity.entityName}"`;
-            description = `on ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            const diffText = activity.details ? ` (${activity.details.replace(/; $/, '')})` : "";
+            description = `on ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${diffText}`;
             break;
         }
 

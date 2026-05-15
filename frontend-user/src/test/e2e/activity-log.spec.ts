@@ -74,4 +74,28 @@ test.describe('Activity Logging', () => {
     await expect(page.getByText(/you added "Lunch"/i)).toBeVisible();
     await expect(page.getByText(/you deleted "Lunch"/i)).toBeVisible();
   });
+
+  test('should log updates with diffs', async ({ page }) => {
+    // 1. Create an expense
+    await page.getByRole('button', { name: /add expense/i }).first().click();
+    const expenseModal = page.getByRole('dialog');
+    await expenseModal.getByLabel(/description/i).fill('Initial');
+    await expenseModal.getByLabel(/amount/i).fill('10');
+    await expenseModal.getByRole('button', { name: /add expense/i }).click();
+    await expect(page.getByText(/you added "Initial"/i)).toBeVisible();
+
+    // 2. Update the expense
+    await page.getByLabel(/actions for Initial/i).click();
+    await page.getByRole('menuitem', { name: /edit/i }).click();
+    
+    const editModal = page.getByRole('dialog');
+    await editModal.getByLabel(/description/i).fill('Updated');
+    await editModal.getByLabel(/amount/i).fill('25');
+    await editModal.getByRole('button', { name: /save changes/i }).click();
+
+    // 3. Verify update log with diff
+    await expect(page.getByText(/you updated "Updated"/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/description: Initial -> Updated/i)).toBeVisible();
+    await expect(page.getByText(/amount: 10.00 -> 25.00/i)).toBeVisible();
+  });
 });

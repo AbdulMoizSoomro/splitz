@@ -182,23 +182,43 @@ public class ExpenseService {
 
     checkAuthorization(expense, currentUserId);
 
-    if (request.getDescription() != null) {
+    StringBuilder diff = new StringBuilder();
+    if (request.getDescription() != null
+        && !request.getDescription().equals(expense.getDescription())) {
+      diff.append("description: ")
+          .append(expense.getDescription())
+          .append(" -> ")
+          .append(request.getDescription())
+          .append("; ");
       expense.setDescription(request.getDescription());
     }
-    if (request.getAmount() != null) {
+    if (request.getAmount() != null && request.getAmount().compareTo(expense.getAmount()) != 0) {
+      diff.append("amount: ")
+          .append(String.format("%.2f", expense.getAmount()))
+          .append(" -> ")
+          .append(String.format("%.2f", request.getAmount()))
+          .append("; ");
       expense.setAmount(request.getAmount());
     }
-    if (request.getCurrency() != null) {
+    if (request.getCurrency() != null && !request.getCurrency().equals(expense.getCurrency())) {
+      diff.append("currency: ")
+          .append(expense.getCurrency())
+          .append(" -> ")
+          .append(request.getCurrency())
+          .append("; ");
       expense.setCurrency(request.getCurrency());
     }
-    if (request.getPaidBy() != null) {
+    if (request.getPaidBy() != null && !request.getPaidBy().equals(expense.getPaidBy())) {
+      diff.append("paidBy changed; ");
       if (!groupMemberRepository.existsByGroupIdAndUserId(
           expense.getGroup().getId(), request.getPaidBy())) {
         throw new IllegalArgumentException("Payer must be a member of the group");
       }
       expense.setPaidBy(request.getPaidBy());
     }
-    if (request.getCategoryId() != null) {
+    if (request.getCategoryId() != null
+        && (expense.getCategory() == null
+            || !request.getCategoryId().equals(expense.getCategory().getId()))) {
       Category category =
           categoryRepository
               .findById(request.getCategoryId())
@@ -206,25 +226,31 @@ public class ExpenseService {
                   () ->
                       new ResourceNotFoundException(
                           "Category not found with id: " + request.getCategoryId()));
+      diff.append("category: ")
+          .append(expense.getCategory() != null ? expense.getCategory().getName() : "None")
+          .append(" -> ")
+          .append(category.getName())
+          .append("; ");
       expense.setCategory(category);
     }
-    if (request.getExpenseDate() != null) {
+    if (request.getExpenseDate() != null
+        && !request.getExpenseDate().equals(expense.getExpenseDate())) {
+      diff.append("date changed; ");
       expense.setExpenseDate(request.getExpenseDate());
     }
-    if (request.getNotes() != null) {
+    if (request.getNotes() != null && !request.getNotes().equals(expense.getNotes())) {
+      diff.append("notes updated; ");
       expense.setNotes(request.getNotes());
     }
-    if (request.getReceiptUrl() != null) {
+    if (request.getReceiptUrl() != null
+        && !request.getReceiptUrl().equals(expense.getReceiptUrl())) {
+      diff.append("receipt updated; ");
       expense.setReceiptUrl(request.getReceiptUrl());
     }
 
     if (request.getSplits() != null && !request.getSplits().isEmpty()) {
       SplitType splitType = request.getSplitType();
       if (splitType == null) {
-        // Fallback to existing split type if not provided in request but splits are
-        // Actually, if splits are provided, splitType should probably be provided too.
-        // For simplicity, we'll assume the request is complete or we should use a default.
-        // Let's check if we can get the split type from existing splits if not provided.
         splitType =
             expense.getSplits().isEmpty()
                 ? SplitType.EQUAL
@@ -233,8 +259,8 @@ public class ExpenseService {
       List<ExpenseSplit> newSplits = calculateSplits(expense, request.getSplits(), splitType);
       expense.getSplits().clear();
       expense.getSplits().addAll(newSplits);
+      diff.append("splits: modified; ");
     } else if (request.getAmount() != null) {
-      // Recalculate existing splits if amount changed but new splits not provided
       SplitType splitType =
           expense.getSplits().isEmpty()
               ? SplitType.EQUAL
@@ -251,11 +277,22 @@ public class ExpenseService {
       List<ExpenseSplit> updatedSplits = calculateSplits(expense, splitRequests, splitType);
       expense.getSplits().clear();
       expense.getSplits().addAll(updatedSplits);
+      diff.append("splits: recalculated; ");
     }
 
     expense.setLastModifiedBy(currentUserId);
 
-    return expenseMapper.toDTO(expenseRepository.save(expense));
+    Expense savedExpense = expenseRepository.save(expense);
+
+    activityLogService.logActivity(
+        savedExpense.getGroup().getId(),
+        com.splitz.expense.model.ActivityLogType.EXPENSE_UPDATED,
+        currentUserId,
+        id,
+        savedExpense.getDescription(),
+        diff.toString().trim());
+
+    return expenseMapper.toDTO(savedExpense);
   }
 
   @Transactional
