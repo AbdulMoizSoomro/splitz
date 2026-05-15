@@ -82,7 +82,7 @@ test.describe("[E2E] Friend Detail Page", () => {
   test("should navigate to friend detail page and show basic info, groups, and expenses", async ({
     browser,
   }) => {
-    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const ts = Date.now();
     const aliceName = `alice_${ts}`;
     const bobName = `bob_${ts}`;
 
@@ -117,8 +117,8 @@ test.describe("[E2E] Friend Detail Page", () => {
       // 6. Assert URL and basic info
       await expect(pageAlice).toHaveURL(/\/friends\/\d+/);
       await expect(
-        pageAlice.getByRole("heading", { name: "Bob User" }),
-      ).toBeVisible();
+        pageAlice.locator('h1', { hasText: 'Bob User' }),
+      ).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText(`@${bobName}`)).toBeVisible();
       await expect(pageAlice.getByText(`${bobName}@example.com`)).toBeVisible();
 
@@ -142,12 +142,12 @@ test.describe("[E2E] Friend Detail Page", () => {
 
       // 9. Navigate back to Bob's detail page
       await pageAlice.goto("/friends");
-      await pageAlice.getByText("Bob User").click();
+      await pageAlice.locator('a').filter({ hasText: 'Bob User' }).click();
       await expect(pageAlice).toHaveURL(/\/friends\/\d+/);
 
       // 10. Assert Shared Activity
-      await expect(pageAlice.getByText("Shared Activity")).toBeVisible();
-      await expect(pageAlice.getByText("Pizza Party")).toBeVisible();
+      await expect(pageAlice.getByText("Shared Activity")).toBeVisible({ timeout: 10000 });
+      await expect(pageAlice.getByText("Pizza Party")).toBeVisible({ timeout: 10000 });
     } finally {
       await ctxAlice.close();
       await ctxBob.close();

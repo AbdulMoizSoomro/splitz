@@ -1,46 +1,12 @@
-- Task: #57
-- Summary: Implemented allowMembersToEditExpenses toggle for groups.
-- Confidence: High
-- Decisions:
-  - Added BOOLEAN column to groups table with default TRUE.
-  - Updated Backend: Group model, DTOs, Mapper, and Service.
-  - Implemented base authorization logic canManageExpenses in GroupService.
-  - Updated Frontend: Group type and GroupDetails UI with a new toggle in Settings.
-  - Verified with unit, integration, and E2E tests.
+# Progress Log - Issue 46 (v2)
 
-- Task: #58
-- Summary: Implemented Expense Deletion with Collaborative Authorization and E2E verification.
-- Status: Done
+- Task ID: 46
+- Summary: E2E: Multi-User Settlement Lifecycle & Confirmation
 - Confidence: High
-- Decisions:
-  - Refactored ExpenseService.checkAuthorization to use GroupService.canManageExpenses.
-  - Fixed regression in ExpenseIntegrationTest by updating authorization checks to account for default collaborative permissions.
-  - Improved E2E testability in GroupActivity with aria-labels.
-  - Verified full loop (Step 6) using Docker-Compose and Playwright.
-
-Issue 59: Slice 3: Full Expense Update & 'Last Edited' Audit | Confidence: High | Status: Done
-
-- Task: #60
-- Summary: Implemented Activity Logging Infrastructure (Creation & Deletion).
-- Status: Done
-- Confidence: High
-- Decisions:
-  - Created ActivityLog schema, model, and repository.
-  - Implemented ActivityLogService and integrated it into ExpenseService for create/delete events.
-  - Added /groups/{id}/activity endpoint to GroupController.
-  - Refactored GroupActivity UI to display activity logs instead of a static expense list.
-  - Fixed interface vs type imports in frontend to resolve Vite runtime errors.
-  - Updated existing E2E tests (expense-deletion) to account for activity log presence.
-  - Verified with full Docker-Compose stack and Playwright E2E suite.
-
-- Task: #61
-- Summary: Implemented Detailed Activity Logging with Diffs for expense updates.
-- Status: Done
-- Confidence: High
-- Decisions:
-  - Implemented field-level diffing in ExpenseService.updateExpense (Description, Amount, Currency, Payer, Category, Date, Notes, Receipt).
-  - Standardized amount formatting in diffs (2 decimal places) for consistency.
-  - Added split change tracking (modified vs recalculated).
-  - Updated GroupActivity UI to display diff details in parentheses.
-  - Fixed E2E test regex for amount formatting.
-  - Verified with unit tests and Docker-Compose E2E suite.
+- Decisions made:
+  - Working on `feature/issue-46-v2` branch as requested.
+  - Test `settlement-lifecycle.spec.ts` fixed and verified.
+  - Fixed tab selection (role="tab" vs role="button").
+  - Fixed amount verification strict mode violations.
+  - Fixed `friend-detail.spec.ts` heading locator and text mismatches.
+  - Verified all E2E tests pass with 1 worker to ensure stability.
