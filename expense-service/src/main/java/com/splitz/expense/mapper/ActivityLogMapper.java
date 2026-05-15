@@ -10,7 +10,9 @@ import org.springframework.stereotype.Component;
 public class ActivityLogMapper {
 
   public ActivityLogDTO toDTO(ActivityLog log) {
-    if (log == null) return null;
+    if (log == null) {
+      return null;
+    }
     return ActivityLogDTO.builder()
         .id(log.getId())
         .groupId(log.getGroupId())
@@ -24,7 +26,9 @@ public class ActivityLogMapper {
   }
 
   public List<ActivityLogDTO> toDTOList(List<ActivityLog> logs) {
-    if (logs == null) return null;
+    if (logs == null) {
+      return null;
+    }
     return logs.stream().map(this::toDTO).collect(Collectors.toList());
   }
 }

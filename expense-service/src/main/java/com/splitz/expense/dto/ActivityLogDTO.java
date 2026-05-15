@@ -2,7 +2,11 @@ package com.splitz.expense.dto;
 
 import com.splitz.expense.model.ActivityLogType;
 import java.time.LocalDateTime;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
