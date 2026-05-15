@@ -87,6 +87,14 @@ class ExpenseServiceTest {
             .amount(new BigDecimal("60.00"))
             .paidBy(100L)
             .category(category)
+            .splits(
+                new java.util.ArrayList<>(
+                    List.of(
+                        ExpenseSplit.builder()
+                            .userId(100L)
+                            .splitType(SplitType.EQUAL)
+                            .shareAmount(new BigDecimal("60.00"))
+                            .build())))
             .build();
     expenseDTO =
         ExpenseDTO.builder()
@@ -441,6 +449,7 @@ class ExpenseServiceTest {
     expense.setSplits(List.of(split));
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
@@ -472,7 +481,7 @@ class ExpenseServiceTest {
             .build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     // Mocking current user as creator (100L)
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
@@ -484,13 +493,88 @@ class ExpenseServiceTest {
   }
 
   @Test
+  void updateExpense_WithSplits_Success() {
+    UpdateExpenseRequest request =
+        UpdateExpenseRequest.builder()
+            .description("Updated Dinner")
+            .amount(new BigDecimal("100.00"))
+            .paidBy(100L)
+            .splitType(SplitType.EQUAL)
+            .splits(
+                Arrays.asList(
+                    SplitRequest.builder().userId(100L).build(),
+                    SplitRequest.builder().userId(101L).build()))
+            .build();
+
+    when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+    when(expenseRepository.save(any(Expense.class)))
+        .thenAnswer(
+            invocation -> {
+              Expense savedExpense = invocation.getArgument(0);
+              assertEquals(new BigDecimal("100.00"), savedExpense.getAmount());
+              assertEquals(2, savedExpense.getSplits().size());
+              assertEquals(100L, savedExpense.getLastModifiedBy());
+              return savedExpense;
+            });
+    when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
+
+    expenseService.updateExpense(1L, request, 100L);
+
+    verify(expenseRepository).save(any(Expense.class));
+  }
+
+  @Test
+  void updateExpense_AmountOnly_RecalculatesSplits() {
+    // Current expense is 60.00, let's say it has 2 equal splits of 30.00
+    ExpenseSplit split1 =
+        ExpenseSplit.builder()
+            .userId(100L)
+            .splitType(SplitType.EQUAL)
+            .shareAmount(new BigDecimal("30.00"))
+            .build();
+    ExpenseSplit split2 =
+        ExpenseSplit.builder()
+            .userId(101L)
+            .splitType(SplitType.EQUAL)
+            .shareAmount(new BigDecimal("30.00"))
+            .build();
+    expense.setSplits(new java.util.ArrayList<>(List.of(split1, split2)));
+
+    UpdateExpenseRequest request =
+        UpdateExpenseRequest.builder().amount(new BigDecimal("100.00")).build();
+
+    when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
+    when(expenseRepository.save(any(Expense.class)))
+        .thenAnswer(
+            invocation -> {
+              Expense savedExpense = invocation.getArgument(0);
+              assertEquals(new BigDecimal("100.00"), savedExpense.getAmount());
+              assertEquals(2, savedExpense.getSplits().size());
+              // Each split should now be 50.00
+              assertEquals(
+                  new BigDecimal("50.00"), savedExpense.getSplits().get(0).getShareAmount());
+              assertEquals(
+                  new BigDecimal("50.00"), savedExpense.getSplits().get(1).getShareAmount());
+              return savedExpense;
+            });
+    when(expenseMapper.toDTO(any(Expense.class))).thenReturn(expenseDTO);
+
+    expenseService.updateExpense(1L, request, 100L);
+
+    verify(expenseRepository).save(any(Expense.class));
+  }
+
+  @Test
   void updateExpense_AdminSuccess() {
     UpdateExpenseRequest request =
         UpdateExpenseRequest.builder().description("Admin Update").build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
     // Current user 101L is not creator (100L) but is admin (handled by groupService)
-    when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
@@ -513,7 +597,7 @@ class ExpenseServiceTest {
   void updateExpense_CategoryNotFound_ThrowsException() {
     UpdateExpenseRequest request = UpdateExpenseRequest.builder().categoryId(99L).build();
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
     assertThrows(
@@ -541,7 +625,7 @@ class ExpenseServiceTest {
   @Test
   void deleteExpense_Success() {
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
 
     expenseService.deleteExpense(1L, 100L);
 

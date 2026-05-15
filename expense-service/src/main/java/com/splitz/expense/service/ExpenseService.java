@@ -79,21 +79,20 @@ public class ExpenseService {
             .receiptUrl(request.getReceiptUrl())
             .build();
 
-    List<ExpenseSplit> splits = calculateSplits(expense, request);
+    List<ExpenseSplit> splits =
+        calculateSplits(expense, request.getSplits(), request.getSplitType());
     expense.setSplits(splits);
 
     return expenseMapper.toDTO(expenseRepository.save(expense));
   }
 
-  private List<ExpenseSplit> calculateSplits(Expense expense, CreateExpenseRequest request) {
-    List<SplitRequest> splitRequests = request.getSplits();
-
+  private List<ExpenseSplit> calculateSplits(
+      Expense expense, List<SplitRequest> splitRequests, SplitType splitType) {
     if (splitRequests == null || splitRequests.isEmpty()) {
       throw new IllegalArgumentException("At least one split is required");
     }
 
     BigDecimal totalAmount = expense.getAmount();
-    SplitType splitType = request.getSplitType();
 
     List<SplitResult> results =
         splitCalculator.calculate(totalAmount, splitType, splitRequests, expense.getCurrency());
@@ -182,6 +181,13 @@ public class ExpenseService {
     if (request.getCurrency() != null) {
       expense.setCurrency(request.getCurrency());
     }
+    if (request.getPaidBy() != null) {
+      if (!groupMemberRepository.existsByGroupIdAndUserId(
+          expense.getGroup().getId(), request.getPaidBy())) {
+        throw new IllegalArgumentException("Payer must be a member of the group");
+      }
+      expense.setPaidBy(request.getPaidBy());
+    }
     if (request.getCategoryId() != null) {
       Category category =
           categoryRepository
@@ -201,6 +207,43 @@ public class ExpenseService {
     if (request.getReceiptUrl() != null) {
       expense.setReceiptUrl(request.getReceiptUrl());
     }
+
+    if (request.getSplits() != null && !request.getSplits().isEmpty()) {
+      SplitType splitType = request.getSplitType();
+      if (splitType == null) {
+        // Fallback to existing split type if not provided in request but splits are
+        // Actually, if splits are provided, splitType should probably be provided too.
+        // For simplicity, we'll assume the request is complete or we should use a default.
+        // Let's check if we can get the split type from existing splits if not provided.
+        splitType =
+            expense.getSplits().isEmpty()
+                ? SplitType.EQUAL
+                : expense.getSplits().get(0).getSplitType();
+      }
+      List<ExpenseSplit> newSplits = calculateSplits(expense, request.getSplits(), splitType);
+      expense.getSplits().clear();
+      expense.getSplits().addAll(newSplits);
+    } else if (request.getAmount() != null) {
+      // Recalculate existing splits if amount changed but new splits not provided
+      SplitType splitType =
+          expense.getSplits().isEmpty()
+              ? SplitType.EQUAL
+              : expense.getSplits().get(0).getSplitType();
+      List<SplitRequest> splitRequests =
+          expense.getSplits().stream()
+              .map(
+                  s ->
+                      SplitRequest.builder()
+                          .userId(s.getUserId())
+                          .splitValue(s.getSplitValue())
+                          .build())
+              .collect(Collectors.toList());
+      List<ExpenseSplit> updatedSplits = calculateSplits(expense, splitRequests, splitType);
+      expense.getSplits().clear();
+      expense.getSplits().addAll(updatedSplits);
+    }
+
+    expense.setLastModifiedBy(currentUserId);
 
     return expenseMapper.toDTO(expenseRepository.save(expense));
   }

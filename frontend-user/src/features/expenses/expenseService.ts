@@ -1,5 +1,9 @@
 import { expenseApi } from "../../lib/axios";
-import type { Expense, CreateExpenseRequest } from "../../types/expense";
+import type {
+  Expense,
+  CreateExpenseRequest,
+  UpdateExpenseRequest,
+} from "../../types/expense";
 
 export const expenseService = {
   getGroupExpenses: async (groupId: number): Promise<Expense[]> => {
@@ -23,6 +27,18 @@ export const expenseService = {
   ): Promise<Expense> => {
     const response = await expenseApi.post<Expense>(
       `/groups/${groupId}/expenses`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateExpense: async (
+    groupId: number,
+    expenseId: number,
+    data: UpdateExpenseRequest,
+  ): Promise<Expense> => {
+    const response = await expenseApi.put<Expense>(
+      `/groups/${groupId}/expenses/${expenseId}`,
       data,
     );
     return response.data;

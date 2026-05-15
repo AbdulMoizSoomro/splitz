@@ -1,3 +1,13 @@
+- Task: #57
+- Summary: Implemented allowMembersToEditExpenses toggle for groups.
+- Confidence: High
+- Decisions:
+  - Added BOOLEAN column to groups table with default TRUE.
+  - Updated Backend: Group model, DTOs, Mapper, and Service.
+  - Implemented base authorization logic canManageExpenses in GroupService.
+  - Updated Frontend: Group type and GroupDetails UI with a new toggle in Settings.
+  - Verified with unit, integration, and E2E tests.
+
 - Task: #58
 - Summary: Implemented Expense Deletion with Collaborative Authorization and E2E verification.
 - Status: Done
@@ -7,3 +17,5 @@
   - Fixed regression in ExpenseIntegrationTest by updating authorization checks to account for default collaborative permissions.
   - Improved E2E testability in GroupActivity with aria-labels.
   - Verified full loop (Step 6) using Docker-Compose and Playwright.
+
+Issue 59: Slice 3: Full Expense Update & 'Last Edited' Audit | Confidence: High | Status: Done
