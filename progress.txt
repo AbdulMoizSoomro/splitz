@@ -33,3 +33,15 @@
   - Discovered that the `SplitCalculator` skeleton and `ExactSplitStrategy` implementation, along with their integration tests, were already merged into `main`.
   - Verified all acceptance criteria are met and tests pass.
   - Updating progress log and closing the issue.
+
+# Progress Log - Issue 9 & 10 (v2)
+
+- Task ID: 9, 10
+- Summary: Implement Frontend Group Management and Expense Creation
+- Confidence: High
+- Decisions made:
+  - Created `feature/issue-9-10-v2` from `main`.
+  - Discovered that the complete frontend implementations for Group Management (`CreateGroupModal`, `GroupList`, etc.) and Expense Creation (`ExpenseModal`) were already merged into `main`.
+  - Verified all 71 frontend tests are passing using `npm run test`.
+  - Verified all acceptance criteria are met.
+  - Updating progress log and closing the issues.
