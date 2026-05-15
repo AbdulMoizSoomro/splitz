@@ -70,3 +70,14 @@
   - Added an integration test `updateExpense_Owner_BaseLevelAuth_Success` in `ExpenseIntegrationTest` to verify the behavior independently of group settings.
   - Ran `mvn verify` successfully.
   - Updating progress log and closing the issue.
+
+# Progress Log - Issues 12, 18, 19, 20 (v2)
+
+- Task ID: 12, 18, 19, 20
+- Summary: Balances Dashboard, Settlement UI, Group Governance, and Temp Friend Tracking
+- Confidence: High
+- Decisions made:
+  - Created `feature/issue-12-18-19-20-v2` from `main`.
+  - Discovered that the implementations for these issues were already completed and the issues were closed.
+  - Verified all 71 frontend tests are passing using `npm run test`, confirming the presence and validity of the features in `main`.
+  - Updating progress log to document completion.
