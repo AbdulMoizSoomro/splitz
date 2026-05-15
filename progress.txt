@@ -92,3 +92,15 @@
   - Discovered that the backend and frontend implementations for Bulk Add Members (#32) and the E2E test suites for Role Management (#23) and Social Discovery / Group Exit (#24) were already fully completed.
   - Booted the full Docker stack and executed `npx playwright test` for the related E2E tests, verifying that all tests pass.
   - Updating progress log and closing the issues.
+
+# Progress Log - Issues 3, 36 (v2)
+
+- Task ID: 3, 36
+- Summary: Pagination Validator for User Service and EXACT Split Strategy E2E
+- Confidence: High
+- Decisions made:
+  - Created `feature/issue-3-36-v2` from `main`.
+  - Discovered that the implementation for Issue #36 (EXACT Split Strategy) was already successfully completed, verified, and closed in previous iterations.
+  - Discovered that the implementation for Issue #3 (Pagination Validator for User Service) was already fully integrated in the codebase (`PaginationValidator` and `InvalidPaginationException` are present).
+  - Executed `mvn verify` in `user-service` to ensure all tests passed successfully.
+  - Updating progress log to document completion.
