@@ -68,8 +68,9 @@ const ExpenseModal = ({
       expenseService.createExpense(group.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", group.id] });
+      queryClient.invalidateQueries({ queryKey: ["group-activity", group.id] });
       queryClient.invalidateQueries({
-        queryKey: ["group-balances", group.id.toString()],
+        queryKey: ["group-balances", group.id],
       });
       onClose();
       resetForm();
@@ -81,8 +82,9 @@ const ExpenseModal = ({
       expenseService.updateExpense(group.id, expense!.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", group.id] });
+      queryClient.invalidateQueries({ queryKey: ["group-activity", group.id] });
       queryClient.invalidateQueries({
-        queryKey: ["group-balances", group.id.toString()],
+        queryKey: ["group-balances", group.id],
       });
       onClose();
     },

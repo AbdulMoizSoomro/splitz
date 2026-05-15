@@ -18,6 +18,7 @@ import com.splitz.expense.dto.GroupMemberDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.dto.UpdateMemberRoleRequest;
 import com.splitz.expense.model.GroupRole;
+import com.splitz.expense.service.ActivityLogService;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.JwtUtil;
@@ -48,6 +49,10 @@ class GroupControllerTest {
   @Autowired private ObjectMapper objectMapper;
 
   @MockBean private GroupService groupService;
+
+  @MockBean private ActivityLogService activityLogService;
+
+  @MockBean private com.splitz.expense.mapper.ActivityLogMapper activityLogMapper;
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
@@ -194,5 +199,34 @@ class GroupControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.members[0].role").value("ADMIN"));
+  }
+
+  @Test
+  @WithMockUser(username = "1")
+  void getGroupActivity_ShouldReturnActivityLogs() throws Exception {
+    com.splitz.expense.model.ActivityLog log =
+        com.splitz.expense.model.ActivityLog.builder()
+            .id(1L)
+            .groupId(1L)
+            .type(com.splitz.expense.model.ActivityLogType.EXPENSE_CREATED)
+            .actorId(1L)
+            .entityName("Dinner")
+            .timestamp(java.time.LocalDateTime.now())
+            .build();
+
+    com.splitz.expense.dto.ActivityLogDTO dto =
+        com.splitz.expense.dto.ActivityLogDTO.builder()
+            .id(1L)
+            .type(com.splitz.expense.model.ActivityLogType.EXPENSE_CREATED)
+            .entityName("Dinner")
+            .build();
+
+    when(activityLogService.getActivitiesByGroup(1L)).thenReturn(List.of(log));
+    when(activityLogMapper.toDTOList(any())).thenReturn(List.of(dto));
+
+    mockMvc
+        .perform(get("/groups/1/activity"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].entityName").value("Dinner"));
   }
 }

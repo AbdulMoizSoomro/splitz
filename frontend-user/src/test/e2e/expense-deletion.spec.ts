@@ -74,10 +74,9 @@ test.describe('Expense Deletion', () => {
     await expect(confirmModal).toBeVisible({ timeout: 5000 });
     await confirmModal.getByRole('button', { name: /delete expense/i }).click();
 
-    // 6. Verify expense is gone
+    // 6. Verify expense log entries exist
     await expect(confirmModal).not.toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Test Expense')).not.toBeVisible({ timeout: 5000 });
-
-    await expect(page.getByText(/no activity yet/i)).toBeVisible();
+    await expect(page.getByText(/you added "Test Expense"/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/you deleted "Test Expense"/i)).toBeVisible({ timeout: 5000 });
   });
 });

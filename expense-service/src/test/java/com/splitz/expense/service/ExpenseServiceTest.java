@@ -68,6 +68,8 @@ class ExpenseServiceTest {
 
   @Mock private GroupService groupService;
 
+  @Mock private ActivityLogService activityLogService;
+
   @InjectMocks private ExpenseService expenseService;
 
   private Group group;
@@ -694,5 +696,52 @@ class ExpenseServiceTest {
     assertThrows(
         com.splitz.expense.exception.UnauthorizedException.class,
         () -> expenseService.getExpensesByGroupIds(groupIds, 100L));
+  }
+
+  @Test
+  void createExpense_LogsActivity() {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Dinner")
+            .amount(new BigDecimal("60.00"))
+            .paidBy(100L)
+            .splitType(SplitType.EQUAL)
+            .splits(List.of(SplitRequest.builder().userId(100L).build()))
+            .build();
+
+    when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+    when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
+    when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
+
+    expenseService.createExpense(1L, request, 100L);
+
+    verify(activityLogService)
+        .logActivity(
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq(
+                com.splitz.expense.model.ActivityLogType.EXPENSE_CREATED),
+            org.mockito.ArgumentMatchers.eq(100L),
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq("Dinner"),
+            org.mockito.ArgumentMatchers.nullable(String.class));
+  }
+
+  @Test
+  void deleteExpense_LogsActivity() {
+    when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
+
+    expenseService.deleteExpense(1L, 100L);
+
+    verify(activityLogService)
+        .logActivity(
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq(
+                com.splitz.expense.model.ActivityLogType.EXPENSE_DELETED),
+            org.mockito.ArgumentMatchers.eq(100L),
+            org.mockito.ArgumentMatchers.eq(1L),
+            org.mockito.ArgumentMatchers.eq("Dinner"),
+            org.mockito.ArgumentMatchers.nullable(String.class));
   }
 }

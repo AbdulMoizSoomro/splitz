@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { expenseService } from "../expenses/expenseService";
-import { settlementService } from "../balances/settlementService";
-import type { Settlement } from "../balances/settlementService";
+import { groupService } from "./groupService";
 import { useAuthStore } from "../../store/authStore";
 import { Card, CardContent } from "../../components/core/Card/Card";
 import Button from "../../components/core/Button/Button";
@@ -11,16 +10,17 @@ import { useToastStore } from "../../store/toastStore";
 import {
   Loader2,
   Receipt,
-  ArrowUpRight,
-  ArrowDownLeft,
   Plus,
-  HandCoins,
   Edit2,
   MoreVertical,
   Trash2,
+  PlusCircle,
+  XCircle,
 } from "lucide-react";
 import type { Group, GroupBalanceResponse } from "../../types/group";
 import type { Expense } from "../../types/expense";
+import { ActivityLogType } from "../../types/activity";
+import type { ActivityLog } from "../../types/activity";
 import { useState } from "react";
 
 interface GroupActivityProps {
@@ -30,10 +30,6 @@ interface GroupActivityProps {
   onEditExpense?: (expense: Expense) => void;
   group?: Group;
 }
-
-type ActivityItem =
-  | { type: "expense"; data: Expense; date: Date }
-  | { type: "settlement"; data: Settlement; date: Date };
 
 const GroupActivity = ({
   groupId,
@@ -50,20 +46,21 @@ const GroupActivity = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
-  const { data: expenses, isLoading: isLoadingExpenses } = useQuery({
-    queryKey: ["expenses", groupId],
-    queryFn: () => expenseService.getGroupExpenses(groupId),
+  const { data: activities, isLoading: isLoadingActivity } = useQuery({
+    queryKey: ["group-activity", groupId],
+    queryFn: () => groupService.getGroupActivity(groupId),
   });
 
-  const { data: settlements, isLoading: isLoadingSettlements } = useQuery({
-    queryKey: ["group-settlements", groupId],
-    queryFn: () => settlementService.getSettlementsByGroup(groupId),
+  const { data: expenses } = useQuery({
+    queryKey: ["expenses", groupId],
+    queryFn: () => expenseService.getGroupExpenses(groupId),
   });
 
   const deleteExpenseMutation = useMutation({
     mutationFn: (expenseId: number) =>
       expenseService.deleteExpense(groupId, expenseId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-activity", groupId] });
       queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
       queryClient.invalidateQueries({ queryKey: ["group-balances", groupId] });
       addToast("Expense deleted successfully", "success");
@@ -75,7 +72,7 @@ const GroupActivity = ({
     },
   });
 
-  if (isLoadingExpenses || isLoadingSettlements) {
+  if (isLoadingActivity) {
     return (
       <div className="flex justify-center p-8">
         <Loader2 className="animate-spin text-blue-600" />
@@ -83,20 +80,7 @@ const GroupActivity = ({
     );
   }
 
-  const activities: ActivityItem[] = [
-    ...(expenses?.map((e) => ({
-      type: "expense" as const,
-      data: e,
-      date: new Date(e.expenseDate),
-    })) || []),
-    ...(settlements?.map((s) => ({
-      type: "settlement" as const,
-      data: s,
-      date: new Date(s.createdAt || new Date()),
-    })) || []),
-  ].sort((a, b) => b.date.getTime() - a.date.getTime());
-
-  if (activities.length === 0) {
+  if (!activities || activities.length === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -126,8 +110,11 @@ const GroupActivity = ({
     return member ? `${member.firstName} ${member.lastName}` : `User ${userId}`;
   };
 
-  const canManageExpense = (expense: Expense) => {
-    if (!group) return false;
+  const canManageExpense = (expenseId: number) => {
+    if (!group || !expenses) return false;
+    const expense = expenses.find(e => e.id === expenseId);
+    if (!expense) return false;
+
     const member = group.members.find((m) => m.userId === currentUserId);
     if (!member) return false;
 
@@ -137,8 +124,14 @@ const GroupActivity = ({
     return isAdmin || isPayer || group.allowMembersToEditExpenses;
   };
 
-  const handleDeleteClick = (expense: Expense) => {
-    setExpenseToDelete(expense);
+  const handleDeleteClick = (expenseId: number, description: string) => {
+    const expense = expenses?.find(e => e.id === expenseId);
+    if (expense) {
+      setExpenseToDelete(expense);
+    } else {
+      // Create a dummy expense for the modal description if it's already deleted or not found
+      setExpenseToDelete({ id: expenseId, description } as Expense);
+    }
     setIsDeleteModalOpen(true);
   };
 
@@ -150,170 +143,91 @@ const GroupActivity = ({
 
   return (
     <div className="space-y-4">
-      {activities.map((activity) => {
-        if (activity.type === "expense") {
-          const expense = activity.data;
-          const isPayer = expense.paidBy === currentUserId;
-          const mySplit = expense.splits.find(
-            (s) => s.userId === currentUserId,
-          );
+      {activities.map((activity: ActivityLog) => {
+        const isActor = activity.actorId === currentUserId;
+        const actorName = isActor ? "You" : getMemberName(activity.actorId);
+        const date = new Date(activity.timestamp);
 
-          let statusText = "not involved";
-          let statusColor = "text-gray-500";
-          let amountText = "";
-          let Icon = Receipt;
+        let Icon = Receipt;
+        let iconBg = "bg-gray-100 text-gray-700";
+        let title = "";
+        let description = "";
 
-          if (isPayer) {
-            const totalOwedToMe = expense.amount - (mySplit?.shareAmount || 0);
-            if (totalOwedToMe > 0) {
-              statusText = "you are owed";
-              statusColor = "text-green-600";
-              amountText = `$${totalOwedToMe.toFixed(2)}`;
-              Icon = ArrowUpRight;
-            } else {
-              statusText = "you paid for yourself";
-              amountText = `$${expense.amount.toFixed(2)}`;
-            }
-          } else if (mySplit) {
-            statusText = "you owe";
-            statusColor = "text-red-600";
-            amountText = `$${mySplit.shareAmount.toFixed(2)}`;
-            Icon = ArrowDownLeft;
-          }
-
-          const dropdownItems = [
-            ...(onEditExpense ? [{
-              label: "Edit",
-              onClick: () => onEditExpense(expense),
-              icon: <Edit2 size={14} />,
-            }] : []),
-            {
-              label: "Delete",
-              onClick: () => handleDeleteClick(expense),
-              variant: "danger" as const,
-              icon: <Trash2 size={14} />,
-            },
-          ];
-
-          return (
-            <Card
-              key={`expense-${expense.id}`}
-              className="hover:shadow-md transition-shadow"
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div
-                      className={`p-2 rounded-full ${isPayer ? "bg-green-100 text-green-700" : mySplit ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}
-                    >
-                      <Icon size={20} />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">
-                        {expense.description}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        Paid by{" "}
-                        <span className="font-medium text-gray-700">
-                          {isPayer ? "You" : getMemberName(expense.paidBy)}
-                        </span>{" "}
-                        on {activity.date.toLocaleDateString()}
-                      </p>
-                      {expense.lastModifiedBy && (
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          Last edited by{" "}
-                          {expense.lastModifiedBy === currentUserId
-                            ? "You"
-                            : getMemberName(expense.lastModifiedBy)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500 uppercase font-medium tracking-wider">
-                        {statusText}
-                      </p>
-                      <p className={`text-lg font-bold ${statusColor}`}>
-                        {amountText || `$${expense.amount.toFixed(2)}`}
-                      </p>
-                    </div>
-                    {canManageExpense(expense) && (
-                      <Dropdown
-                        trigger={
-                          <button 
-                            className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-                            aria-label={`Actions for ${expense.description}`}
-                          >
-                            <MoreVertical size={20} />
-                          </button>
-                        }
-                        items={dropdownItems}
-                      />
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        } else {
-          // Settlement
-          const settlement = activity.data;
-          const isSender = settlement.payerId === currentUserId;
-          const isReceiver = settlement.payeeId === currentUserId;
-          
-          let statusText = "payment";
-          let statusColor = "text-gray-500";
-          const amountText = `$${settlement.amount.toFixed(2)}`;
-
-          if (isSender) {
-             statusText = "you paid";
-             statusColor = "text-green-600";
-          } else if (isReceiver) {
-             statusText = "you received";
-             statusColor = "text-blue-600";
-          }
-
-          return (
-            <Card key={`settlement-${settlement.id}`} className="hover:shadow-md transition-shadow border-blue-100">
-              <CardContent className="p-4 bg-blue-50/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-full bg-blue-100 text-blue-700">
-                      <HandCoins size={20} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        Shared Activity
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        <span className="font-medium text-gray-700">
-                          {isSender ? "You" : getMemberName(settlement.payerId)}
-                        </span>{" "}
-                        paid{" "}
-                        <span className="font-medium text-gray-700">
-                          {isReceiver ? "You" : getMemberName(settlement.payeeId)}
-                        </span>{" "}
-                        on {activity.date.toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500 uppercase font-medium tracking-wider">
-                      {statusText}
-                    </p>
-                    <p className={`text-lg font-bold ${statusColor}`}>
-                      {amountText}
-                    </p>
-                    {settlement.status !== "CONFIRMED" && (
-                      <p className="text-xs text-amber-600 mt-1 font-medium">Pending</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
+        switch (activity.type) {
+          case ActivityLogType.EXPENSE_CREATED:
+            Icon = PlusCircle;
+            iconBg = "bg-green-100 text-green-700";
+            title = `${actorName} added "${activity.entityName}"`;
+            description = `on ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            break;
+          case ActivityLogType.EXPENSE_DELETED:
+            Icon = XCircle;
+            iconBg = "bg-red-100 text-red-700";
+            title = `${actorName} deleted "${activity.entityName}"`;
+            description = `on ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            break;
+          case ActivityLogType.EXPENSE_UPDATED:
+            Icon = Edit2;
+            iconBg = "bg-blue-100 text-blue-700";
+            title = `${actorName} updated "${activity.entityName}"`;
+            description = `on ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            break;
         }
+
+        const expense = expenses?.find(e => e.id === activity.entityId);
+        const canManage = activity.type !== ActivityLogType.EXPENSE_DELETED && canManageExpense(activity.entityId);
+
+        const dropdownItems = [
+          ...(onEditExpense && expense ? [{
+            label: "Edit",
+            onClick: () => onEditExpense(expense),
+            icon: <Edit2 size={14} />,
+          }] : []),
+          {
+            label: "Delete",
+            onClick: () => handleDeleteClick(activity.entityId, activity.entityName),
+            variant: "danger" as const,
+            icon: <Trash2 size={14} />,
+          },
+        ];
+
+        return (
+          <Card
+            key={`activity-${activity.id}`}
+            className="hover:shadow-md transition-shadow"
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className={`p-2 rounded-full ${iconBg}`}>
+                    <Icon size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">
+                      {title}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {description}
+                    </p>
+                  </div>
+                </div>
+                {canManage && (
+                  <Dropdown
+                    trigger={
+                      <button 
+                        className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                        aria-label={`Actions for ${activity.entityName}`}
+                      >
+                        <MoreVertical size={20} />
+                      </button>
+                    }
+                    items={dropdownItems}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
       })}
 
       <Modal

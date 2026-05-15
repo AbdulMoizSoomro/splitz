@@ -37,6 +37,7 @@ public class ExpenseService {
   private final SplitCalculator splitCalculator;
   private final SharedSecurityAuthorizer splitzAuthorizer;
   private final GroupService groupService;
+  private final ActivityLogService activityLogService;
 
   @Transactional
   public ExpenseDTO createExpense(Long groupId, CreateExpenseRequest request, Long currentUserId) {
@@ -83,7 +84,16 @@ public class ExpenseService {
         calculateSplits(expense, request.getSplits(), request.getSplitType());
     expense.setSplits(splits);
 
-    return expenseMapper.toDTO(expenseRepository.save(expense));
+    Expense savedExpense = expenseRepository.save(expense);
+    activityLogService.logActivity(
+        groupId,
+        com.splitz.expense.model.ActivityLogType.EXPENSE_CREATED,
+        currentUserId,
+        savedExpense.getId(),
+        savedExpense.getDescription(),
+        null);
+
+    return expenseMapper.toDTO(savedExpense);
   }
 
   private List<ExpenseSplit> calculateSplits(
@@ -256,6 +266,14 @@ public class ExpenseService {
             .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + id));
 
     checkAuthorization(expense, currentUserId);
+
+    activityLogService.logActivity(
+        expense.getGroup().getId(),
+        com.splitz.expense.model.ActivityLogType.EXPENSE_DELETED,
+        currentUserId,
+        id,
+        expense.getDescription(),
+        null);
 
     expenseRepository.delete(expense);
   }

@@ -29,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class GroupController {
 
   private final GroupService groupService;
+  private final com.splitz.expense.service.ActivityLogService activityLogService;
+  private final com.splitz.expense.mapper.ActivityLogMapper activityLogMapper;
   private final SharedSecurityAuthorizer splitzAuthorizer;
 
   @PostMapping
@@ -98,5 +100,17 @@ public class GroupController {
         groupService.updateMemberRole(
             groupId, memberUserId, request, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.ok(result);
+  }
+
+  @GetMapping("/{groupId}/activity")
+  public ResponseEntity<List<com.splitz.expense.dto.ActivityLogDTO>> getGroupActivity(
+      @PathVariable("groupId") Long groupId) {
+    // Basic authorization check: must be a member or admin
+    // GroupService already handles this check in other methods,
+    // but here we can just verify the user is a member.
+    groupService.getGroup(groupId, splitzAuthorizer.getCurrentUserId());
+
+    return ResponseEntity.ok(
+        activityLogMapper.toDTOList(activityLogService.getActivitiesByGroup(groupId)));
   }
 }
