@@ -22,6 +22,7 @@ export interface Expense {
   expenseDate: string;
   notes?: string;
   receiptUrl?: string;
+  lastModifiedBy?: number;
   splits: ExpenseSplit[];
   createdAt: string;
   updatedAt: string;
@@ -45,4 +46,17 @@ export interface CreateExpenseRequest {
   receiptUrl?: string;
   splitType: SplitType;
   splits: SplitRequest[];
+}
+
+export interface UpdateExpenseRequest {
+  description?: string;
+  amount?: number;
+  currency?: string;
+  paidBy?: number;
+  categoryId?: number;
+  expenseDate?: string;
+  notes?: string;
+  receiptUrl?: string;
+  splitType?: SplitType;
+  splits?: SplitRequest[];
 }

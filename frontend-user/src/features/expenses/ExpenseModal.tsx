@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Modal from "../../components/core/Modal/Modal";
 import Input from "../../components/core/Input/Input";
@@ -6,35 +6,56 @@ import Button from "../../components/core/Button/Button";
 import { expenseService } from "./expenseService";
 import { categoryService } from "./categoryService";
 import type { Group } from "../../types/group";
-import type { CreateExpenseRequest, SplitType } from "../../types/expense";
+import type {
+  CreateExpenseRequest,
+  UpdateExpenseRequest,
+  SplitType,
+  Expense,
+} from "../../types/expense";
 import { useAuthStore } from "../../store/authStore";
 import { Loader2, AlertCircle } from "lucide-react";
 
-interface CreateExpenseModalProps {
+interface ExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   group: Group;
+  expense?: Expense;
 }
 
-const CreateExpenseModal = ({
+const ExpenseModal = ({
   isOpen,
   onClose,
   group,
-}: CreateExpenseModalProps) => {
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
+  expense,
+}: ExpenseModalProps) => {
+  const isEditing = !!expense;
+  const [description, setDescription] = useState(expense?.description || "");
+  const [amount, setAmount] = useState(expense?.amount?.toString() || "");
+  const [categoryId, setCategoryId] = useState<number | undefined>(
+    expense?.categoryId,
+  );
   const [expenseDate, setExpenseDate] = useState(
-    new Date().toISOString().split("T")[0],
+    expense?.expenseDate?.split("T")[0] ||
+      new Date().toISOString().split("T")[0],
   );
   const [selectedMembers, setSelectedMembers] = useState<number[]>(
-    group.members.map((m) => m.userId),
+    expense?.splits?.map((s) => s.userId) || group.members.map((m) => m.userId),
   );
   const [splitType, setSplitType] = useState<SplitType>("EQUAL");
   const [splitValues, setSplitValues] = useState<Record<number, string>>({});
 
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+
+  const resetForm = useCallback(() => {
+    setDescription("");
+    setAmount("");
+    setCategoryId(undefined);
+    setExpenseDate(new Date().toISOString().split("T")[0]);
+    setSelectedMembers(group.members.map((m) => m.userId));
+    setSplitType("EQUAL");
+    setSplitValues({});
+  }, [group.members]);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -55,15 +76,17 @@ const CreateExpenseModal = ({
     },
   });
 
-  const resetForm = () => {
-    setDescription("");
-    setAmount("");
-    setCategoryId(undefined);
-    setExpenseDate(new Date().toISOString().split("T")[0]);
-    setSelectedMembers(group.members.map((m) => m.userId));
-    setSplitType("EQUAL");
-    setSplitValues({});
-  };
+  const updateMutation = useMutation({
+    mutationFn: (data: UpdateExpenseRequest) =>
+      expenseService.updateExpense(group.id, expense!.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses", group.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["group-balances", group.id.toString()],
+      });
+      onClose();
+    },
+  });
 
   const handleMemberToggle = (userId: number) => {
     setSelectedMembers((prev) => {
@@ -152,28 +175,50 @@ const CreateExpenseModal = ({
     e.preventDefault();
     if (!amount || selectedMembers.length === 0 || !validation.isValid) return;
 
-    const expenseData: CreateExpenseRequest = {
-      description,
-      amount: numAmount,
-      paidBy: parseInt(currentUser?.id || "0"),
-      categoryId,
-      expenseDate,
-      splitType,
-      splits: selectedMembers.map((userId) => ({
-        userId,
+    if (isEditing) {
+      const expenseData: UpdateExpenseRequest = {
+        description,
+        amount: numAmount,
+        categoryId,
+        expenseDate,
         splitType,
-        splitValue:
-          splitType !== "EQUAL"
-            ? parseFloat(splitValues[userId] || "0")
-            : undefined,
-        shareAmount:
-          splitType === "EXACT"
-            ? parseFloat(splitValues[userId] || "0")
-            : undefined,
-      })),
-    };
-
-    createMutation.mutate(expenseData);
+        splits: selectedMembers.map((userId) => ({
+          userId,
+          splitType,
+          splitValue:
+            splitType !== "EQUAL"
+              ? parseFloat(splitValues[userId] || "0")
+              : undefined,
+          shareAmount:
+            splitType === "EXACT"
+              ? parseFloat(splitValues[userId] || "0")
+              : undefined,
+        })),
+      };
+      updateMutation.mutate(expenseData);
+    } else {
+      const expenseData: CreateExpenseRequest = {
+        description,
+        amount: numAmount,
+        paidBy: parseInt(currentUser?.id || "0"),
+        categoryId,
+        expenseDate,
+        splitType,
+        splits: selectedMembers.map((userId) => ({
+          userId,
+          splitType,
+          splitValue:
+            splitType !== "EQUAL"
+              ? parseFloat(splitValues[userId] || "0")
+              : undefined,
+          shareAmount:
+            splitType === "EXACT"
+              ? parseFloat(splitValues[userId] || "0")
+              : undefined,
+        })),
+      };
+      createMutation.mutate(expenseData);
+    }
   };
 
   const sharePerPerson =
@@ -210,8 +255,15 @@ const CreateExpenseModal = ({
     }
   };
 
+  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isError = createMutation.isError || updateMutation.isError;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Expense">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditing ? "Edit Expense" : "Add New Expense"}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           label="Description"
@@ -396,9 +448,11 @@ const CreateExpenseModal = ({
           </p>
         )}
 
-        {createMutation.isError && (
+        {isError && (
           <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
-            Failed to create expense. Please try again.
+            {isEditing
+              ? "Failed to update expense. Please try again."
+              : "Failed to create expense. Please try again."}
           </div>
         )}
 
@@ -409,17 +463,15 @@ const CreateExpenseModal = ({
           <Button
             type="submit"
             disabled={
-              createMutation.isPending ||
+              isPending ||
               !amount ||
               selectedMembers.length === 0 ||
               !validation.isValid
             }
             className="flex items-center gap-2"
           >
-            {createMutation.isPending && (
-              <Loader2 size={16} className="animate-spin" />
-            )}
-            <span>Add Expense</span>
+            {isPending && <Loader2 size={16} className="animate-spin" />}
+            <span>{isEditing ? "Save Changes" : "Add Expense"}</span>
           </Button>
         </div>
       </form>
@@ -427,4 +479,4 @@ const CreateExpenseModal = ({
   );
 };
 
-export default CreateExpenseModal;
+export default ExpenseModal;

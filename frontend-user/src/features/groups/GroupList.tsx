@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, Folder, Users, ReceiptText } from "lucide-react";
 import { groupService } from "./groupService";
 import Button from "../../components/core/Button/Button";
-import CreateExpenseModal from "../expenses/CreateExpenseModal";
+import ExpenseModal from "../expenses/ExpenseModal";
 import type { Group } from "../../types/group";
 
 const GroupList = () => {
@@ -84,8 +84,8 @@ const GroupList = () => {
         ))}
       </div>
 
-      {selectedGroup && (
-        <CreateExpenseModal
+      {selectedGroup && isExpenseModalOpen && (
+        <ExpenseModal
           isOpen={isExpenseModalOpen}
           onClose={() => {
             setIsExpenseModalOpen(false);

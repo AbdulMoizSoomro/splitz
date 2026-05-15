@@ -67,6 +67,9 @@ public class Expense {
   @Column(name = "receipt_url")
   private String receiptUrl;
 
+  @Column(name = "last_modified_by_id")
+  private Long lastModifiedBy;
+
   @OneToMany(mappedBy = "expense", cascade = CascadeType.ALL, orphanRemoval = true)
   @Builder.Default
   private List<ExpenseSplit> splits = new ArrayList<>();

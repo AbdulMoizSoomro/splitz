@@ -1,8 +1,10 @@
 package com.splitz.expense.dto;
 
+import com.splitz.expense.model.SplitType;
 import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +23,8 @@ public class UpdateExpenseRequest {
 
   private String currency;
 
+  private Long paidBy;
+
   private Long categoryId;
 
   private LocalDate expenseDate;
@@ -28,4 +32,8 @@ public class UpdateExpenseRequest {
   private String notes;
 
   private String receiptUrl;
+
+  private SplitType splitType;
+
+  private List<SplitRequest> splits;
 }

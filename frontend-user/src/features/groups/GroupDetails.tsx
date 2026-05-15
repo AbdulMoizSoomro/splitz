@@ -19,7 +19,8 @@ import type { BadgeVariant } from "../../components/core/Badge/Badge";
 import Dropdown from "../../components/core/Dropdown/Dropdown";
 import { useToastStore } from "../../store/toastStore";
 import AddMemberModal from "./AddMemberModal";
-import CreateExpenseModal from "../expenses/CreateExpenseModal";
+import ExpenseModal from "../expenses/ExpenseModal";
+import type { Expense } from "../../types/expense";
 import GroupBalances from "../balances/GroupBalances";
 import GroupActivity from "./GroupActivity";
 import {
@@ -45,7 +46,10 @@ const GroupDetails = () => {
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isSelfDemoteModalOpen, setIsSelfDemoteModalOpen] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
-  const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | undefined>(
+    undefined,
+  );
   const [activeTab, setActiveTab] = useState<
     "activity" | "members" | "balances"
   >("activity");
@@ -67,6 +71,16 @@ const GroupDetails = () => {
     queryFn: () => friendService.getFriends(Number(user?.id)),
     enabled: !!user?.id,
   });
+
+  const handleAddExpense = () => {
+    setEditingExpense(undefined);
+    setIsExpenseModalOpen(true);
+  };
+
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setIsExpenseModalOpen(true);
+  };
 
   const leaveMutation = useMutation({
     mutationFn: () => groupService.removeMember(Number(id), Number(user?.id)),
@@ -241,7 +255,7 @@ const GroupDetails = () => {
                   </h2>
                   <Button
                     size="sm"
-                    onClick={() => setIsAddExpenseModalOpen(true)}
+                    onClick={() => handleAddExpense()}
                     className="flex items-center gap-2"
                   >
                     <Plus size={18} />
@@ -251,7 +265,8 @@ const GroupDetails = () => {
                 <GroupActivity
                   groupId={Number(id)}
                   balancesResponse={balancesResponse}
-                  onAddExpense={() => setIsAddExpenseModalOpen(true)}
+                  onAddExpense={() => handleAddExpense()}
+                  onEditExpense={handleEditExpense}
                   group={group}
                 />
               </div>
@@ -543,11 +558,16 @@ const GroupDetails = () => {
         />
       )}
 
-      {group && (
-        <CreateExpenseModal
-          isOpen={isAddExpenseModalOpen}
-          onClose={() => setIsAddExpenseModalOpen(false)}
+      {group && isExpenseModalOpen && (
+        <ExpenseModal
+          key={editingExpense?.id || "new"}
+          isOpen={isExpenseModalOpen}
+          onClose={() => {
+            setIsExpenseModalOpen(false);
+            setEditingExpense(undefined);
+          }}
           group={group}
+          expense={editingExpense}
         />
       )}
     </DashboardLayout>

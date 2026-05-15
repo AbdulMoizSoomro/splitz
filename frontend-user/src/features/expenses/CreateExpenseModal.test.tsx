@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import CreateExpenseModal from "./CreateExpenseModal";
+import ExpenseModal from "./ExpenseModal";
 import { expenseService } from "./expenseService";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Group } from "../../types/group";
@@ -37,7 +37,7 @@ const mockGroup = {
 const renderModal = (props = {}) => {
   return render(
     <QueryClientProvider client={queryClient}>
-      <CreateExpenseModal
+      <ExpenseModal
         isOpen={true}
         onClose={vi.fn()}
         group={mockGroup}
@@ -47,7 +47,7 @@ const renderModal = (props = {}) => {
   );
 };
 
-describe("CreateExpenseModal", () => {
+describe("ExpenseModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

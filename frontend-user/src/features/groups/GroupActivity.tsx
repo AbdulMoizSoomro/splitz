@@ -15,6 +15,7 @@ import {
   ArrowDownLeft,
   Plus,
   HandCoins,
+  Edit2,
   MoreVertical,
   Trash2,
 } from "lucide-react";
@@ -26,6 +27,7 @@ interface GroupActivityProps {
   groupId: number;
   balancesResponse?: GroupBalanceResponse;
   onAddExpense?: () => void;
+  onEditExpense?: (expense: Expense) => void;
   group?: Group;
 }
 
@@ -37,6 +39,7 @@ const GroupActivity = ({
   groupId,
   balancesResponse,
   onAddExpense,
+  onEditExpense,
   group,
 }: GroupActivityProps) => {
   const { user } = useAuthStore();
@@ -151,7 +154,9 @@ const GroupActivity = ({
         if (activity.type === "expense") {
           const expense = activity.data;
           const isPayer = expense.paidBy === currentUserId;
-          const mySplit = expense.splits.find((s) => s.userId === currentUserId);
+          const mySplit = expense.splits.find(
+            (s) => s.userId === currentUserId,
+          );
 
           let statusText = "not involved";
           let statusColor = "text-gray-500";
@@ -177,6 +182,11 @@ const GroupActivity = ({
           }
 
           const dropdownItems = [
+            ...(onEditExpense ? [{
+              label: "Edit",
+              onClick: () => onEditExpense(expense),
+              icon: <Edit2 size={14} />,
+            }] : []),
             {
               label: "Delete",
               onClick: () => handleDeleteClick(expense),
@@ -209,6 +219,14 @@ const GroupActivity = ({
                         </span>{" "}
                         on {activity.date.toLocaleDateString()}
                       </p>
+                      {expense.lastModifiedBy && (
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          Last edited by{" "}
+                          {expense.lastModifiedBy === currentUserId
+                            ? "You"
+                            : getMemberName(expense.lastModifiedBy)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

@@ -25,6 +25,7 @@ public class ExpenseDTO {
   private LocalDate expenseDate;
   private String notes;
   private String receiptUrl;
+  private Long lastModifiedBy;
   private List<ExpenseSplitDTO> splits;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
