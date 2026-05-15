@@ -10,3 +10,15 @@
   - Fixed amount verification strict mode violations.
   - Fixed `friend-detail.spec.ts` heading locator and text mismatches.
   - Verified all E2E tests pass with 1 worker to ensure stability.
+
+# Progress Log - Issue 35 (v2)
+
+- Task ID: 35
+- Summary: Re-implemented Issue 35: Add Remaining Split Strategies
+- Confidence: High
+- Decisions made:
+  - Created `feature/issue-35-v2` from `main`.
+  - Discovered that core implementation of `EqualSplitStrategy`, `PercentageSplitStrategy`, `SharesSplitStrategy`, and `AdjustmentSplitStrategy` were already merged into `main` from another issue.
+  - Restored the missing `SplitStrategyIntegrationTest.java` that was lost in conflicts.
+  - Updated the PRD (`docs/MVP_0.0.1.md`) to reflect that the remaining split strategies are implemented.
+  - Verified that all unit and integration tests are passing using TDD workflow tools.

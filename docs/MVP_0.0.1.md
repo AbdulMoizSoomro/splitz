@@ -36,7 +36,7 @@ A user can register, login, create a group with friends, add expenses, and see c
 | Groups | Create/manage expense groups | ✅ Done |
 | Group Members | Add/remove members from groups (Leave Group with debt blocking), role visualization and management | ✅ Done |
 | Expenses | Create/edit/delete expenses | ✅ Done |
-| Split Types | EQUAL and EXACT splits | ✅ Done |
+| Split Types | EQUAL, EXACT, PERCENTAGE, SHARES, and ADJUSTMENT splits | ✅ Done |
 | Balances | Calculate who owes whom | ✅ Done |
 | Settlements | Record group-specific debt payments (manual) | ✅ Done |
 | Friendship Settlements | Record global settlements with manual allocation to group debts | ✅ Done |
