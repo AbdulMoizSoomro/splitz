@@ -57,3 +57,16 @@
   - Verified all related frontend and backend unit/integration tests (`npm run test` and `mvn verify`) passed perfectly.
   - Verified all acceptance criteria were met and the original issues were already marked as closed.
   - Updating progress log to document completion.
+
+# Progress Log - Issues 13, 14, 31 (v2)
+
+- Task ID: 13, 14, 31
+- Summary: JWT Standardization, E2E Group Creation, and Identity-based Auth
+- Confidence: High
+- Decisions made:
+  - Created `feature/issue-13-14-31-v2` from `main`.
+  - Discovered that Issues #13 and #14 were already closed and fully implemented/validated.
+  - For Issue #31: Updated `checkAuthorization` in `ExpenseService.java` to use `splitzAuthorizer.isSelfOrAdmin` for base-level identity checks.
+  - Added an integration test `updateExpense_Owner_BaseLevelAuth_Success` in `ExpenseIntegrationTest` to verify the behavior independently of group settings.
+  - Ran `mvn verify` successfully.
+  - Updating progress log and closing the issue.
