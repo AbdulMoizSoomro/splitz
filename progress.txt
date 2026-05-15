@@ -81,3 +81,14 @@
   - Discovered that the implementations for these issues were already completed and the issues were closed.
   - Verified all 71 frontend tests are passing using `npm run test`, confirming the presence and validity of the features in `main`.
   - Updating progress log to document completion.
+
+# Progress Log - Issues 23, 24, 32 (v2)
+
+- Task ID: 23, 24, 32
+- Summary: E2E Test Suite for Roles and Social Discovery, and Bulk Add Members
+- Confidence: High
+- Decisions made:
+  - Created `feature/issue-23-24-32-v2` from `main`.
+  - Discovered that the backend and frontend implementations for Bulk Add Members (#32) and the E2E test suites for Role Management (#23) and Social Discovery / Group Exit (#24) were already fully completed.
+  - Booted the full Docker stack and executed `npx playwright test` for the related E2E tests, verifying that all tests pass.
+  - Updating progress log and closing the issues.
