@@ -22,3 +22,14 @@
   - Restored the missing `SplitStrategyIntegrationTest.java` that was lost in conflicts.
   - Updated the PRD (`docs/MVP_0.0.1.md`) to reflect that the remaining split strategies are implemented.
   - Verified that all unit and integration tests are passing using TDD workflow tools.
+
+# Progress Log - Issue 36 (v2)
+
+- Task ID: 36
+- Summary: Add EXACT Split Strategy End-to-End
+- Confidence: High
+- Decisions made:
+  - Created `feature/issue-36-v2` from `main`.
+  - Discovered that the `SplitCalculator` skeleton and `ExactSplitStrategy` implementation, along with their integration tests, were already merged into `main`.
+  - Verified all acceptance criteria are met and tests pass.
+  - Updating progress log and closing the issue.
