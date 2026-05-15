@@ -32,3 +32,15 @@ Issue 59: Slice 3: Full Expense Update & 'Last Edited' Audit | Confidence: High 
   - Fixed interface vs type imports in frontend to resolve Vite runtime errors.
   - Updated existing E2E tests (expense-deletion) to account for activity log presence.
   - Verified with full Docker-Compose stack and Playwright E2E suite.
+
+- Task: #61
+- Summary: Implemented Detailed Activity Logging with Diffs for expense updates.
+- Status: Done
+- Confidence: High
+- Decisions:
+  - Implemented field-level diffing in ExpenseService.updateExpense (Description, Amount, Currency, Payer, Category, Date, Notes, Receipt).
+  - Standardized amount formatting in diffs (2 decimal places) for consistency.
+  - Added split change tracking (modified vs recalculated).
+  - Updated GroupActivity UI to display diff details in parentheses.
+  - Fixed E2E test regex for amount formatting.
+  - Verified with unit tests and Docker-Compose E2E suite.
