@@ -510,7 +510,6 @@ class ExpenseServiceTest {
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
     lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
-    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(expenseRepository.save(any(Expense.class)))
         .thenAnswer(
             invocation -> {
