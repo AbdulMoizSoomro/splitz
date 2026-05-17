@@ -5,7 +5,7 @@ import Input from "../../components/core/Input/Input";
 import Button from "../../components/core/Button/Button";
 import { expenseService } from "./expenseService";
 import { categoryService } from "./categoryService";
-import type { Group } from "../../types/group";
+import type { Group, GroupBalanceResponse } from "../../types/group";
 import type {
   CreateExpenseRequest,
   UpdateExpenseRequest,
@@ -20,6 +20,7 @@ interface ExpenseModalProps {
   onClose: () => void;
   group: Group;
   expense?: Expense;
+  balancesResponse?: GroupBalanceResponse;
 }
 
 const ExpenseModal = ({
@@ -27,6 +28,7 @@ const ExpenseModal = ({
   onClose,
   group,
   expense,
+  balancesResponse,
 }: ExpenseModalProps) => {
   const isEditing = !!expense;
   const [description, setDescription] = useState(expense?.description || "");
@@ -257,6 +259,11 @@ const ExpenseModal = ({
     }
   };
 
+  const getMemberName = (userId: number) => {
+    const member = balancesResponse?.balances.find((b) => b.userId === userId);
+    return member ? `${member.firstName} ${member.lastName}` : `User ${userId}`;
+  };
+
   const isPending = createMutation.isPending || updateMutation.isPending;
   const isError = createMutation.isError || updateMutation.isError;
 
@@ -456,6 +463,12 @@ const ExpenseModal = ({
               ? "Failed to update expense. Please try again."
               : "Failed to create expense. Please try again."}
           </div>
+        )}
+
+        {isEditing && expense?.lastModifiedBy && (
+          <p className="text-xs text-gray-500 italic">
+            Last modified by {getMemberName(expense.lastModifiedBy)}
+          </p>
         )}
 
         <div className="flex justify-end gap-3 pt-2">

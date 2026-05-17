@@ -153,6 +153,7 @@ const GroupDetails = () => {
   const currentUserBalance =
     balancesResponse?.balances.find((b) => b.userId === Number(user?.id))
       ?.balance ?? 0;
+
   const currentUserRole = group?.members.find(
     (m) => m.userId === Number(user?.id),
   )?.role;
@@ -243,6 +244,59 @@ const GroupDetails = () => {
             </button>
           </nav>
         </div>
+
+        {/* Balance Summary Card */}
+        {!isBalancesLoading && currentUserBalance !== 0 && (
+          <Card
+            className={
+              currentUserBalance > 0
+                ? "bg-green-50/50 border-green-100"
+                : "bg-red-50/50 border-red-100"
+            }
+          >
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2 rounded-full ${
+                    currentUserBalance > 0
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  <DollarSign size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">
+                    Your Group Balance
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <h3
+                      className={`text-lg font-bold ${
+                        currentUserBalance > 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {currentUserBalance > 0 ? "You are owed" : "You owe"} ${Math.abs(currentUserBalance).toFixed(2)}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTab("balances")}
+                className={
+                  currentUserBalance > 0
+                    ? "text-green-700 hover:bg-green-100"
+                    : "text-red-700 hover:bg-red-100"
+                }
+              >
+                View Details
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -568,6 +622,7 @@ const GroupDetails = () => {
           }}
           group={group}
           expense={editingExpense}
+          balancesResponse={balancesResponse}
         />
       )}
     </DashboardLayout>
