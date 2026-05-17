@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 import axios, { AxiosError } from "axios";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, UserPlus, CheckCircle2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import Modal from "../../components/core/Modal/Modal";
 import Input from "../../components/core/Input/Input";
 import Button from "../../components/core/Button/Button";
 import { groupService } from "./groupService";
-import api from "../../lib/axios";
-import { useAuthStore } from "../../store/authStore";
-import type { User } from "../../types/user";
+import MemberPicker from "./MemberPicker";
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -27,19 +25,6 @@ const CreateGroupModal = ({ isOpen, onClose }: CreateGroupModalProps) => {
   const [nameError, setNameError] = useState("");
 
   const queryClient = useQueryClient();
-  const currentUser = useAuthStore((state) => state.user);
-
-  const { data: friends, isLoading: isLoadingFriends } = useQuery({
-    queryKey: ["friends", currentUser?.id],
-    queryFn: async () => {
-      if (!currentUser?.id) return [];
-      const response = await api.get<User[]>(
-        `/users/${currentUser.id}/friends`,
-      );
-      return response.data;
-    },
-    enabled: isOpen && !!currentUser?.id,
-  });
 
   const createGroupMutation = useMutation({
     mutationFn: async () => {
@@ -122,46 +107,13 @@ const CreateGroupModal = ({ isOpen, onClose }: CreateGroupModalProps) => {
 
         <div>
           <label className="text-sm font-medium text-gray-700 mb-2 block">
-            Add Members (Friends)
+            Add Members
           </label>
-          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
-            {isLoadingFriends ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="animate-spin text-blue-600" size={20} />
-              </div>
-            ) : friends && friends.length > 0 ? (
-              friends.map((friend) => (
-                <div
-                  key={friend.id}
-                  onClick={() => toggleFriend(friend.id)}
-                  className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors ${
-                    selectedFriends.includes(friend.id)
-                      ? "bg-blue-50 border-blue-100 border"
-                      : "hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
-                      {friend.firstName[0]}
-                      {friend.lastName ? friend.lastName[0] : ""}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">
-                      {friend.firstName} {friend.lastName}
-                    </span>
-                  </div>
-                  {selectedFriends.includes(friend.id) ? (
-                    <CheckCircle2 size={18} className="text-blue-600" />
-                  ) : (
-                    <UserPlus size={18} className="text-gray-400" />
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">
-                No friends found. Add friends first!
-              </p>
-            )}
-          </div>
+          <MemberPicker
+            selectedIds={selectedFriends}
+            onToggle={toggleFriend}
+            placeholder="Search friends or system users..."
+          />
         </div>
 
         {error && (

@@ -366,14 +366,14 @@ Settlement
 
 Before tagging v0.0.1:
 
-- [ ] All Stories S01-S15 complete
-- [ ] All tests passing
-- [ ] Test coverage ≥60%
-- [ ] Swagger UI works for both services
-- [ ] Docker build succeeds
-- [ ] README updated with setup instructions
-- [ ] No hardcoded secrets (use env vars)
-- [ ] Manual E2E test: register → login → group → expense → balance
+- [x] All Stories S01-S15 complete
+- [x] All tests passing
+- [x] Test coverage ≥60%
+- [x] Swagger UI works for both services
+- [x] Docker build succeeds
+- [x] README updated with setup instructions
+- [x] No hardcoded secrets (use env vars)
+- [x] Manual E2E test: register → login → group → expense → balance
 - [ ] Tag: `git tag -a v0.0.1 -m "MVP release"`
 
 ---
