@@ -50,7 +50,10 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
         currency: "USD", // Default to USD for now or get from group
         groupId,
       });
-      return settlementService.markAsPaid(s.id);
+      if (s.status === "PENDING") {
+        return settlementService.markAsPaid(s.id);
+      }
+      return s;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group-balances", groupId] });
@@ -91,11 +94,11 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
 
   const pendingIncoming =
     settlements?.filter(
-      (s) => s.payeeId === currentUserId && s.status === "PAID",
+      (s) => s.payeeId === currentUserId && s.status === "MARKED_PAID",
     ) || [];
   const pendingOutgoing =
     settlements?.filter(
-      (s) => s.payerId === currentUserId && s.status === "PAID",
+      (s) => s.payerId === currentUserId && s.status === "MARKED_PAID",
     ) || [];
 
   return (

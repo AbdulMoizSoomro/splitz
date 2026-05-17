@@ -15,7 +15,7 @@ export interface Settlement {
   amount: number;
   currency: string;
   groupId: number;
-  status: "PENDING" | "PAID" | "CONFIRMED" | "REJECTED";
+  status: "PENDING" | "MARKED_PAID" | "COMPLETED";
   createdAt: string;
   paidAt?: string;
   confirmedAt?: string;
