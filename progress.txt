@@ -8,3 +8,40 @@ Decisions made:
 - Verified that all backend and frontend quality gates pass.
 - Backend implementation was already largely complete; refined frontend display and added robust verification.
 - Also fixed a balance inconsistency issue where MARKED_PAID settlements were not being consistently factored into all balance views.
+Task: Issue 15 - [Frontend] Group Roles: UI Visualization
+Confidence: High
+Summary: Verified that role visualization (Owner, Admin, Member badges) is already correctly implemented and passing E2E tests.
+Decisions made:
+- Confirmed that GroupDetails.tsx correctly handles role mapping.
+- Verified Badge component usage and styling.
+- Confirmed that E2E tests (group-roles.spec.ts) cover all ACs.
+- Closing issue as already resolved.
+Task: Issue 21 - [Frontend] Leave Group: UI and Exit Workflow
+Confidence: High
+Summary: Verified that Leave Group functionality (button, confirmation modal, redirect, and exit workflow) is already correctly implemented and passing E2E tests.
+Decisions made:
+- Confirmed implementation in GroupDetails.tsx.
+- Verified E2E test (leave-group.spec.ts) passes.
+- Closing as already resolved.
+Task: Issues 25, 26, 27 - [Frontend] Exact Split UI, Real-time Validation, and Submission Guard
+Confidence: High
+Summary: Verified that Exact Split functionality (UI inputs, real-time validation, and submission guard) is already correctly implemented and passing E2E tests.
+Decisions made:
+- Confirmed implementation in ExpenseModal.tsx.
+- Verified E2E test (expenses.spec.ts) passes.
+- Closing as already resolved.
+Task: Issue 33 - [Enhanced Member Selection (Search & Temp Friends)]
+Confidence: High
+Summary: Implemented enhanced member selection with searchable friend/system user picker and temp friends support.
+Decisions made:
+- Created reusable MemberPicker component with integrated global search and friend listing.
+- Added support for including Temp Friends (users you share groups and debts with) in the default list.
+- Refactored CreateGroupModal and AddMemberModal to use the new MemberPicker.
+- Verified with E2E test that system users can be searched and added to new groups without being friends first.
+Task: Issue 34 - Implement Currency-Aware Precision & Remainder Post-Processor
+Confidence: High
+Summary: Verified that Split Calculator correctly handles precision and remainders across different currencies.
+Decisions made:
+- Confirmed implementation in RemainderHandler.java and SplitCalculator.java.
+- Verified backend unit tests (SplitCalculatorTest.java) pass.
+- Closing as already resolved.
