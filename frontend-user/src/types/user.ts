@@ -50,10 +50,15 @@ export interface FriendshipSettlementDTO {
   id: number;
   payerId: number;
   payeeId: number;
+  groupId?: number;
   amount: number;
   status: "PENDING" | "MARKED_PAID" | "COMPLETED";
   createdAt: string;
   updatedAt: string;
   markedPaidAt?: string;
   settledAt?: string;
+  allocations?: Array<{
+    groupId: number;
+    amount: number;
+  }>;
 }

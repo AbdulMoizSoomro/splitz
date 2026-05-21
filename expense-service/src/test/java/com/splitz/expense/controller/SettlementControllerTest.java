@@ -12,8 +12,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.expense.dto.CreateSettlementRequest;
 import com.splitz.expense.dto.SettlementDTO;
+import com.splitz.expense.mapper.PaymentMapper;
+import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementStatus;
-import com.splitz.expense.service.SettlementService;
+import com.splitz.expense.service.PaymentService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
@@ -35,13 +37,16 @@ class SettlementControllerTest {
 
   @Autowired private ObjectMapper objectMapper;
 
-  @MockBean private SettlementService settlementService;
+  @MockBean private PaymentService paymentService;
+
+  @MockBean private PaymentMapper paymentMapper;
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
   @MockBean private SharedSecurityAuthorizer splitzAuthorizer;
 
   private SettlementDTO settlementDTO;
+  private Payment payment;
 
   @BeforeEach
   void setUp() {
@@ -54,6 +59,16 @@ class SettlementControllerTest {
             .amount(new BigDecimal("50.00"))
             .status(SettlementStatus.PENDING)
             .build();
+
+    payment =
+        Payment.builder()
+            .id(1L)
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .status(SettlementStatus.PENDING)
+            .build();
+
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
   }
 
@@ -68,8 +83,8 @@ class SettlementControllerTest {
             .amount(new BigDecimal("50.00"))
             .build();
 
-    when(settlementService.createSettlement(any(CreateSettlementRequest.class)))
-        .thenReturn(settlementDTO);
+    when(paymentService.createPayment(any(), any(), any(), any(), any())).thenReturn(payment);
+    when(paymentMapper.toSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
         .perform(
@@ -84,7 +99,8 @@ class SettlementControllerTest {
   @Test
   @WithMockUser(username = "101")
   void getSettlement_Success() throws Exception {
-    when(settlementService.getSettlementById(eq(1L))).thenReturn(settlementDTO);
+    when(paymentService.getPaymentById(eq(1L))).thenReturn(payment);
+    when(paymentMapper.toSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
         .perform(get("/settlements/1"))
@@ -97,7 +113,9 @@ class SettlementControllerTest {
   void markAsPaid_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
     settlementDTO.setStatus(SettlementStatus.MARKED_PAID);
-    when(settlementService.markAsPaid(eq(1L))).thenReturn(settlementDTO);
+    payment.setStatus(SettlementStatus.MARKED_PAID);
+    when(paymentService.markAsPaid(eq(1L))).thenReturn(payment);
+    when(paymentMapper.toSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
         .perform(put("/settlements/1/mark-paid"))
@@ -110,7 +128,9 @@ class SettlementControllerTest {
   void confirmSettlement_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     settlementDTO.setStatus(SettlementStatus.COMPLETED);
-    when(settlementService.confirmSettlement(eq(1L))).thenReturn(settlementDTO);
+    payment.setStatus(SettlementStatus.COMPLETED);
+    when(paymentService.confirmPayment(eq(1L))).thenReturn(payment);
+    when(paymentMapper.toSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
         .perform(put("/settlements/1/confirm"))

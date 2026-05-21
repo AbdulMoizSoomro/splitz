@@ -12,8 +12,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
 import com.splitz.expense.dto.FriendshipSettlementDTO;
+import com.splitz.expense.mapper.PaymentMapper;
+import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementStatus;
-import com.splitz.expense.service.FriendshipSettlementService;
+import com.splitz.expense.service.PaymentService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
@@ -36,18 +38,30 @@ class FriendshipSettlementControllerTest {
 
   @Autowired private ObjectMapper objectMapper;
 
-  @MockBean private FriendshipSettlementService friendshipSettlementService;
+  @MockBean private PaymentService paymentService;
+
+  @MockBean private PaymentMapper paymentMapper;
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
   @MockBean private SharedSecurityAuthorizer splitzAuthorizer;
 
   private FriendshipSettlementDTO settlementDTO;
+  private Payment payment;
 
   @BeforeEach
   void setUp() {
     settlementDTO =
         FriendshipSettlementDTO.builder()
+            .id(1L)
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .status(SettlementStatus.PENDING)
+            .build();
+
+    payment =
+        Payment.builder()
             .id(1L)
             .payerId(101L)
             .payeeId(102L)
@@ -66,9 +80,8 @@ class FriendshipSettlementControllerTest {
             .amount(new BigDecimal("50.00"))
             .build();
 
-    when(friendshipSettlementService.createSettlements(
-            any(CreateFriendshipSettlementRequest.class)))
-        .thenReturn(List.of(settlementDTO));
+    when(paymentService.createPayment(any(), any(), any(), any(), any())).thenReturn(payment);
+    when(paymentMapper.toFriendshipSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
         .perform(
@@ -83,7 +96,8 @@ class FriendshipSettlementControllerTest {
   @Test
   @WithMockUser(username = "101")
   void getSettlement_Success() throws Exception {
-    when(friendshipSettlementService.getSettlementById(1L)).thenReturn(settlementDTO);
+    when(paymentService.getPaymentById(1L)).thenReturn(payment);
+    when(paymentMapper.toFriendshipSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
         .perform(get("/friendship-settlements/1"))
@@ -94,8 +108,8 @@ class FriendshipSettlementControllerTest {
   @Test
   @WithMockUser(username = "101")
   void getSettlementsBetweenUsers_Success() throws Exception {
-    when(friendshipSettlementService.getSettlementsBetweenUsers(101L, 102L))
-        .thenReturn(List.of(settlementDTO));
+    when(paymentService.getPaymentsBetweenUsers(101L, 102L)).thenReturn(List.of(payment));
+    when(paymentMapper.toFriendshipSettlementDTOs(any())).thenReturn(List.of(settlementDTO));
 
     mockMvc
         .perform(get("/users/101/friendships/102/settlements"))
@@ -108,7 +122,9 @@ class FriendshipSettlementControllerTest {
   void markAsPaid_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(101L);
     settlementDTO.setStatus(SettlementStatus.MARKED_PAID);
-    when(friendshipSettlementService.markAsPaid(eq(1L))).thenReturn(settlementDTO);
+    payment.setStatus(SettlementStatus.MARKED_PAID);
+    when(paymentService.markAsPaid(eq(1L))).thenReturn(payment);
+    when(paymentMapper.toFriendshipSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
         .perform(put("/friendship-settlements/1/mark-paid"))
@@ -121,7 +137,9 @@ class FriendshipSettlementControllerTest {
   void confirmSettlement_Success() throws Exception {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(102L);
     settlementDTO.setStatus(SettlementStatus.COMPLETED);
-    when(friendshipSettlementService.confirmSettlement(eq(1L))).thenReturn(settlementDTO);
+    payment.setStatus(SettlementStatus.COMPLETED);
+    when(paymentService.confirmPayment(eq(1L))).thenReturn(payment);
+    when(paymentMapper.toFriendshipSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
         .perform(put("/friendship-settlements/1/confirm"))

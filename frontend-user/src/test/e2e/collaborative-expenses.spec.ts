@@ -55,7 +55,7 @@ test.describe("[E2E] Collaborative Expenses", () => {
       await pageAlice.getByRole("button", { name: /create group/i }).first().click();
       const groupName = `Collab Group ${ts}`;
       await pageAlice.getByLabel(/group name/i).fill(groupName);
-      await pageAlice.getByText(/Bob/i).click();
+      await pageAlice.getByText("Bob User").click();
       await pageAlice.getByRole("button", { name: /create group/i }).last().click();
       await expect(pageAlice.getByText(groupName)).toBeVisible();
 

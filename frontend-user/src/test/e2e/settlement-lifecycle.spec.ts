@@ -61,8 +61,8 @@ test.describe("[E2E] Settlement Lifecycle", () => {
       const groupModal = pageAlice.getByRole("dialog");
       const groupName = `Settlement Group ${ts}`;
       await groupModal.getByLabel(/group name/i).fill(groupName);
-      await expect(groupModal.getByText(/Bob/i)).toBeVisible();
-      await groupModal.getByText(/Bob/i).click();
+      await expect(groupModal.getByText("Bob User")).toBeVisible();
+      await groupModal.getByText("Bob User").click();
       await groupModal.getByRole("button", { name: /create group/i }).click();
       await expect(groupModal).not.toBeVisible();
 

@@ -7,7 +7,8 @@ This file serves as the primary source of truth for the Splitz project's domain 
 - **User**: A person who can create and participate in groups.
 - **Group**: A collection of users who share expenses.
 - **Expense**: A financial transaction where one or more users pay and the cost is split among group members.
-- **Settlement**: A transaction to resolve debts between users.
+- **Payment**: An actual transaction representing the transfer of money from a payer to a payee (with statuses: `PENDING`, `MARKED_PAID`, `COMPLETED`).
+- **Settlement Allocation**: An assignment of a portion of a **Payment** to a specific group (or globally) to resolve a portion of debt between users.
 - **Friend Request**: An invitation sent from one user to another to establish a connection.
 - **Cancellation**: The act of revoking a sent friend request before it is accepted or rejected, resulting in the removal of the request record.
 - **Shared Security Authorizer**: A centralized module in `common-security` that provides stateless authorization logic (e.g., identity checks, role verification) across all microservices.

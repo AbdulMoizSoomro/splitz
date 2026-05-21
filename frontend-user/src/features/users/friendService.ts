@@ -100,4 +100,18 @@ export const friendService = {
     );
     return response.data;
   },
+
+  updateSettlement: async (
+    settlementId: number,
+    data: {
+      amount: number;
+      allocations?: { groupId: number; amount: number }[];
+    },
+  ): Promise<FriendshipSettlementDTO> => {
+    const response = await expenseApi.put<FriendshipSettlementDTO>(
+      `/friendship-settlements/${settlementId}`,
+      data,
+    );
+    return response.data;
+  },
 };

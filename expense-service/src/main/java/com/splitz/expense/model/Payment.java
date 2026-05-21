@@ -1,18 +1,20 @@
 package com.splitz.expense.model;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,21 +24,17 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "settlements")
+@Table(name = "payments")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Settlement {
+public class Payment {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "group_id", nullable = false)
-  private Group group;
 
   @Column(name = "payer_id", nullable = false)
   private Long payerId;
@@ -59,11 +57,29 @@ public class Settlement {
   @Column(name = "updated_at")
   private LocalDateTime updatedAt;
 
-  @jakarta.persistence.Version private Integer version;
+  @Version private Integer version;
 
   @Column(name = "marked_paid_at")
   private LocalDateTime markedPaidAt;
 
   @Column(name = "settled_at")
   private LocalDateTime settledAt;
+
+  @OneToMany(
+      mappedBy = "payment",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = jakarta.persistence.FetchType.EAGER)
+  @Builder.Default
+  private List<SettlementAllocation> allocations = new ArrayList<>();
+
+  public void addAllocation(SettlementAllocation allocation) {
+    allocations.add(allocation);
+    allocation.setPayment(this);
+  }
+
+  public void removeAllocation(SettlementAllocation allocation) {
+    allocations.remove(allocation);
+    allocation.setPayment(null);
+  }
 }

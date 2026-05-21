@@ -12,11 +12,11 @@ import com.splitz.expense.dto.CreateSettlementRequest;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupRole;
-import com.splitz.expense.model.Settlement;
+import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.SettlementRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.security.JwtUtil;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.AfterEach;
@@ -43,7 +43,7 @@ public class SettlementIntegrationTest {
 
   @Autowired private GroupMemberRepository groupMemberRepository;
 
-  @Autowired private SettlementRepository settlementRepository;
+  @Autowired private PaymentRepository paymentRepository;
 
   private Group group;
   private String payerToken;
@@ -76,7 +76,7 @@ public class SettlementIntegrationTest {
 
   @AfterEach
   void tearDown() {
-    settlementRepository.deleteAll();
+    paymentRepository.deleteAll();
     groupMemberRepository.deleteAll();
     groupRepository.deleteAll();
   }
@@ -116,7 +116,7 @@ public class SettlementIntegrationTest {
         .andExpect(jsonPath("$.status").value("COMPLETED"));
 
     // 3. Verify in DB
-    Settlement settlement = settlementRepository.findById(settlementId).orElseThrow();
+    Payment settlement = paymentRepository.findById(settlementId).orElseThrow();
     assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.COMPLETED);
     assertThat(settlement.getSettledAt()).isNotNull();
   }
@@ -149,5 +149,39 @@ public class SettlementIntegrationTest {
         .perform(
             put("/settlements/" + settlementId + "/mark-paid").header("Authorization", payeeToken))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void testGetSettlementsByGroup() throws Exception {
+    // 1. Create a settlement
+    CreateSettlementRequest request =
+        CreateSettlementRequest.builder()
+            .groupId(group.getId())
+            .payerId(payerId)
+            .payeeId(payeeId)
+            .amount(new BigDecimal("30.00"))
+            .build();
+
+    mockMvc
+        .perform(
+            post("/settlements")
+                .header("Authorization", payerToken)
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated());
+
+    // 2. Fetch group settlements
+    mockMvc
+        .perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                    "/groups/" + group.getId() + "/settlements")
+                .header("Authorization", payerToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isArray())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].payerId").value(payerId))
+        .andExpect(jsonPath("$[0].payeeId").value(payeeId))
+        .andExpect(jsonPath("$[0].amount").value(30.00))
+        .andExpect(jsonPath("$[0].groupId").value(group.getId()));
   }
 }
