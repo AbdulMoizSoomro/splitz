@@ -168,8 +168,7 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
 
       // 10. Verify activity feed shows settlements
       await expect(pageAlice.getByText("Bob paid you").first()).toBeVisible({ timeout: 15000 });
-      await expect(pageAlice.getByText("$20.00")).toBeVisible();
-      await expect(pageAlice.getByText("$50.00")).toBeVisible();
+      await expect(pageAlice.getByText("$70.00")).toBeVisible();
 
     } finally {
       await ctxAlice.close();

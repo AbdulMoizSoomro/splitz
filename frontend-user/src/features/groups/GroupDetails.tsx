@@ -23,6 +23,7 @@ import ExpenseModal from "../expenses/ExpenseModal";
 import type { Expense } from "../../types/expense";
 import GroupBalances from "../balances/GroupBalances";
 import GroupActivity from "./GroupActivity";
+import { settlementService } from "../balances/settlementService";
 import {
   Loader2,
   ArrowLeft,
@@ -70,6 +71,12 @@ const GroupDetails = () => {
     queryKey: ["friends", user?.id],
     queryFn: () => friendService.getFriends(Number(user?.id)),
     enabled: !!user?.id,
+  });
+
+  const { data: settlements, isLoading: isSettlementsLoading } = useQuery({
+    queryKey: ["group-settlements", id],
+    queryFn: () => settlementService.getSettlementsByGroup(Number(id)),
+    enabled: !!id,
   });
 
   const handleAddExpense = () => {
@@ -160,7 +167,13 @@ const GroupDetails = () => {
   const isOwner = group?.createdBy === Number(user?.id);
   const isAdmin = currentUserRole === "ADMIN";
 
-  const canLeave = currentUserBalance === 0;
+  const hasPendingSettlements = settlements?.some(
+    (s) =>
+      (s.payerId === Number(user?.id) || s.payeeId === Number(user?.id)) &&
+      s.status === "MARKED_PAID",
+  ) ?? false;
+
+  const canLeave = currentUserBalance === 0 && !hasPendingSettlements;
 
   if (isLoading || isFriendsLoading) {
     return (
@@ -534,14 +547,17 @@ const GroupDetails = () => {
         title="Leave Group"
       >
         <div className="space-y-4">
-          {isBalancesLoading ? (
+          {isBalancesLoading || isSettlementsLoading ? (
             <div className="flex justify-center py-4">
               <Loader2 className="animate-spin text-blue-600" size={24} />
             </div>
           ) : !canLeave ? (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              You cannot leave this group while you have an outstanding balance
-              ({currentUserBalance}).
+              {hasPendingSettlements ? (
+                "You cannot leave this group while you have pending unconfirmed payments."
+              ) : (
+                `You cannot leave this group while you have an outstanding balance (${currentUserBalance}).`
+              )}
             </div>
           ) : (
             <p className="text-gray-600">
@@ -561,7 +577,7 @@ const GroupDetails = () => {
               variant="danger"
               onClick={handleLeave}
               disabled={
-                leaveMutation.isPending || isBalancesLoading || !canLeave
+                leaveMutation.isPending || isBalancesLoading || isSettlementsLoading || !canLeave
               }
             >
               {leaveMutation.isPending ? "Leaving..." : "Leave Group"}

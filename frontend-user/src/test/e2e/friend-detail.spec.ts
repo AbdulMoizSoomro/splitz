@@ -65,7 +65,7 @@ async function createGroupWithMember(
   const friendEntry = friendPicker.getByText(
     new RegExp(friendDisplayFirstName, "i"),
   );
-  await expect(friendEntry).toBeVisible({ timeout: 10000 });
+  await expect(friendEntry.first()).toBeVisible({ timeout: 10000 });
   await friendEntry.first().click();
 
   await modal.getByRole("button", { name: /create group/i }).click();

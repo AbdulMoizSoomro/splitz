@@ -11,6 +11,9 @@ import {
   DollarSign,
   TrendingUp,
   TrendingDown,
+  Pencil,
+  X,
+  Check,
 } from "lucide-react";
 import api from "../../lib/axios";
 import Button from "../../components/core/Button/Button";
@@ -42,6 +45,8 @@ const FriendDetailPage = () => {
   const friendId = Number(id);
   const { user: currentUser } = useAuthStore();
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [editingSettlementId, setEditingSettlementId] = useState<number | null>(null);
+  const [editAmount, setEditAmount] = useState("");
   const queryClient = useQueryClient();
   const { addToast } = useToastStore();
 
@@ -73,6 +78,15 @@ const FriendDetailPage = () => {
       ) || [],
     [groups, friendId],
   );
+
+  // Build a groupId -> groupName lookup map
+  const groupNameMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    if (groups) {
+      groups.forEach((g) => { map[g.id] = g.name; });
+    }
+    return map;
+  }, [groups]);
 
   const { data: sharedExpenses, isLoading: isLoadingExpenses } = useQuery({
     queryKey: ["shared-expenses", id, sharedGroups.map((g) => g.id)],
@@ -111,6 +125,21 @@ const FriendDetailPage = () => {
     },
     onError: () => {
       addToast("Failed to confirm payment", "error");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ settlementId, amount }: { settlementId: number; amount: number }) =>
+      friendService.updateSettlement(settlementId, { amount }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["friend-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
+      setEditingSettlementId(null);
+      setEditAmount("");
+      addToast("Payment updated", "success");
+    },
+    onError: () => {
+      addToast("Failed to update payment", "error");
     },
   });
 
@@ -165,6 +194,25 @@ const FriendDetailPage = () => {
   }
 
   const netBalance = balanceData?.netBalance || 0;
+
+  const startEditing = (settlement: FriendshipSettlementDTO) => {
+    setEditingSettlementId(settlement.id);
+    setEditAmount(settlement.amount.toFixed(2));
+  };
+
+  const cancelEditing = () => {
+    setEditingSettlementId(null);
+    setEditAmount("");
+  };
+
+  const submitEdit = (settlementId: number) => {
+    const parsedAmount = parseFloat(editAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      addToast("Please enter a valid amount", "error");
+      return;
+    }
+    updateMutation.mutate({ settlementId, amount: parsedAmount });
+  };
 
   return (
     <DashboardLayout>
@@ -335,6 +383,8 @@ const FriendDetailPage = () => {
                     } else {
                       const settlement = activity.data as FriendshipSettlementDTO;
                       const isPayer = settlement.payerId === Number(currentUser?.id);
+                      const isEditing = editingSettlementId === settlement.id;
+                      const canEdit = settlement.status !== 'COMPLETED';
 
                       let badgeVariant: 'success' | 'warning' | 'default' = 'default';
                       if (settlement.status === 'COMPLETED') badgeVariant = 'success';
@@ -343,45 +393,111 @@ const FriendDetailPage = () => {
                       return (
                         <div
                           key={`settlement-${settlement.id}-${index}`}
-                          className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+                          className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                              <DollarSign size={20} />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-medium text-gray-900">
-                                  {isPayer ? `You paid ${friend.firstName}` : `${friend.firstName} paid you`}
-                                </p>
-                                <Badge variant={badgeVariant}>
-                                  {settlement.status === 'MARKED_PAID' ? 'Pending Confirmation' :
-                                   settlement.status === 'COMPLETED' ? 'Settled' : 'Pending'}
-                                </Badge>
-                                {!isPayer && settlement.status === 'MARKED_PAID' && (
-                                  <Button
-                                    variant="primary"
-                                    size="sm"
-                                    onClick={() => confirmMutation.mutate(settlement.id)}
-                                    disabled={confirmMutation.isPending}
-                                    className="h-6 py-0 px-2 text-[10px]"
-                                  >
-                                    {confirmMutation.isPending ? <Loader2 className="animate-spin" size={12} /> : 'Confirm Receipt'}
-                                  </Button>
-                                )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                <DollarSign size={20} />
                               </div>
-                              <p className="text-xs text-gray-500">
-                                {new Date(
-                                  settlement.createdAt,
-                                ).toLocaleDateString()}
-                              </p>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-medium text-gray-900">
+                                    {isPayer ? `You paid ${friend.firstName}` : `${friend.firstName} paid you`}
+                                  </p>
+                                  <Badge variant={badgeVariant}>
+                                    {settlement.status === 'MARKED_PAID' ? 'Pending Confirmation' :
+                                     settlement.status === 'COMPLETED' ? 'Settled' : 'Pending'}
+                                  </Badge>
+                                  {!isPayer && settlement.status === 'MARKED_PAID' && (
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      onClick={() => confirmMutation.mutate(settlement.id)}
+                                      disabled={confirmMutation.isPending}
+                                      className="h-6 py-0 px-2 text-[10px]"
+                                    >
+                                      {confirmMutation.isPending ? <Loader2 className="animate-spin" size={12} /> : 'Confirm Receipt'}
+                                    </Button>
+                                  )}
+                                  {canEdit && !isEditing && (
+                                    <button
+                                      onClick={() => startEditing(settlement)}
+                                      className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded"
+                                      title="Edit payment"
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(settlement.createdAt).toLocaleDateString()}{" "}
+                                  {new Date(settlement.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-500">$</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    value={editAmount}
+                                    onChange={(e) => setEditAmount(e.target.value)}
+                                    className="w-20 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => submitEdit(settlement.id)}
+                                    disabled={updateMutation.isPending}
+                                    className="p-1 text-green-600 hover:text-green-700 transition-colors"
+                                    title="Save"
+                                  >
+                                    {updateMutation.isPending ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
+                                  </button>
+                                  <button
+                                    onClick={cancelEditing}
+                                    className="p-1 text-red-500 hover:text-red-600 transition-colors"
+                                    title="Cancel"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <p className="font-bold text-gray-900">
+                                  ${settlement.amount.toFixed(2)}
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-900">
-                              ${settlement.amount.toFixed(2)}
-                            </p>
-                          </div>
+
+                          {/* Group Allocations */}
+                          {settlement.allocations && settlement.allocations.length > 0 && (
+                            <div className="mt-2 ml-13 pl-3 border-l-2 border-gray-100">
+                              {settlement.allocations.map((alloc, aIdx) => (
+                                <div key={aIdx} className="flex items-center justify-between text-xs text-gray-500 py-0.5">
+                                  <span className="flex items-center gap-1">
+                                    <Users size={10} className="text-gray-400" />
+                                    {alloc.groupId
+                                      ? (
+                                        <Link
+                                          to={`/groups/${alloc.groupId}`}
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          {groupNameMap[alloc.groupId] || `Group #${alloc.groupId}`}
+                                        </Link>
+                                      )
+                                      : "Unallocated"}
+                                  </span>
+                                  <span className="font-medium text-gray-600">
+                                    ${alloc.amount.toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     }

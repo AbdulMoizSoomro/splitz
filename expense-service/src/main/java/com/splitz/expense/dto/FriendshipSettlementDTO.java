@@ -24,4 +24,14 @@ public class FriendshipSettlementDTO {
   private LocalDateTime updatedAt;
   private LocalDateTime markedPaidAt;
   private LocalDateTime settledAt;
+  private java.util.List<AllocationDTO> allocations;
+
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class AllocationDTO {
+    private Long groupId;
+    private BigDecimal amount;
+  }
 }

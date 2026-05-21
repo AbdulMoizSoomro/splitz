@@ -21,7 +21,7 @@ import com.splitz.expense.model.SplitType;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.SettlementRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.security.JwtUtil;
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -50,7 +50,7 @@ public class BalanceIntegrationTest {
   @Autowired private GroupRepository groupRepository;
   @Autowired private GroupMemberRepository groupMemberRepository;
   @Autowired private ExpenseRepository expenseRepository;
-  @Autowired private SettlementRepository settlementRepository;
+  @Autowired private PaymentRepository paymentRepository;
 
   @MockBean private UserClient userClient;
 
@@ -84,7 +84,7 @@ public class BalanceIntegrationTest {
   }
 
   private void cleanup() {
-    settlementRepository.deleteAll();
+    paymentRepository.deleteAll();
     expenseRepository.deleteAll();
     groupMemberRepository.deleteAll();
     groupRepository.deleteAll();

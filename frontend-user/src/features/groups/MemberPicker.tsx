@@ -130,7 +130,7 @@ const MemberPicker = ({
         />
       </div>
 
-      <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+      <div className="max-h-48 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="animate-spin text-blue-600" size={24} />
