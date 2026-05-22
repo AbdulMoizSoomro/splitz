@@ -287,7 +287,7 @@ public class BalanceService {
         .build();
   }
 
-  private BigDecimal calculateUserBalanceInGroup(Long userId, Long groupId) {
+  public BigDecimal calculateUserBalanceInGroup(Long userId, Long groupId) {
     BigDecimal totalPaid = expenseRepository.calculateTotalPaidByUserInGroup(userId, groupId);
     BigDecimal totalShare = expenseRepository.calculateTotalShareForUserInGroup(userId, groupId);
     BigDecimal settlementsPaid =

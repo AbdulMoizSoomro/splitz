@@ -75,6 +75,18 @@ public class GlobalExceptionHandler {
     return problem;
   }
 
+  @ExceptionHandler(IllegalStateException.class)
+  public ProblemDetail handleIllegalStateException(
+      IllegalStateException ex, HttpServletRequest request) {
+    ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    problem.setTitle("Invalid Request State");
+    problem.setDetail(ex.getMessage());
+    problem.setType(
+        Objects.requireNonNull(create("https://example.com/errors/invalid-request-state")));
+    problem.setInstance(Objects.requireNonNull(create(request.getRequestURI())));
+    return problem;
+  }
+
   @ExceptionHandler(Exception.class)
   public ProblemDetail handleGlobalException(Exception ex, HttpServletRequest request) {
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);

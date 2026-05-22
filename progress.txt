@@ -43,5 +43,13 @@ Confidence: High
 Summary: Verified that Split Calculator correctly handles precision and remainders across different currencies.
 Decisions made:
 - Confirmed implementation in RemainderHandler.java and SplitCalculator.java.
-- Verified backend unit tests (SplitCalculatorTest.java) pass.
+- Confirmed backend unit tests (SplitCalculatorTest.java) pass.
 - Closing as already resolved.
+Task: Issue 15 - Centralize Group Governance validation logic in expense-service
+Confidence: High
+Summary: Centralized all Group Governance checks under a unified `GroupGovernance` module and refactored caller services (`GroupService`, `MembershipService`, `ExpenseService`, `SecurityExpressions`).
+Decisions made:
+- Encapsulated global admin (`ROLE_ADMIN`) bypass in `GroupGovernanceImpl` using `SharedSecurityAuthorizer`.
+- Implemented core assertions: `assertIsMember`, `assertCanManageMembers`, `assertCanEditExpense`, `assertCanChangeRole`, `assertCanRemoveMember`, and `isMember`.
+- Fixed Hibernate L1 cache desynchronization under test by utilising direct repository queries.
+- Verified all quality gates (spotless, checkstyle) and ran the full 198 backend tests and 33 + 71 frontend tests successfully.

@@ -49,4 +49,13 @@ public interface SettlementAllocationRepository extends JpaRepository<Settlement
       @Param("userId") Long userId,
       @Param("groupId") Long groupId,
       @Param("status") SettlementStatus status);
+
+  @Query(
+      "SELECT COUNT(sa) > 0 FROM SettlementAllocation sa JOIN sa.payment p WHERE "
+          + "sa.groupId = :groupId AND (p.payerId = :userId OR p.payeeId = :userId) AND "
+          + "p.status IN :statuses")
+  boolean hasActiveSettlementsForUserInGroup(
+      @Param("userId") Long userId,
+      @Param("groupId") Long groupId,
+      @Param("statuses") Collection<SettlementStatus> statuses);
 }

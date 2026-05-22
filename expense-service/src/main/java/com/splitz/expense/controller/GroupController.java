@@ -1,12 +1,8 @@
 package com.splitz.expense.controller;
 
-import com.splitz.expense.dto.AddMemberRequest;
-import com.splitz.expense.dto.BulkAddMembersRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
-import com.splitz.expense.dto.UpdateMemberRoleRequest;
-import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import jakarta.validation.Valid;
@@ -60,46 +56,6 @@ public class GroupController {
   public ResponseEntity<Void> deleteGroup(@PathVariable("groupId") Long groupId) {
     groupService.deleteGroup(groupId, splitzAuthorizer.getCurrentUserId());
     return ResponseEntity.noContent().build();
-  }
-
-  @PostMapping("/{groupId}/members")
-  public ResponseEntity<GroupDTO> addMember(
-      @PathVariable("groupId") Long groupId, @Valid @RequestBody AddMemberRequest request) {
-    GroupDTO result = groupService.addMember(groupId, request, splitzAuthorizer.getCurrentUserId());
-    return ResponseEntity.status(HttpStatus.CREATED).body(result);
-  }
-
-  @PostMapping("/{groupId}/members/bulk")
-  public ResponseEntity<GroupDTO> bulkAddMembers(
-      @PathVariable("groupId") Long groupId, @Valid @RequestBody BulkAddMembersRequest request) {
-    GroupDTO result =
-        groupService.bulkAddMembers(groupId, request, splitzAuthorizer.getCurrentUserId());
-    return ResponseEntity.ok(result);
-  }
-
-  @GetMapping("/{groupId}/potential-members")
-  public ResponseEntity<List<UserResponse>> getPotentialMembers(
-      @PathVariable("groupId") Long groupId) {
-    return ResponseEntity.ok(
-        groupService.getPotentialMembers(groupId, splitzAuthorizer.getCurrentUserId()));
-  }
-
-  @DeleteMapping("/{groupId}/members/{memberUserId}")
-  public ResponseEntity<Void> removeMember(
-      @PathVariable("groupId") Long groupId, @PathVariable("memberUserId") Long memberUserId) {
-    groupService.removeMember(groupId, memberUserId, splitzAuthorizer.getCurrentUserId());
-    return ResponseEntity.noContent().build();
-  }
-
-  @PutMapping("/{groupId}/members/{memberUserId}/role")
-  public ResponseEntity<GroupDTO> updateMemberRole(
-      @PathVariable("groupId") Long groupId,
-      @PathVariable("memberUserId") Long memberUserId,
-      @Valid @RequestBody UpdateMemberRoleRequest request) {
-    GroupDTO result =
-        groupService.updateMemberRole(
-            groupId, memberUserId, request, splitzAuthorizer.getCurrentUserId());
-    return ResponseEntity.ok(result);
   }
 
   @GetMapping("/{groupId}/activity")
