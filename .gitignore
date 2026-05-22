@@ -31,6 +31,8 @@ out/
 .apt_generated
 .metadata
 .recommenders/
+.antigravitycli/
+.agents/
 
 # --- Java / Maven ---
 target/

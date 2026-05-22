@@ -3,20 +3,18 @@ package com.splitz.expense.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import com.splitz.expense.client.UserClient;
-import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.exception.UnauthorizedException;
+import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.mapper.GroupMapper;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupRole;
-import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import java.util.Optional;
 import java.util.Set;
@@ -31,12 +29,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class GroupServiceTest {
 
   @Mock private GroupRepository groupRepository;
-
-  @Mock private GroupMemberRepository groupMemberRepository;
-
   @Mock private GroupMapper groupMapper;
-
   @Mock private UserClient userClient;
+  @Mock private GroupGovernance groupGovernance;
 
   @InjectMocks private GroupService groupService;
 
@@ -81,9 +76,49 @@ class GroupServiceTest {
   }
 
   @Test
-  void updateGroup_NonMember_ShouldThrowException() {
+  void getGroup_WhenMember_ShouldSucceed() {
+    doNothing().when(groupGovernance).assertIsMember(2L, 1L);
+    when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
+    when(groupMapper.toDTO(group)).thenReturn(new GroupDTO());
+
+    groupService.getGroup(2L, 1L);
+
+    verify(groupRepository).findById(2L);
+  }
+
+  @Test
+  void getGroup_WhenNonMember_ShouldThrowUnauthorized() {
+    doThrow(new UnauthorizedException("You are not a member of this group"))
+        .when(groupGovernance)
+        .assertIsMember(2L, 5L);
+    when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
+
+    assertThrows(UnauthorizedException.class, () -> groupService.getGroup(2L, 5L));
+  }
+
+  @Test
+  void updateGroup_WhenAdmin_ShouldSucceed() {
     UpdateGroupRequest updateRequest = new UpdateGroupRequest();
     updateRequest.setName("New Name");
+
+    doNothing().when(groupGovernance).assertCanManageGroup(2L, 1L);
+    when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
+    when(groupRepository.save(any(Group.class))).thenReturn(group);
+    when(groupMapper.toDTO(any(Group.class))).thenReturn(new GroupDTO());
+
+    groupService.updateGroup(2L, updateRequest, 1L);
+
+    verify(groupRepository).save(any(Group.class));
+  }
+
+  @Test
+  void updateGroup_Unauthorized_ShouldThrowException() {
+    UpdateGroupRequest updateRequest = new UpdateGroupRequest();
+    updateRequest.setName("New Name");
+
+    doThrow(new UnauthorizedException("Only admins can perform this action"))
+        .when(groupGovernance)
+        .assertCanManageGroup(2L, 5L);
     when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
 
     assertThrows(
@@ -91,67 +126,23 @@ class GroupServiceTest {
   }
 
   @Test
-  void addMember_ShouldAddSuccessfully() {
-    AddMemberRequest request = new AddMemberRequest();
-    request.setUserId(100L);
-
+  void deleteGroup_WhenAdmin_ShouldSucceed() {
+    doNothing().when(groupGovernance).assertCanManageGroup(2L, 1L);
     when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
-    when(userClient.existsById(100L)).thenReturn(true);
-    when(groupMemberRepository.existsByGroupIdAndUserId(2L, 100L)).thenReturn(false);
+    when(groupRepository.save(any(Group.class))).thenReturn(group);
 
-    groupService.addMember(2L, request, 1L);
+    groupService.deleteGroup(2L, 1L);
 
-    verify(groupMemberRepository).existsByGroupIdAndUserId(2L, 100L);
+    verify(groupRepository).save(any(Group.class));
   }
 
   @Test
-  void removeMember_ShouldRemoveSuccessfully() {
-    GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
-    group.getMembers().add(member);
+  void deleteGroup_Unauthorized_ShouldThrowException() {
+    doThrow(new UnauthorizedException("Only admins can perform this action"))
+        .when(groupGovernance)
+        .assertCanManageGroup(2L, 5L);
     when(groupRepository.findById(2L)).thenReturn(Optional.of(group));
-    when(groupMemberRepository.findByGroupIdAndUserId(2L, 2L)).thenReturn(Optional.of(member));
 
-    groupService.removeMember(2L, 2L, 1L);
-
-    verify(groupMemberRepository).delete(member);
-  }
-
-  @Test
-  void canManageExpenses_Admin_ShouldReturnTrue() {
-    group.setAllowMembersToEditExpenses(false);
-    GroupMember adminMember = GroupMember.builder().userId(1L).role(GroupRole.ADMIN).build();
-    when(groupMemberRepository.findByGroupIdAndUserId(2L, 1L)).thenReturn(Optional.of(adminMember));
-    // User 1 is ADMIN
-    assertEquals(true, groupService.canManageExpenses(group, 1L, 99L));
-  }
-
-  @Test
-  void canManageExpenses_Payer_ShouldReturnTrue() {
-    group.setAllowMembersToEditExpenses(false);
-    GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
-    group.addMember(member);
-    when(groupMemberRepository.findByGroupIdAndUserId(2L, 2L)).thenReturn(Optional.of(member));
-    // User 2 is PAYER
-    assertEquals(true, groupService.canManageExpenses(group, 2L, 2L));
-  }
-
-  @Test
-  void canManageExpenses_Member_FlagTrue_ShouldReturnTrue() {
-    group.setAllowMembersToEditExpenses(true);
-    GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
-    group.addMember(member);
-    when(groupMemberRepository.findByGroupIdAndUserId(2L, 2L)).thenReturn(Optional.of(member));
-    // User 2 is MEMBER, flag is TRUE
-    assertEquals(true, groupService.canManageExpenses(group, 2L, 99L));
-  }
-
-  @Test
-  void canManageExpenses_Member_FlagFalse_ShouldReturnFalse() {
-    group.setAllowMembersToEditExpenses(false);
-    GroupMember member = GroupMember.builder().userId(2L).role(GroupRole.MEMBER).build();
-    group.addMember(member);
-    when(groupMemberRepository.findByGroupIdAndUserId(2L, 2L)).thenReturn(Optional.of(member));
-    // User 2 is MEMBER, flag is FALSE, not Payer
-    assertEquals(false, groupService.canManageExpenses(group, 2L, 99L));
+    assertThrows(UnauthorizedException.class, () -> groupService.deleteGroup(2L, 5L));
   }
 }

@@ -11,12 +11,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.GroupMemberDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
-import com.splitz.expense.dto.UpdateMemberRoleRequest;
 import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.service.ActivityLogService;
 import com.splitz.expense.service.GroupService;
@@ -123,35 +121,6 @@ class GroupControllerTest {
   }
 
   @Test
-  @WithMockUser(username = "3")
-  void addMember_ShouldReturnUpdatedGroup() throws Exception {
-    AddMemberRequest request = new AddMemberRequest();
-    request.setUserId(5L);
-    request.setRole(GroupRole.MEMBER);
-
-    GroupDTO response =
-        GroupDTO.builder()
-            .id(3L)
-            .name("Study")
-            .members(
-                List.of(
-                    GroupMemberDTO.builder().userId(3L).role(GroupRole.ADMIN).build(),
-                    GroupMemberDTO.builder().userId(5L).role(GroupRole.MEMBER).build()))
-            .build();
-
-    when(groupService.addMember(Mockito.eq(3L), any(AddMemberRequest.class), Mockito.eq(3L)))
-        .thenReturn(response);
-
-    mockMvc
-        .perform(
-            post("/groups/3/members")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.members[1].userId").value(5L));
-  }
-
-  @Test
   @WithMockUser(username = "4")
   void updateGroup_ShouldReturnUpdatedGroup() throws Exception {
     UpdateGroupRequest request = new UpdateGroupRequest();
@@ -174,31 +143,6 @@ class GroupControllerTest {
   @WithMockUser(username = "5")
   void deleteGroup_ShouldReturnNoContent() throws Exception {
     mockMvc.perform(delete("/groups/9")).andExpect(status().isNoContent());
-  }
-
-  @Test
-  @WithMockUser(username = "1")
-  void updateMemberRole_ShouldReturnUpdatedGroup() throws Exception {
-    UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
-    request.setRole(GroupRole.ADMIN);
-
-    GroupDTO response =
-        GroupDTO.builder()
-            .id(1L)
-            .members(List.of(GroupMemberDTO.builder().userId(2L).role(GroupRole.ADMIN).build()))
-            .build();
-
-    when(groupService.updateMemberRole(
-            Mockito.eq(1L), Mockito.eq(2L), any(UpdateMemberRoleRequest.class), Mockito.eq(1L)))
-        .thenReturn(response);
-
-    mockMvc
-        .perform(
-            put("/groups/1/members/2/role")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.members[0].role").value("ADMIN"));
   }
 
   @Test

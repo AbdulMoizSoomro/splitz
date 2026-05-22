@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,6 +17,7 @@ import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.dto.UpdateExpenseRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.exception.UnauthorizedException;
+import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.mapper.ExpenseMapper;
 import com.splitz.expense.model.Category;
 import com.splitz.expense.model.Expense;
@@ -66,7 +68,7 @@ class ExpenseServiceTest {
 
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
-  @Mock private GroupService groupService;
+  @Mock private GroupGovernance groupGovernance;
 
   @Mock private ActivityLogService activityLogService;
 
@@ -108,7 +110,6 @@ class ExpenseServiceTest {
             .categoryId(1L)
             .build();
     lenient().when(splitzAuthorizer.isAdmin()).thenReturn(false);
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(false);
   }
 
   @Test
@@ -409,7 +410,6 @@ class ExpenseServiceTest {
   @Test
   void createExpense_GroupNotFound_ThrowsException() {
     CreateExpenseRequest request = CreateExpenseRequest.builder().build();
-    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(groupRepository.findById(1L)).thenReturn(Optional.empty());
 
     assertThrows(
@@ -420,8 +420,6 @@ class ExpenseServiceTest {
   void createExpense_NotGroupMember_ThrowsException() {
     CreateExpenseRequest request = CreateExpenseRequest.builder().paidBy(100L).build();
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
-    // Creator 101L is member
-    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(true);
     // Payer 100L is NOT member
     when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(false);
 
@@ -432,8 +430,9 @@ class ExpenseServiceTest {
   @Test
   void createExpense_RequesterNotMember_ThrowsException() {
     CreateExpenseRequest request = CreateExpenseRequest.builder().build();
-    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 101L)).thenReturn(false);
-    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    doThrow(new UnauthorizedException("Only group members can create expenses"))
+        .when(groupGovernance)
+        .assertIsMember(1L, 101L);
 
     assertThrows(
         UnauthorizedException.class, () -> expenseService.createExpense(1L, request, 101L));
@@ -451,8 +450,6 @@ class ExpenseServiceTest {
     expense.setSplits(List.of(split));
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
-    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
     ExpenseDTO result = expenseService.getExpense(1L, 100L);
@@ -463,7 +460,6 @@ class ExpenseServiceTest {
 
   @Test
   void getExpensesByGroup_Success() {
-    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(groupRepository.existsById(1L)).thenReturn(true);
     when(expenseRepository.findByGroupId(1L)).thenReturn(List.of(expense));
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
@@ -483,7 +479,6 @@ class ExpenseServiceTest {
             .build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     // Mocking current user as creator (100L)
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
@@ -509,7 +504,6 @@ class ExpenseServiceTest {
             .build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(expenseRepository.save(any(Expense.class)))
         .thenAnswer(
             invocation -> {
@@ -547,7 +541,6 @@ class ExpenseServiceTest {
         UpdateExpenseRequest.builder().amount(new BigDecimal("100.00")).build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(expenseRepository.save(any(Expense.class)))
         .thenAnswer(
             invocation -> {
@@ -574,8 +567,6 @@ class ExpenseServiceTest {
         UpdateExpenseRequest.builder().description("Admin Update").build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    // Current user 101L is not creator (100L) but is admin (handled by groupService)
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 
@@ -598,7 +589,6 @@ class ExpenseServiceTest {
   void updateExpense_CategoryNotFound_ThrowsException() {
     UpdateExpenseRequest request = UpdateExpenseRequest.builder().categoryId(99L).build();
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
     assertThrows(
@@ -609,6 +599,11 @@ class ExpenseServiceTest {
   void updateExpense_NotAuthorized_ThrowsException() {
     UpdateExpenseRequest request = UpdateExpenseRequest.builder().build();
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    doThrow(
+            new UnauthorizedException(
+                "Only the expense creator or a group admin can modify/delete the expense"))
+        .when(groupGovernance)
+        .assertCanEditExpense(any(), any(), any());
 
     assertThrows(
         UnauthorizedException.class, () -> expenseService.updateExpense(1L, request, 101L));
@@ -618,6 +613,9 @@ class ExpenseServiceTest {
   void updateExpense_UserNotMember_ThrowsException() {
     UpdateExpenseRequest request = UpdateExpenseRequest.builder().build();
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+    doThrow(new UnauthorizedException("You are not a member of this group"))
+        .when(groupGovernance)
+        .assertCanEditExpense(any(), any(), any());
 
     assertThrows(
         UnauthorizedException.class, () -> expenseService.updateExpense(1L, request, 101L));
@@ -626,7 +624,6 @@ class ExpenseServiceTest {
   @Test
   void deleteExpense_Success() {
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
 
     expenseService.deleteExpense(1L, 100L);
 
@@ -636,8 +633,6 @@ class ExpenseServiceTest {
   @Test
   void deleteExpense_Collaborative_Success() {
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    // User 101L is not creator (100L) but group allows members to manage expenses
-    when(groupService.canManageExpenses(group, 101L, 100L)).thenReturn(true);
 
     expenseService.deleteExpense(1L, 101L);
 
@@ -660,7 +655,6 @@ class ExpenseServiceTest {
 
   @Test
   void getExpensesByGroup_GroupNotFound_ThrowsException() {
-    when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
     when(groupRepository.existsById(1L)).thenReturn(false);
 
     assertThrows(
@@ -729,7 +723,6 @@ class ExpenseServiceTest {
   @Test
   void deleteExpense_LogsActivity() {
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
 
     expenseService.deleteExpense(1L, 100L);
 
@@ -753,7 +746,6 @@ class ExpenseServiceTest {
             .build();
 
     when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
-    lenient().when(groupService.canManageExpenses(any(), any(), any())).thenReturn(true);
     when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
     when(expenseMapper.toDTO(expense)).thenReturn(expenseDTO);
 

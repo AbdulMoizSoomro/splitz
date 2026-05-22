@@ -7,6 +7,7 @@ import com.splitz.expense.dto.ExpenseDTO;
 import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.dto.UpdateExpenseRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
+import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.mapper.ExpenseMapper;
 import com.splitz.expense.model.Category;
 import com.splitz.expense.model.Expense;
@@ -36,16 +37,12 @@ public class ExpenseService {
   private final ExpenseMapper expenseMapper;
   private final SplitCalculator splitCalculator;
   private final SharedSecurityAuthorizer splitzAuthorizer;
-  private final GroupService groupService;
+  private final GroupGovernance groupGovernance;
   private final ActivityLogService activityLogService;
 
   @Transactional
   public ExpenseDTO createExpense(Long groupId, CreateExpenseRequest request, Long currentUserId) {
-    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)
-        && !splitzAuthorizer.isAdmin()) {
-      throw new com.splitz.expense.exception.UnauthorizedException(
-          "Only group members can create expenses");
-    }
+    groupGovernance.assertIsMember(groupId, currentUserId);
     Group group =
         groupRepository
             .findById(groupId)
@@ -126,22 +123,14 @@ public class ExpenseService {
             .findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id: " + id));
 
-    if (!groupMemberRepository.existsByGroupIdAndUserId(expense.getGroup().getId(), currentUserId)
-        && !splitzAuthorizer.isAdmin()) {
-      throw new com.splitz.expense.exception.UnauthorizedException(
-          "Only group members can view this expense");
-    }
+    groupGovernance.assertIsMember(expense.getGroup().getId(), currentUserId);
 
     return expenseMapper.toDTO(expense);
   }
 
   @Transactional(readOnly = true)
   public List<ExpenseDTO> getExpensesByGroup(Long groupId, Long currentUserId) {
-    if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)
-        && !splitzAuthorizer.isAdmin()) {
-      throw new com.splitz.expense.exception.UnauthorizedException(
-          "Only group members can view group expenses");
-    }
+    groupGovernance.assertIsMember(groupId, currentUserId);
     if (!groupRepository.existsById(groupId)) {
       throw new ResourceNotFoundException("Group not found with id: " + groupId);
     }
@@ -316,15 +305,7 @@ public class ExpenseService {
   }
 
   private void checkAuthorization(Expense expense, Long currentUserId) {
-    if (splitzAuthorizer.isSelfOrAdmin(expense.getPaidBy())) {
-      return;
-    }
-
-    if (groupService.canManageExpenses(expense.getGroup(), currentUserId, expense.getPaidBy())) {
-      return;
-    }
-
-    throw new com.splitz.expense.exception.UnauthorizedException(
-        "Only the expense creator or a group admin can modify/delete the expense");
+    groupGovernance.assertCanEditExpense(
+        expense.getGroup().getId(), currentUserId, expense.getPaidBy());
   }
 }
