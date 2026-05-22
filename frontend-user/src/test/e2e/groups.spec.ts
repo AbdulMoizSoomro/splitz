@@ -115,7 +115,7 @@ test.describe("Group Management", () => {
     await page.getByRole("button", { name: "Members", exact: true }).click();
 
     // 5. Verify "Owner" badge is visible for the creator
-    await expect(page.getByText(/role tester/i)).toBeVisible();
+    await expect(page.getByText("You", { exact: true })).toBeVisible();
     const ownerBadge = page.locator("span", { hasText: "Owner" });
     await expect(ownerBadge).toBeVisible();
   });
@@ -168,7 +168,7 @@ test.describe("Group Management", () => {
     await page.getByRole("button", { name: "Members", exact: true }).click();
 
     // Verify "Manage role" is NOT visible for self (Owner cannot demote self)
-    await expect(page.getByText("Owner User")).toBeVisible();
+    await expect(page.getByText("You", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Manage role")).not.toBeVisible();
   });
 });

@@ -1,5 +1,6 @@
 package com.splitz.expense.service;
 
+import com.splitz.expense.balance.DebtBalanceEngine;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.BalanceDTO;
 import com.splitz.expense.dto.DebtDTO;
@@ -10,7 +11,6 @@ import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.model.Expense;
-import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.Payment;
@@ -25,11 +25,9 @@ import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +45,7 @@ public class BalanceService {
   private final SettlementAllocationRepository settlementAllocationRepository;
   private final UserClient userClient;
   private final SharedSecurityAuthorizer splitzAuthorizer;
+  private final DebtBalanceEngine debtBalanceEngine;
 
   @Transactional(readOnly = true)
   public FriendBalanceResponseDTO getNetBalanceWithFriend(Long userId, Long friendId) {
@@ -77,39 +76,11 @@ public class BalanceService {
           sharedGroups.stream().collect(Collectors.toMap(Group::getId, Group::getName));
 
       for (Long groupId : userGroupIds) {
-        BigDecimal groupNetBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-
-        // 1. Group Expenses
-        BigDecimal userPaid =
-            expenseRepository.calculateTotalOwedBetweenUsers(
-                userId, friendId, Collections.singleton(groupId));
-        BigDecimal friendPaid =
-            expenseRepository.calculateTotalOwedBetweenUsers(
-                friendId, userId, Collections.singleton(groupId));
-        groupNetBalance = groupNetBalance.add(userPaid).subtract(friendPaid);
-
-        // 2. Settlement Allocations tied to this group
-        BigDecimal userSettled =
-            settlementAllocationRepository
-                .calculateTotalSettledBetweenUsers(
-                    userId, friendId, Collections.singleton(groupId), SettlementStatus.COMPLETED)
-                .add(
-                    settlementAllocationRepository.calculateTotalSettledBetweenUsers(
-                        userId,
-                        friendId,
-                        Collections.singleton(groupId),
-                        SettlementStatus.MARKED_PAID));
-        BigDecimal friendSettled =
-            settlementAllocationRepository
-                .calculateTotalSettledBetweenUsers(
-                    friendId, userId, Collections.singleton(groupId), SettlementStatus.COMPLETED)
-                .add(
-                    settlementAllocationRepository.calculateTotalSettledBetweenUsers(
-                        friendId,
-                        userId,
-                        Collections.singleton(groupId),
-                        SettlementStatus.MARKED_PAID));
-        groupNetBalance = groupNetBalance.add(userSettled).subtract(friendSettled);
+        List<Expense> expenses = expenseRepository.findByGroupId(groupId);
+        List<SettlementAllocation> allocations =
+            settlementAllocationRepository.findByGroupId(groupId);
+        BigDecimal groupNetBalance =
+            debtBalanceEngine.calculateNetBalanceInGroup(userId, friendId, expenses, allocations);
 
         if (groupNetBalance.compareTo(BigDecimal.ZERO) != 0) {
           groupBalances.add(
@@ -164,45 +135,10 @@ public class BalanceService {
     List<Expense> expenses = expenseRepository.findByGroupId(groupId);
     List<SettlementAllocation> allocations = settlementAllocationRepository.findByGroupId(groupId);
 
-    Map<Long, BigDecimal> balances = new HashMap<>();
-    for (GroupMember member : members) {
-      balances.put(member.getUserId(), BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
-    }
-
-    for (Expense expense : expenses) {
-      Long payerId = expense.getPaidBy();
-      BigDecimal amount = expense.getAmount();
-
-      balances.put(payerId, balances.getOrDefault(payerId, BigDecimal.ZERO).add(amount));
-      System.out.println(
-          "DEBUG: Payer "
-              + payerId
-              + " paid "
-              + amount
-              + ", balance now: "
-              + balances.get(payerId));
-
-      for (ExpenseSplit split : expense.getSplits()) {
-        Long userId = split.getUserId();
-        BigDecimal share = split.getShareAmount();
-        balances.put(userId, balances.getOrDefault(userId, BigDecimal.ZERO).subtract(share));
-        System.out.println(
-            "DEBUG: User " + userId + " share " + share + ", balance now: " + balances.get(userId));
-      }
-    }
-
-    for (SettlementAllocation allocation : allocations) {
-      Payment payment = allocation.getPayment();
-      if (payment.getStatus() == SettlementStatus.COMPLETED
-          || payment.getStatus() == SettlementStatus.MARKED_PAID) {
-        Long payerId = payment.getPayerId();
-        Long payeeId = payment.getPayeeId();
-        BigDecimal amount = allocation.getAmount();
-
-        balances.put(payerId, balances.getOrDefault(payerId, BigDecimal.ZERO).add(amount));
-        balances.put(payeeId, balances.getOrDefault(payeeId, BigDecimal.ZERO).subtract(amount));
-      }
-    }
+    List<Long> memberIds =
+        members.stream().map(GroupMember::getUserId).collect(Collectors.toList());
+    Map<Long, BigDecimal> balances =
+        debtBalanceEngine.calculateGroupBalances(memberIds, expenses, allocations);
 
     List<Long> userIds = new ArrayList<>(balances.keySet());
     List<UserResponse> userResponses = userClient.getUsersByIds(userIds);
@@ -224,7 +160,13 @@ public class BalanceService {
                   .build());
         });
 
-    List<DebtDTO> simplifiedDebts = simplifyDebts(balances, userMap);
+    Map<Long, String> usernames =
+        userMap.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    Map.Entry::getKey,
+                    e -> e.getValue() != null ? e.getValue().getUsername() : null));
+    List<DebtDTO> simplifiedDebts = debtBalanceEngine.simplifyDebts(balances, usernames);
 
     return GroupBalanceResponseDTO.builder()
         .groupId(groupId)
@@ -309,66 +251,5 @@ public class BalanceService {
         .add(settlementsPaid != null ? settlementsPaid : BigDecimal.ZERO)
         .subtract(settlementsReceived != null ? settlementsReceived : BigDecimal.ZERO)
         .setScale(2, RoundingMode.HALF_UP);
-  }
-
-  private List<DebtDTO> simplifyDebts(
-      Map<Long, BigDecimal> balances, Map<Long, UserResponse> userMap) {
-    List<DebtDTO> debts = new ArrayList<>();
-
-    PriorityQueue<UserBalance> creditors =
-        new PriorityQueue<>((a, b) -> b.amount.compareTo(a.amount));
-    PriorityQueue<UserBalance> debtors =
-        new PriorityQueue<>((a, b) -> a.amount.compareTo(b.amount));
-
-    balances.forEach(
-        (userId, balance) -> {
-          if (balance.compareTo(BigDecimal.ZERO) > 0) {
-            creditors.add(new UserBalance(userId, balance));
-          } else if (balance.compareTo(BigDecimal.ZERO) < 0) {
-            debtors.add(new UserBalance(userId, balance));
-          }
-        });
-
-    while (!creditors.isEmpty() && !debtors.isEmpty()) {
-      UserBalance creditor = creditors.poll();
-      UserBalance debtor = debtors.poll();
-
-      BigDecimal amountToSettle = creditor.amount.min(debtor.amount.abs());
-
-      UserResponse fromUser = userMap.get(debtor.userId);
-      UserResponse toUser = userMap.get(creditor.userId);
-
-      debts.add(
-          DebtDTO.builder()
-              .from(debtor.userId)
-              .fromUsername(fromUser != null ? fromUser.getUsername() : null)
-              .to(creditor.userId)
-              .toUsername(toUser != null ? toUser.getUsername() : null)
-              .amount(amountToSettle.setScale(2, RoundingMode.HALF_UP))
-              .build());
-
-      creditor.amount = creditor.amount.subtract(amountToSettle);
-      debtor.amount = debtor.amount.add(amountToSettle);
-
-      if (creditor.amount.compareTo(BigDecimal.ZERO) > 0) {
-        creditors.add(creditor);
-      }
-      if (debtor.amount.compareTo(BigDecimal.ZERO) < 0) {
-        debtors.add(debtor);
-      }
-    }
-
-    return debts;
-  }
-
-  private static class UserBalance {
-
-    Long userId;
-    BigDecimal amount;
-
-    UserBalance(Long userId, BigDecimal amount) {
-      this.userId = userId;
-      this.amount = amount;
-    }
   }
 }

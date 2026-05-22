@@ -25,7 +25,10 @@ vi.mock("./groupService");
 vi.mock("../users/friendService");
 const mockUseAuthStore = vi.fn();
 vi.mock("../../store/authStore", () => ({
-  useAuthStore: () => mockUseAuthStore(),
+  useAuthStore: (selector?: (s: { user: { id: string; username: string; email: string } | null }) => unknown) => {
+    const state = mockUseAuthStore();
+    return selector ? selector(state) : state;
+  },
 }));
 
 const mockGroup: Group = {
@@ -66,6 +69,21 @@ describe("GroupDetails", () => {
       simplifiedDebts: [],
     });
     vi.mocked(friendService.getFriends).mockResolvedValue([]);
+    // Hook needs getGroups to discover which groups to load balances from
+    vi.mocked(groupService.getGroups).mockResolvedValue([{
+      id: 1,
+      name: "Test Group",
+      description: "Test Description",
+      createdBy: 1,
+      active: true,
+      allowMembersToManageMembers: true,
+      allowMembersToEditExpenses: true,
+      createdAt: "2025-01-01T10:00:00Z",
+      updatedAt: "2025-01-01T10:00:00Z",
+      members: [
+        { id: 1, userId: 1, role: "ADMIN", joinedAt: "2025-01-01T10:00:00Z" },
+      ],
+    }]);
   });
 
   it("renders group details correctly", async () => {
@@ -202,6 +220,7 @@ describe("GroupDetails", () => {
       ],
     };
     vi.mocked(groupService.getGroup).mockResolvedValue(groupWithMembers);
+    vi.mocked(groupService.getGroups).mockResolvedValue([groupWithMembers]);
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 1,
       balances: [
@@ -250,7 +269,8 @@ describe("GroupDetails", () => {
     if (membersTab) fireEvent.click(membersTab);
 
     await waitFor(() => {
-      expect(screen.getByText("Owner User")).toBeInTheDocument();
+      // Current user (userId=1, Owner) is shown as "You" by the hook
+      expect(screen.getByText("You")).toBeInTheDocument();
       expect(screen.getByText("Admin User")).toBeInTheDocument();
       expect(screen.getByText("Member User")).toBeInTheDocument();
     });
@@ -267,6 +287,7 @@ describe("GroupDetails", () => {
       ],
     };
     vi.mocked(groupService.getGroup).mockResolvedValue(groupWithMembers);
+    vi.mocked(groupService.getGroups).mockResolvedValue([groupWithMembers]);
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 1,
       balances: [
@@ -340,6 +361,7 @@ describe("GroupDetails", () => {
       ],
     };
     vi.mocked(groupService.getGroup).mockResolvedValue(groupWithMembers);
+    vi.mocked(groupService.getGroups).mockResolvedValue([groupWithMembers]);
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 1,
       balances: [

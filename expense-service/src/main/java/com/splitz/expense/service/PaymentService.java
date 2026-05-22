@@ -1,8 +1,7 @@
 package com.splitz.expense.service;
 
+import com.splitz.expense.allocator.SettlementAutoAllocator;
 import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
-import com.splitz.expense.dto.FriendBalanceResponseDTO;
-import com.splitz.expense.dto.FriendGroupBalanceDTO;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.model.Payment;
@@ -17,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +26,7 @@ public class PaymentService {
   private final PaymentRepository paymentRepository;
   private final SettlementAllocationRepository settlementAllocationRepository;
   private final SharedSecurityAuthorizer splitzAuthorizer;
-
-  @Lazy private final BalanceService balanceService;
+  private final SettlementAutoAllocator settlementAutoAllocator;
 
   @Transactional
   public Payment createPayment(
@@ -75,7 +72,6 @@ public class PaymentService {
             .build();
 
     List<SettlementAllocation> allocations = new ArrayList<>();
-    BigDecimal remainingAmount = amount;
 
     if (groupId != null) {
       // Group-bound payment
@@ -104,40 +100,7 @@ public class PaymentService {
                 .build());
       }
     } else {
-      // Auto-allocation based on outstanding group debts (FIFO oldest-first)
-      FriendBalanceResponseDTO balanceResponse =
-          balanceService.getNetBalanceWithFriend(payerId, payeeId);
-
-      // Filter to groups where payer owes payee (payer net balance is negative)
-      List<FriendGroupBalanceDTO> debtsToSettle =
-          balanceResponse.getGroupBalances().stream()
-              .filter(gb -> gb.getBalance().compareTo(BigDecimal.ZERO) < 0)
-              .collect(Collectors.toList());
-
-      // Sort by groupId ascending (oldest group is created first)
-      debtsToSettle.sort((a, b) -> a.getGroupId().compareTo(b.getGroupId()));
-
-      for (FriendGroupBalanceDTO debt : debtsToSettle) {
-        if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) {
-          break;
-        }
-        BigDecimal owedAmount = debt.getBalance().abs();
-        BigDecimal allocatedAmount = remainingAmount.min(owedAmount);
-
-        allocations.add(
-            SettlementAllocation.builder()
-                .groupId(debt.getGroupId())
-                .amount(allocatedAmount)
-                .build());
-
-        remainingAmount = remainingAmount.subtract(allocatedAmount);
-      }
-
-      // Excess amount goes to global (null groupId)
-      if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
-        allocations.add(
-            SettlementAllocation.builder().groupId(null).amount(remainingAmount).build());
-      }
+      allocations.addAll(settlementAutoAllocator.allocate(payerId, payeeId, amount));
     }
 
     for (SettlementAllocation allocation : allocations) {
@@ -285,38 +248,8 @@ public class PaymentService {
                 .build());
       }
     } else {
-      // Re-run auto-allocation with updated amount
-      FriendBalanceResponseDTO balanceResponse =
-          balanceService.getNetBalanceWithFriend(payment.getPayerId(), payment.getPayeeId());
-
-      List<FriendGroupBalanceDTO> debtsToSettle =
-          balanceResponse.getGroupBalances().stream()
-              .filter(gb -> gb.getBalance().compareTo(BigDecimal.ZERO) < 0)
-              .collect(Collectors.toList());
-
-      debtsToSettle.sort((a, b) -> a.getGroupId().compareTo(b.getGroupId()));
-
-      BigDecimal remainingAmount = amount;
-      for (FriendGroupBalanceDTO debt : debtsToSettle) {
-        if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) {
-          break;
-        }
-        BigDecimal owedAmount = debt.getBalance().abs();
-        BigDecimal allocatedAmount = remainingAmount.min(owedAmount);
-
-        allocations.add(
-            SettlementAllocation.builder()
-                .groupId(debt.getGroupId())
-                .amount(allocatedAmount)
-                .build());
-
-        remainingAmount = remainingAmount.subtract(allocatedAmount);
-      }
-
-      if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
-        allocations.add(
-            SettlementAllocation.builder().groupId(null).amount(remainingAmount).build());
-      }
+      allocations.addAll(
+          settlementAutoAllocator.allocate(payment.getPayerId(), payment.getPayeeId(), amount));
     }
 
     for (SettlementAllocation allocation : allocations) {

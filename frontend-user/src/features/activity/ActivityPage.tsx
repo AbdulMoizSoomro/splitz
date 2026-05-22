@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { activityService } from "./activityService";
-import { friendService } from "../users/friendService";
 import { groupService } from "../groups/groupService";
 import { useAuthStore } from "../../store/authStore";
+import { useDisplayNames } from "../../hooks/useDisplayName";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import { Card, CardContent } from "../../components/core/Card/Card";
@@ -34,70 +34,25 @@ const ActivityPage = () => {
   const expenses = data?.expenses || [];
   const settlements = data?.settlements || [];
 
-  // 2. Fetch Friends to map userIds to display names
-  const { data: friends } = useQuery({
-    queryKey: ["friends-list", currentUserId],
-    queryFn: () => friendService.getFriends(currentUserId),
-    enabled: !!currentUserId,
-  });
-
-  // 3. Fetch Groups to map groupIds to group names
+  // Fetch groups to map groupIds to group names
   const { data: groups } = useQuery({
-    queryKey: ["groups-list"],
+    queryKey: ["groups"],
     queryFn: () => groupService.getGroups(),
   });
 
-  // Extract unique group IDs present in activities to fetch their balances (to resolve other members' names)
-  const uniqueGroupIds = Array.from(
-    new Set([
-      ...expenses.map((e) => e.groupId).filter(Boolean),
-      ...settlements.map((s) => s.groupId).filter(Boolean),
-    ])
-  ) as number[];
+  // Collect all unique user IDs present in the activity feed
+  const uniqueUserIds = useMemo(() => {
+    const ids = new Set<number>();
+    expenses.forEach((e) => ids.add(e.paidBy));
+    settlements.forEach((s) => {
+      ids.add(s.payerId);
+      ids.add(s.payeeId);
+    });
+    return [...ids];
+  }, [expenses, settlements]);
 
-  // 4. Fetch Group Balances for active groups to resolve display names of group members who are not friends
-  const { data: groupBalancesMap } = useQuery({
-    queryKey: ["activity-group-balances", uniqueGroupIds],
-    queryFn: async () => {
-      const map: Record<number, any> = {};
-      await Promise.all(
-        uniqueGroupIds.map(async (id) => {
-          try {
-            const balances = await groupService.getBalances(id);
-            map[id] = balances;
-          } catch (e) {
-            console.error("Failed to load balances for group", id, e);
-          }
-        })
-      );
-      return map;
-    },
-    enabled: uniqueGroupIds.length > 0,
-  });
-
-  // Helper: Get user display name from ID
-  const getUserName = (userId: number) => {
-    if (userId === currentUserId) return "You";
-
-    // Search in friends
-    const friend = friends?.find((f) => f.id === userId);
-    if (friend) {
-      return `${friend.firstName} ${friend.lastName || ""}`.trim();
-    }
-
-    // Search in group balances
-    if (groupBalancesMap) {
-      for (const groupId in groupBalancesMap) {
-        const balances = groupBalancesMap[groupId]?.balances;
-        const member = balances?.find((b: any) => b.userId === userId);
-        if (member) {
-          return `${member.firstName} ${member.lastName || ""}`.trim();
-        }
-      }
-    }
-
-    return `User ${userId}`;
-  };
+  // Resolve user IDs → display names (self → "You", friends/members → "First Last")
+  const nameMap = useDisplayNames(uniqueUserIds);
 
   // Helper: Get group name from ID
   const getGroupName = (groupId: number) => {
@@ -194,7 +149,7 @@ const ActivityPage = () => {
               // ------------------ EXPENSE TYPE RENDERING ------------------
               if (activity.type === "EXPENSE") {
                 const isPayer = activity.paidBy === currentUserId;
-                const payerName = getUserName(activity.paidBy);
+                const payerName = nameMap[activity.paidBy] ?? `User ${activity.paidBy}`;
                 const groupName = getGroupName(activity.groupId);
                 const mySplit = activity.splits?.find((s) => s.userId === currentUserId);
                 const myShare = mySplit ? mySplit.shareAmount : 0;
@@ -286,8 +241,8 @@ const ActivityPage = () => {
               // ------------------ SETTLEMENT TYPE RENDERING ------------------
               const isPayer = activity.payerId === currentUserId;
               const isPayee = activity.payeeId === currentUserId;
-              const payerName = getUserName(activity.payerId);
-              const payeeName = getUserName(activity.payeeId);
+              const payerName = nameMap[activity.payerId] ?? `User ${activity.payerId}`;
+              const payeeName = nameMap[activity.payeeId] ?? `User ${activity.payeeId}`;
               
               let title = "";
               let subdetail = "";
