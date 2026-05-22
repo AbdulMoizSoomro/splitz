@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +6,7 @@ import { groupService } from "./groupService";
 import { friendService } from "../users/friendService";
 import { useAuthStore } from "../../store/authStore";
 import DashboardLayout from "../../components/layout/DashboardLayout";
+import { useDisplayNames } from "../../hooks/useDisplayName";
 import {
   Card,
   CardHeader,
@@ -78,6 +79,13 @@ const GroupDetails = () => {
     queryFn: () => settlementService.getSettlementsByGroup(Number(id)),
     enabled: !!id,
   });
+
+  // Derive member names via the shared display-name hook
+  const memberIds = useMemo(
+    () => group?.members.map((m) => m.userId) ?? [],
+    [group],
+  );
+  const memberNames = useDisplayNames(memberIds);
 
   const handleAddExpense = () => {
     setEditingExpense(undefined);
@@ -331,7 +339,6 @@ const GroupDetails = () => {
                 </div>
                 <GroupActivity
                   groupId={Number(id)}
-                  balancesResponse={balancesResponse}
                   onAddExpense={() => handleAddExpense()}
                   onEditExpense={handleEditExpense}
                   group={group}
@@ -367,12 +374,8 @@ const GroupDetails = () => {
                 <CardContent>
                   <div className="divide-y divide-gray-100">
                     {group.members.map((member) => {
-                      const balanceInfo = balancesResponse?.balances.find(
-                        (b) => b.userId === member.userId,
-                      );
-                      const displayName = balanceInfo
-                        ? `${balanceInfo.firstName} ${balanceInfo.lastName}`
-                        : `User ${member.userId}`;
+                      const displayName =
+                        memberNames[member.userId] ?? `User ${member.userId}`;
 
                       let roleVariant: BadgeVariant = "member";
                       let roleLabel = "Member";
@@ -638,7 +641,6 @@ const GroupDetails = () => {
           }}
           group={group}
           expense={editingExpense}
-          balancesResponse={balancesResponse}
         />
       )}
     </DashboardLayout>

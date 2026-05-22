@@ -7,6 +7,7 @@ import Button from "../../components/core/Button/Button";
 import Dropdown from "../../components/core/Dropdown/Dropdown";
 import Modal from "../../components/core/Modal/Modal";
 import { useToastStore } from "../../store/toastStore";
+import { useDisplayNames } from "../../hooks/useDisplayName";
 import {
   Loader2,
   Receipt,
@@ -17,15 +18,14 @@ import {
   PlusCircle,
   XCircle,
 } from "lucide-react";
-import type { Group, GroupBalanceResponse } from "../../types/group";
+import type { Group } from "../../types/group";
 import type { Expense } from "../../types/expense";
 import { ActivityLogType } from "../../types/activity";
 import type { ActivityLog } from "../../types/activity";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface GroupActivityProps {
   groupId: number;
-  balancesResponse?: GroupBalanceResponse;
   onAddExpense?: () => void;
   onEditExpense?: (expense: Expense) => void;
   group?: Group;
@@ -33,7 +33,6 @@ interface GroupActivityProps {
 
 const GroupActivity = ({
   groupId,
-  balancesResponse,
   onAddExpense,
   onEditExpense,
   group,
@@ -72,10 +71,11 @@ const GroupActivity = ({
     },
   });
 
-  const getMemberName = (userId: number) => {
-    const member = balancesResponse?.balances.find((b) => b.userId === userId);
-    return member ? `${member.firstName} ${member.lastName}` : `User ${userId}`;
-  };
+  const actorIds = useMemo(
+    () => (activities ? [...new Set(activities.map((a: ActivityLog) => a.actorId))] : []),
+    [activities],
+  );
+  const nameMap = useDisplayNames(actorIds);
 
   const canManageExpense = (expenseId: number) => {
     if (!group || !expenses) return false;
@@ -137,8 +137,7 @@ const GroupActivity = ({
         </Card>
       ) : (
         activities.map((activity: ActivityLog) => {
-          const isActor = activity.actorId === currentUserId;
-          const actorName = isActor ? "You" : getMemberName(activity.actorId);
+          const actorName = nameMap[activity.actorId] ?? `User ${activity.actorId}`;
           const date = new Date(activity.timestamp);
 
           let Icon = Receipt;

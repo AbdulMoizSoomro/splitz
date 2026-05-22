@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Modal from "../../components/core/Modal/Modal";
 import Input from "../../components/core/Input/Input";
 import Button from "../../components/core/Button/Button";
 import { expenseService } from "./expenseService";
 import { categoryService } from "./categoryService";
-import type { Group, GroupBalanceResponse } from "../../types/group";
+import type { Group } from "../../types/group";
 import type {
   CreateExpenseRequest,
   UpdateExpenseRequest,
@@ -13,6 +13,7 @@ import type {
   Expense,
 } from "../../types/expense";
 import { useAuthStore } from "../../store/authStore";
+import { useDisplayNames } from "../../hooks/useDisplayName";
 import { Loader2, AlertCircle } from "lucide-react";
 
 interface ExpenseModalProps {
@@ -20,7 +21,6 @@ interface ExpenseModalProps {
   onClose: () => void;
   group: Group;
   expense?: Expense;
-  balancesResponse?: GroupBalanceResponse;
 }
 
 const ExpenseModal = ({
@@ -28,7 +28,6 @@ const ExpenseModal = ({
   onClose,
   group,
   expense,
-  balancesResponse,
 }: ExpenseModalProps) => {
   const isEditing = !!expense;
   const [description, setDescription] = useState(expense?.description || "");
@@ -48,6 +47,9 @@ const ExpenseModal = ({
 
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+
+  const memberIds = useMemo(() => group.members.map((m) => m.userId), [group.members]);
+  const memberNames = useDisplayNames(memberIds);
 
   const resetForm = useCallback(() => {
     setDescription("");
@@ -259,11 +261,6 @@ const ExpenseModal = ({
     }
   };
 
-  const getMemberName = (userId: number) => {
-    const member = balancesResponse?.balances.find((b) => b.userId === userId);
-    return member ? `${member.firstName} ${member.lastName}` : `User ${userId}`;
-  };
-
   const isPending = createMutation.isPending || updateMutation.isPending;
   const isError = createMutation.isError || updateMutation.isError;
 
@@ -378,9 +375,7 @@ const ExpenseModal = ({
                       htmlFor={`member-${member.userId}`}
                       className="ml-2 text-sm text-gray-900"
                     >
-                      User {member.userId}{" "}
-                      {member.userId === parseInt(currentUser?.id || "0") &&
-                        "(You)"}
+                      {memberNames[member.userId] ?? `User ${member.userId}`}
                     </label>
                   </div>
                   {splitType !== "EQUAL" &&
@@ -402,7 +397,7 @@ const ExpenseModal = ({
                           }
                           placeholder={getPlaceholder()}
                           inputSize="sm"
-                          aria-label={`User ${member.userId} split value`}
+                          aria-label={`${memberNames[member.userId] ?? `User ${member.userId}`} split value`}
                         />
                         <span className="text-xs text-gray-500 whitespace-nowrap">
                           {getUnitSuffix()}
@@ -467,7 +462,7 @@ const ExpenseModal = ({
 
         {isEditing && expense?.lastModifiedBy && (
           <p className="text-xs text-gray-500 italic">
-            Last modified by {getMemberName(expense.lastModifiedBy)}
+            Last modified by {memberNames[expense.lastModifiedBy] ?? `User ${expense.lastModifiedBy}`}
           </p>
         )}
 

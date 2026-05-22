@@ -86,7 +86,7 @@ test.describe("[E2E] Collaborative Expenses", () => {
       // 4.1 Verify Story 7: Last edited by [Name]
       await pageBob.getByLabel(/Actions for Updated Lunch by Bob/i).click();
       await pageBob.getByText(/Edit/i).click();
-      await expect(pageBob.getByText(/Last modified by Bob User/i)).toBeVisible();
+      await expect(pageBob.getByText(/Last modified by You/i)).toBeVisible();
       await pageBob.getByRole("button", { name: /cancel/i }).click();
 
       // 5. Alice disables collaborative editing
