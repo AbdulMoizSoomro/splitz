@@ -14,6 +14,7 @@ import {
   Pencil,
   X,
   Check,
+  Globe,
 } from "lucide-react";
 import api from "../../lib/axios";
 import Button from "../../components/core/Button/Button";
@@ -66,6 +67,8 @@ const FriendDetailPage = () => {
     enabled: !!currentUser && !!friendId,
   });
 
+  const netBalance = balanceData?.netBalance || 0;
+
   const { data: groups, isLoading: isLoadingGroups } = useQuery({
     queryKey: ["groups"],
     queryFn: () => groupService.getGroups(),
@@ -87,6 +90,27 @@ const FriendDetailPage = () => {
     }
     return map;
   }, [groups]);
+
+  // Compute group-specific balances lookup map
+  const groupBalancesMap = useMemo(() => {
+    const map: Record<number, number> = {};
+    if (balanceData?.groupBalances) {
+      balanceData.groupBalances.forEach((gb) => {
+        map[gb.groupId] = gb.balance;
+      });
+    }
+    return map;
+  }, [balanceData]);
+
+  // Compute the total sum of all group balances
+  const groupBalancesTotal = useMemo(() => {
+    return balanceData?.groupBalances?.reduce((sum, gb) => sum + gb.balance, 0) || 0;
+  }, [balanceData]);
+
+  // Direct (non-group) balance is the net total minus all group allocations
+  const directBalance = useMemo(() => {
+    return netBalance - groupBalancesTotal;
+  }, [netBalance, groupBalancesTotal]);
 
   const { data: sharedExpenses, isLoading: isLoadingExpenses } = useQuery({
     queryKey: ["shared-expenses", id, sharedGroups.map((g) => g.id)],
@@ -193,8 +217,6 @@ const FriendDetailPage = () => {
     );
   }
 
-  const netBalance = balanceData?.netBalance || 0;
-
   const startEditing = (settlement: FriendshipSettlementDTO) => {
     setEditingSettlementId(settlement.id);
     setEditAmount(settlement.amount.toFixed(2));
@@ -289,6 +311,59 @@ const FriendDetailPage = () => {
                       : "You are all settled up!"}
                 </p>
               </div>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-bold text-gray-900">Balance Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Direct Personal Balance Row */}
+                <div className="flex items-center justify-between p-3 bg-indigo-50/40 border border-indigo-100/60 rounded-xl transition-all hover:bg-indigo-50/80">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
+                      <Globe size={18} />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-950 block text-xs tracking-tight">
+                        Direct Balance
+                      </span>
+                      <span className="text-[10px] text-gray-500 font-medium">
+                        Personal Settlements
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-sm font-bold tracking-tight ${
+                      directBalance > 0 ? "text-emerald-600" : directBalance < 0 ? "text-rose-600" : "text-gray-500"
+                    }`}>
+                      {directBalance === 0 ? "$0.00" : directBalance > 0 ? `+$${directBalance.toFixed(2)}` : `-$${Math.abs(directBalance).toFixed(2)}`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Group Balances List */}
+                {sharedGroups.length > 0 && (
+                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">Group Splits</p>
+                    {sharedGroups.map((group) => {
+                      const bal = groupBalancesMap[group.id] || 0;
+                      return (
+                        <div key={group.id} className="flex items-center justify-between p-2.5 hover:bg-gray-50/80 rounded-lg transition-colors">
+                          <span className="text-xs font-semibold text-gray-700 truncate max-w-[130px]" title={group.name}>
+                            {group.name}
+                          </span>
+                          <span className={`text-xs font-bold ${
+                            bal > 0 ? "text-emerald-600" : bal < 0 ? "text-rose-600" : "text-gray-500"
+                          }`}>
+                            {bal === 0 ? "$0.00" : bal > 0 ? `+$${bal.toFixed(2)}` : `-$${Math.abs(bal).toFixed(2)}`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
             </Card>
 
             <Card>
@@ -390,10 +465,14 @@ const FriendDetailPage = () => {
                       if (settlement.status === 'COMPLETED') badgeVariant = 'success';
                       else if (settlement.status === 'MARKED_PAID') badgeVariant = 'warning';
 
+                      const isGlobalPayment = !settlement.allocations || 
+                                              settlement.allocations.length === 0 || 
+                                              settlement.allocations.some(a => !a.groupId);
+
                       return (
                         <div
                           key={`settlement-${settlement.id}-${index}`}
-                          className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+                          className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -409,6 +488,11 @@ const FriendDetailPage = () => {
                                     {settlement.status === 'MARKED_PAID' ? 'Pending Confirmation' :
                                      settlement.status === 'COMPLETED' ? 'Settled' : 'Pending'}
                                   </Badge>
+                                  {isGlobalPayment && (
+                                    <span className="px-2 py-0.5 text-[9px] font-bold rounded bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center gap-1 shadow-sm uppercase tracking-wider">
+                                      <Globe size={10} /> Direct
+                                    </span>
+                                  )}
                                   {!isPayer && settlement.status === 'MARKED_PAID' && (
                                     <Button
                                       variant="primary"
@@ -474,28 +558,50 @@ const FriendDetailPage = () => {
                           </div>
 
                           {/* Group Allocations */}
-                          {settlement.allocations && settlement.allocations.length > 0 && (
-                            <div className="mt-2 ml-13 pl-3 border-l-2 border-gray-100">
+                          {settlement.allocations && settlement.allocations.length > 0 ? (
+                            <div className="mt-2 ml-13 pl-3 border-l-2 border-gray-100 space-y-1">
                               {settlement.allocations.map((alloc, aIdx) => (
                                 <div key={aIdx} className="flex items-center justify-between text-xs text-gray-500 py-0.5">
-                                  <span className="flex items-center gap-1">
-                                    <Users size={10} className="text-gray-400" />
-                                    {alloc.groupId
-                                      ? (
+                                  <span className="flex items-center gap-1.5">
+                                    {alloc.groupId ? (
+                                      <>
+                                        <Users size={10} className="text-gray-400" />
                                         <Link
                                           to={`/groups/${alloc.groupId}`}
                                           className="text-blue-600 hover:underline"
                                         >
                                           {groupNameMap[alloc.groupId] || `Group #${alloc.groupId}`}
                                         </Link>
-                                      )
-                                      : "Unallocated"}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Globe size={10} className="text-indigo-500" />
+                                        <span className="text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
+                                          Direct Personal Balance
+                                        </span>
+                                      </>
+                                    )}
                                   </span>
                                   <span className="font-medium text-gray-600">
                                     ${alloc.amount.toFixed(2)}
                                   </span>
                                 </div>
                               ))}
+                            </div>
+                          ) : (
+                            /* Entirely Direct Payment indicator when no allocations array exists */
+                            <div className="mt-2 ml-13 pl-3 border-l-2 border-gray-100">
+                              <div className="flex items-center justify-between text-xs text-gray-500 py-0.5">
+                                <span className="flex items-center gap-1.5">
+                                  <Globe size={10} className="text-indigo-500 animate-pulse" />
+                                  <span className="text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
+                                    Direct Personal Balance
+                                  </span>
+                                </span>
+                                <span className="font-medium text-gray-600">
+                                  ${settlement.amount.toFixed(2)}
+                                </span>
+                              </div>
                             </div>
                           )}
                         </div>

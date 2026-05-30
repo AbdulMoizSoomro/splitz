@@ -93,13 +93,20 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
     balances?.simplifiedDebts.filter((d) => d.to === currentUserId) || [];
 
   const pendingIncoming =
-    settlements?.filter(
-      (s) => s.payeeId === currentUserId && s.status === "MARKED_PAID",
-    ) || [];
+    settlements?.filter((s) => {
+      const isGlobalPayment = !s.allocations || 
+                              s.allocations.length === 0 || 
+                              s.allocations.some(a => !a.groupId);
+      return s.payeeId === currentUserId && s.status === "MARKED_PAID" && !isGlobalPayment;
+    }) || [];
+
   const pendingOutgoing =
-    settlements?.filter(
-      (s) => s.payerId === currentUserId && s.status === "MARKED_PAID",
-    ) || [];
+    settlements?.filter((s) => {
+      const isGlobalPayment = !s.allocations || 
+                              s.allocations.length === 0 || 
+                              s.allocations.some(a => !a.groupId);
+      return s.payerId === currentUserId && s.status === "MARKED_PAID" && !isGlobalPayment;
+    }) || [];
 
   return (
     <div className="space-y-6">

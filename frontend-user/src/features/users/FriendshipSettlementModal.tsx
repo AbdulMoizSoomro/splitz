@@ -214,9 +214,15 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
                     </div>
 
                     {!isAllocationValid && (
-                      <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2 rounded">
-                        <AlertCircle size={14} />
-                        <span>Allocated sum must match the total amount</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100">
+                          <AlertCircle size={14} className="shrink-0" />
+                          <span>Allocated sum must match the total amount</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 leading-relaxed px-1">
+                          💡 <strong>Tip:</strong> Manual allocations must sum to the total payment. 
+                          If you want to resolve outstanding group debts first and have any leftover amount automatically flow into your <strong>Direct Personal Balance</strong>, simply turn off "Allocate to group debts" above.
+                        </p>
                       </div>
                     )}
                   </>

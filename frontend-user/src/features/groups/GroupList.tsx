@@ -6,16 +6,30 @@ import { groupService } from "./groupService";
 import Button from "../../components/core/Button/Button";
 import ExpenseModal from "../expenses/ExpenseModal";
 import type { Group } from "../../types/group";
+import { useAuthStore } from "../../store/authStore";
 
 const GroupList = () => {
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const currentUserId = Number(user?.id);
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ["groups"],
     queryFn: groupService.getGroups,
   });
+
+  const { data: userBalancesData, isLoading: isBalancesLoading } = useQuery({
+    queryKey: ["user-balances", currentUserId],
+    queryFn: () => groupService.getUserBalances(currentUserId),
+    enabled: !!currentUserId,
+  });
+
+  const totalGroupBalance = userBalancesData?.groupBalances.reduce(
+    (sum, gb) => sum + gb.balance,
+    0,
+  ) ?? 0;
 
   if (isLoading) {
     return (
@@ -45,43 +59,91 @@ const GroupList = () => {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {groups.map((group) => (
-          <div
-            key={group.id}
-            onClick={() => navigate(`/groups/${group.id}`)}
-            className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Folder className="text-blue-600" size={24} />
-              </div>
-              <div className="flex items-center text-gray-500 text-sm">
-                <Users size={16} className="mr-1" />
-                <span>{group.members?.length || 0}</span>
-              </div>
+      {/* Overall Group Balance Highlight Info */}
+      {!isBalancesLoading && userBalancesData && (
+        <div className="mb-6 p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50 border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-full ${
+              totalGroupBalance > 0 
+                ? "bg-emerald-100 text-emerald-700" 
+                : totalGroupBalance < 0 
+                ? "bg-rose-100 text-rose-700" 
+                : "bg-gray-100 text-gray-700"
+            }`}>
+              <Folder size={20} />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">
-              {group.name}
-            </h3>
-            {group.description && (
-              <p className="text-sm text-gray-600 line-clamp-2 flex-grow">
-                {group.description}
-              </p>
-            )}
-            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs flex items-center gap-1.5"
-                onClick={(e) => handleAddExpense(group, e)}
-              >
-                <ReceiptText size={14} />
-                <span>Add Expense</span>
-              </Button>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Total Group Balance</p>
+              <h3 className={`text-lg font-bold ${
+                totalGroupBalance > 0 
+                  ? "text-emerald-600" 
+                  : totalGroupBalance < 0 
+                  ? "text-rose-600" 
+                  : "text-slate-600"
+              }`}>
+                {totalGroupBalance > 0 
+                  ? `You are owed $${totalGroupBalance.toFixed(2)} across groups` 
+                  : totalGroupBalance < 0 
+                  ? `You owe $${Math.abs(totalGroupBalance).toFixed(2)} across groups` 
+                  : "You are all settled up in your groups!"
+                }
+              </h3>
             </div>
           </div>
-        ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {groups.map((group) => {
+          const groupBal = userBalancesData?.groupBalances.find((gb) => gb.groupId === group.id)?.balance ?? 0;
+          return (
+            <div
+              key={group.id}
+              onClick={() => navigate(`/groups/${group.id}`)}
+              className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Folder className="text-blue-600" size={24} />
+                </div>
+                <div className="flex items-center text-gray-500 text-sm">
+                  <Users size={16} className="mr-1" />
+                  <span>{group.members?.length || 0}</span>
+                </div>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">
+                {group.name}
+              </h3>
+              {group.description && (
+                <p className="text-sm text-gray-600 line-clamp-2 flex-grow">
+                  {group.description}
+                </p>
+              )}
+              <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                <div className="text-xs font-semibold">
+                  {isBalancesLoading ? (
+                    <span className="text-gray-400 animate-pulse">Loading balance...</span>
+                  ) : groupBal > 0 ? (
+                    <span className="text-emerald-600">You are owed ${groupBal.toFixed(2)}</span>
+                  ) : groupBal < 0 ? (
+                    <span className="text-rose-600">You owe ${Math.abs(groupBal).toFixed(2)}</span>
+                  ) : (
+                    <span className="text-gray-400 font-normal">Settled up</span>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs flex items-center gap-1.5"
+                  onClick={(e) => handleAddExpense(group, e)}
+                >
+                  <ReceiptText size={14} />
+                  <span>Add Expense</span>
+                </Button>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {selectedGroup && isExpenseModalOpen && (

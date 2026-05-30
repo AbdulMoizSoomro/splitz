@@ -65,16 +65,16 @@ test.describe("[E2E] Collaborative Expenses", () => {
       await pageAlice.getByLabel(/description/i).fill("Initial Lunch");
       await pageAlice.getByLabel(/amount/i).fill("30.00");
       await pageAlice.getByRole("button", { name: /add expense/i }).last().click();
-      await expect(pageAlice.getByText(/Initial Lunch/i)).toBeVisible();
+      await expect(pageAlice.getByText(/Initial Lunch/i).first()).toBeVisible();
 
       // 4. Bob edits Alice's expense
       await pageBob.goto("/groups");
       await pageBob.getByText(groupName).click();
-      await pageBob.getByRole("button", { name: /activity/i }).click();
+      await pageBob.getByRole("button", { name: /expenses/i }).click();
       
       // Bob opens dropdown and clicks edit
-      await pageBob.getByLabel(/Actions for Initial Lunch/i).click();
-      await pageBob.getByText(/Edit/i).click();
+      await pageBob.getByLabel(/Actions for Initial Lunch/i).first().click();
+      await pageBob.getByRole("menuitem", { name: /Edit/i }).click();
       
       await pageBob.getByLabel(/description/i).fill("Updated Lunch by Bob");
       await pageBob.getByLabel(/amount/i).fill("40.00");
@@ -84,30 +84,31 @@ test.describe("[E2E] Collaborative Expenses", () => {
       await expect(pageBob.getByText(/amount: 30.00 -> 40.00/i)).toBeVisible();
 
       // 4.1 Verify Story 7: Last edited by [Name]
-      await pageBob.getByLabel(/Actions for Updated Lunch by Bob/i).click();
-      await pageBob.getByText(/Edit/i).click();
+      await pageBob.getByLabel(/Actions for Updated Lunch by Bob/i).first().click();
+      await pageBob.getByRole("menuitem", { name: /Edit/i }).click();
       await expect(pageBob.getByText(/Last modified by You/i)).toBeVisible();
       await pageBob.getByRole("button", { name: /cancel/i }).click();
 
       // 5. Alice disables collaborative editing
       await pageAlice.reload();
+      await pageAlice.getByRole("button", { name: /members/i }).click();
       await pageAlice.getByLabel(/Toggle allow members to edit expenses/i).click();
       
       // 6. Bob attempts to edit again (should not see actions)
       await pageBob.reload();
-      await pageBob.getByRole("button", { name: /activity/i }).click();
+      await pageBob.getByRole("button", { name: /expenses/i }).click();
       await expect(pageBob.getByLabel(/Actions for Updated Lunch by Bob/i)).not.toBeVisible();
 
       // 7. Bob creates his own expense and Alice (admin) deletes it
-      await pageBob.getByRole("button", { name: /activity/i }).click();
+      await pageBob.getByRole("button", { name: /expenses/i }).click();
       await pageBob.getByRole("button", { name: /add expense/i }).first().click();
       await pageBob.getByLabel(/description/i).fill("Bob's Coffee");
       await pageBob.getByLabel(/amount/i).fill("5.00");
       await pageBob.getByRole("button", { name: /add expense/i }).last().click();
       
       await pageAlice.reload();
-      await pageAlice.getByRole("button", { name: /activity/i }).click();
-      await pageAlice.getByLabel(/Actions for Bob's Coffee/i).click();
+      await pageAlice.getByRole("button", { name: /expenses/i }).click();
+      await pageAlice.getByLabel(/Actions for Bob's Coffee/i).first().click();
       await pageAlice.getByRole('menuitem', { name: 'Delete' }).click();
       
       await expect(pageAlice.getByText(/Are you sure you want to delete/i)).toBeVisible();

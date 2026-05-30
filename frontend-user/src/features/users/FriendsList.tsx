@@ -50,7 +50,7 @@ const FriendsList = () => {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
       {friends.map((friend) => {
         const isRemoving =
           removeFriendMutation.isPending &&

@@ -22,6 +22,10 @@ export interface Settlement {
   updatedAt: string;
   markedPaidAt?: string;
   settledAt?: string;
+  allocations?: Array<{
+    groupId: number | null;
+    amount: number;
+  }>;
 }
 
 export const settlementService = {

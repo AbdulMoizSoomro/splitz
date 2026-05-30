@@ -71,7 +71,7 @@ const TempFriendsList = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
           {tempFriends.map((tf) => {
             const pendingRequest = outgoingRequests?.find(
               (r) => r.addresseeId === tf.userId,
