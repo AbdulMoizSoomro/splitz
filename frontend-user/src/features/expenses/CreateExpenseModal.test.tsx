@@ -108,4 +108,36 @@ describe("ExpenseModal", () => {
     expect(submitButton).toBeDisabled();
     expect(screen.getByText(/select at least one member/i)).toBeInTheDocument();
   });
+
+  it("allows selecting a custom payer (Paid By)", async () => {
+    renderModal();
+
+    expect(screen.getByLabelText(/paid by/i)).toBeInTheDocument();
+    
+    // Change payer to member 2
+    fireEvent.change(screen.getByLabelText(/paid by/i), {
+      target: { value: "2" },
+    });
+
+    fireEvent.change(screen.getByLabelText(/description/i), {
+      target: { value: "Dinner paid by User 2" },
+    });
+    fireEvent.change(screen.getByLabelText(/amount/i), {
+      target: { value: "60" },
+    });
+
+    const submitButton = screen.getByRole("button", { name: /add expense/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(expenseService.createExpense).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          description: "Dinner paid by User 2",
+          amount: 60,
+          paidBy: 2,
+        }),
+      );
+    });
+  });
 });

@@ -16,7 +16,7 @@ import {
   ArrowUpRight, 
   ArrowDownLeft, 
   Info,
-  DollarSign
+  Globe
 } from "lucide-react";
 
 const ActivityPage = () => {
@@ -190,9 +190,9 @@ const ActivityPage = () => {
                     key={`expense-${activity.id}`} 
                     className="hover:translate-y-[-2px] hover:shadow-lg transition-all duration-300 border border-slate-100"
                   >
-                    <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       {/* Left: Info */}
-                      <div className="flex items-start gap-4">
+                      <div className="flex items-center gap-4">
                         <div className={`p-3 rounded-xl ${badgeBg} shadow-sm shrink-0`}>
                           <Icon size={24} />
                         </div>
@@ -233,7 +233,7 @@ const ActivityPage = () => {
                           Total Expense: ${activity.amount.toFixed(2)}
                         </div>
                       </div>
-                    </CardContent>
+                    </div>
                   </Card>
                 );
               }
@@ -279,9 +279,9 @@ const ActivityPage = () => {
                   key={`settlement-${activity.id}`} 
                   className="hover:translate-y-[-2px] hover:shadow-lg transition-all duration-300 border border-slate-100"
                 >
-                  <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     {/* Left: Info */}
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-center gap-4">
                       <div className={`p-3 rounded-xl ${badgeBg} shadow-sm shrink-0`}>
                         <Icon size={24} />
                       </div>
@@ -300,6 +300,12 @@ const ActivityPage = () => {
                             >
                               {getGroupName(activity.groupId)}
                             </button>
+                          )}
+                          
+                          {!activity.groupId && (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center gap-1 shadow-sm uppercase tracking-wide">
+                              <Globe size={11} className="text-indigo-500" /> Direct
+                            </span>
                           )}
                           
                           {/* Status Badge */}
@@ -335,7 +341,7 @@ const ActivityPage = () => {
                         Settlement Record
                       </div>
                     </div>
-                  </CardContent>
+                  </div>
                 </Card>
               );
             })}

@@ -30,8 +30,14 @@ const ExpenseModal = ({
   expense,
 }: ExpenseModalProps) => {
   const isEditing = !!expense;
+  const currentUser = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
+
   const [description, setDescription] = useState(expense?.description || "");
   const [amount, setAmount] = useState(expense?.amount?.toString() || "");
+  const [paidBy, setPaidBy] = useState<number>(
+    expense?.paidBy || parseInt(currentUser?.id || "0"),
+  );
   const [categoryId, setCategoryId] = useState<number | undefined>(
     expense?.categoryId,
   );
@@ -45,9 +51,6 @@ const ExpenseModal = ({
   const [splitType, setSplitType] = useState<SplitType>("EQUAL");
   const [splitValues, setSplitValues] = useState<Record<number, string>>({});
 
-  const currentUser = useAuthStore((state) => state.user);
-  const queryClient = useQueryClient();
-
   const memberIds = useMemo(() => group.members.map((m) => m.userId), [group.members]);
   const memberNames = useDisplayNames(memberIds);
 
@@ -59,7 +62,8 @@ const ExpenseModal = ({
     setSelectedMembers(group.members.map((m) => m.userId));
     setSplitType("EQUAL");
     setSplitValues({});
-  }, [group.members]);
+    setPaidBy(parseInt(currentUser?.id || "0"));
+  }, [group.members, currentUser?.id]);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -185,6 +189,7 @@ const ExpenseModal = ({
       const expenseData: UpdateExpenseRequest = {
         description,
         amount: numAmount,
+        paidBy,
         categoryId,
         expenseDate,
         splitType,
@@ -206,7 +211,7 @@ const ExpenseModal = ({
       const expenseData: CreateExpenseRequest = {
         description,
         amount: numAmount,
-        paidBy: parseInt(currentUser?.id || "0"),
+        paidBy,
         categoryId,
         expenseDate,
         splitType,
@@ -301,26 +306,49 @@ const ExpenseModal = ({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Category
-          </label>
-          <select
-            value={categoryId || ""}
-            onChange={(e) =>
-              setCategoryId(
-                e.target.value ? parseInt(e.target.value) : undefined,
-              )
-            }
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select a category</option>
-            {categories?.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="paidBy" className="block text-sm font-medium text-gray-700 mb-1">
+              Paid By
+            </label>
+            <select
+              id="paidBy"
+              value={paidBy}
+              onChange={(e) => setPaidBy(parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              {group.members.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.userId === parseInt(currentUser?.id || "0")
+                    ? "You"
+                    : memberNames[member.userId] ?? `User ${member.userId}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+              Category
+            </label>
+            <select
+              id="category"
+              value={categoryId || ""}
+              onChange={(e) =>
+                setCategoryId(
+                  e.target.value ? parseInt(e.target.value) : undefined,
+                )
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select a category</option>
+              {categories?.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="space-y-2 py-2 border-y border-gray-100">

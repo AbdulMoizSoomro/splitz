@@ -22,7 +22,8 @@ const AddMemberModal = ({ isOpen, onClose, group }: AddMemberModalProps) => {
   const bulkAddMutation = useMutation({
     mutationFn: () => groupService.bulkAddMembers(group.id, selectedUserIds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["group", String(group.id)] });
+      queryClient.invalidateQueries({ queryKey: ["group", group.id] });
+      queryClient.invalidateQueries({ queryKey: ["group-balances", group.id] });
       addToast("Members added successfully", "success");
       setSelectedUserIds([]);
       onClose();

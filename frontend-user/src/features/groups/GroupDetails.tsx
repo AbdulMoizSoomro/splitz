@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { groupService } from "./groupService";
@@ -25,6 +25,8 @@ import type { Expense } from "../../types/expense";
 import GroupBalances from "../balances/GroupBalances";
 import GroupActivity from "./GroupActivity";
 import { settlementService } from "../balances/settlementService";
+import { expenseService } from "../expenses/expenseService";
+import { categoryService } from "../expenses/categoryService";
 import {
   Loader2,
   ArrowLeft,
@@ -37,6 +39,9 @@ import {
   Activity,
   DollarSign,
   Plus,
+  Receipt,
+  Trash2,
+  Calendar,
 } from "lucide-react";
 
 const GroupDetails = () => {
@@ -52,18 +57,20 @@ const GroupDetails = () => {
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>(
     undefined,
   );
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [activeTab, setActiveTab] = useState<
-    "activity" | "members" | "balances"
-  >("activity");
+    "expenses" | "members" | "balances"
+  >("expenses");
 
   const { data: group, isLoading } = useQuery({
-    queryKey: ["group", id],
+    queryKey: ["group", Number(id)],
     queryFn: () => groupService.getGroup(Number(id)),
     enabled: !!id,
   });
 
   const { data: balancesResponse, isLoading: isBalancesLoading } = useQuery({
-    queryKey: ["group-balances", id],
+    queryKey: ["group-balances", Number(id)],
     queryFn: () => groupService.getBalances(Number(id)),
     enabled: !!id,
   });
@@ -75,10 +82,33 @@ const GroupDetails = () => {
   });
 
   const { data: settlements, isLoading: isSettlementsLoading } = useQuery({
-    queryKey: ["group-settlements", id],
+    queryKey: ["group-settlements", Number(id)],
     queryFn: () => settlementService.getSettlementsByGroup(Number(id)),
     enabled: !!id,
   });
+
+  const { data: expenses, isLoading: isExpensesLoading } = useQuery({
+    queryKey: ["expenses", Number(id)],
+    queryFn: () => expenseService.getGroupExpenses(Number(id)),
+    enabled: !!id,
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: categoryService.getCategories,
+  });
+
+  const sortedExpenses = useMemo(() => {
+    if (!expenses) return [];
+    return [...expenses].sort((a, b) => {
+      const dateA = new Date(a.expenseDate).getTime();
+      const dateB = new Date(b.expenseDate).getTime();
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+      return b.id - a.id;
+    });
+  }, [expenses]);
 
   // Derive member names via the shared display-name hook
   const memberIds = useMemo(
@@ -95,6 +125,44 @@ const GroupDetails = () => {
   const handleEditExpense = (expense: Expense) => {
     setEditingExpense(expense);
     setIsExpenseModalOpen(true);
+  };
+
+  const canManageExpense = (expense: Expense) => {
+    if (!group) return false;
+    const member = group.members.find((m) => m.userId === Number(user?.id));
+    if (!member) return false;
+
+    const isAdmin = member.role === "ADMIN" || group.createdBy === Number(user?.id);
+    const isPayer = expense.paidBy === Number(user?.id);
+
+    return isAdmin || isPayer || group.allowMembersToEditExpenses;
+  };
+
+  const deleteExpenseMutation = useMutation({
+    mutationFn: (expenseId: number) =>
+      expenseService.deleteExpense(Number(id), expenseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-activity", Number(id)] });
+      queryClient.invalidateQueries({ queryKey: ["expenses", Number(id)] });
+      queryClient.invalidateQueries({ queryKey: ["group-balances", Number(id)] });
+      addToast("Expense deleted successfully", "success");
+      setIsDeleteModalOpen(false);
+      setExpenseToDelete(null);
+    },
+    onError: () => {
+      addToast("Failed to delete expense", "error");
+    },
+  });
+
+  const handleDeleteExpenseClick = (expense: Expense) => {
+    setExpenseToDelete(expense);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteExpense = () => {
+    if (expenseToDelete) {
+      deleteExpenseMutation.mutate(expenseToDelete.id);
+    }
   };
 
   const leaveMutation = useMutation({
@@ -118,7 +186,7 @@ const GroupDetails = () => {
       role: "ADMIN" | "MEMBER";
     }) => groupService.updateMemberRole(Number(id), userId, role),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["group", id] });
+      queryClient.invalidateQueries({ queryKey: ["group", Number(id)] });
       addToast("Role updated successfully", "success");
       if (
         variables.userId === Number(user?.id) &&
@@ -141,7 +209,7 @@ const GroupDetails = () => {
     mutationFn: (data: Partial<import("../../types/group").Group>) =>
       groupService.updateGroup(Number(id), data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["group", id] });
+      queryClient.invalidateQueries({ queryKey: ["group", Number(id)] });
       addToast("Group settings updated", "success");
     },
     onError: () => {
@@ -175,11 +243,16 @@ const GroupDetails = () => {
   const isOwner = group?.createdBy === Number(user?.id);
   const isAdmin = currentUserRole === "ADMIN";
 
-  const hasPendingSettlements = settlements?.some(
-    (s) =>
+  const hasPendingSettlements = settlements?.some((s) => {
+    const isGlobalPayment = !s.allocations || 
+                            s.allocations.length === 0 || 
+                            s.allocations.some(a => !a.groupId);
+    return (
       (s.payerId === Number(user?.id) || s.payeeId === Number(user?.id)) &&
-      s.status === "MARKED_PAID",
-  ) ?? false;
+      s.status === "MARKED_PAID" &&
+      !isGlobalPayment
+    );
+  }) ?? false;
 
   const canLeave = currentUserBalance === 0 && !hasPendingSettlements;
 
@@ -208,8 +281,8 @@ const GroupDetails = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col h-[calc(100vh-112px)] overflow-hidden space-y-4 pb-2">
+        <div className="flex items-center gap-4 shrink-0">
           <Button variant="ghost" size="sm" onClick={() => navigate("/groups")}>
             <ArrowLeft size={20} />
           </Button>
@@ -222,19 +295,19 @@ const GroupDetails = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 shrink-0">
           <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab("activity")}
+              onClick={() => setActiveTab("expenses")}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "activity"
+                activeTab === "expenses"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               <div className="flex items-center gap-2">
-                <Activity size={18} />
-                <span>Activity</span>
+                <Receipt size={18} />
+                <span>Expenses</span>
               </div>
             </button>
             <button
@@ -269,11 +342,11 @@ const GroupDetails = () => {
         {/* Balance Summary Card */}
         {!isBalancesLoading && currentUserBalance !== 0 && (
           <Card
-            className={
+            className={`shrink-0 ${
               currentUserBalance > 0
                 ? "bg-green-50/50 border-green-100"
                 : "bg-red-50/50 border-red-100"
-            }
+            }`}
           >
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -319,14 +392,16 @@ const GroupDetails = () => {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            {activeTab === "activity" && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center px-1">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+          <div className="lg:col-span-3 h-full flex flex-col min-h-0">
+            
+            {/* EXPENSES TAB CONTENT */}
+            {activeTab === "expenses" && (
+              <div className="h-full flex flex-col min-h-0 space-y-4">
+                <div className="flex justify-between items-center px-1 shrink-0">
                   <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Activity size={20} className="text-blue-600" />
-                    <span>Shared Activity</span>
+                    <Receipt size={20} className="text-blue-600" />
+                    <span>Group Expenses</span>
                   </h2>
                   <Button
                     size="sm"
@@ -337,209 +412,391 @@ const GroupDetails = () => {
                     <span>Add Expense</span>
                   </Button>
                 </div>
-                <GroupActivity
-                  groupId={Number(id)}
-                  onAddExpense={() => handleAddExpense()}
-                  onEditExpense={handleEditExpense}
-                  group={group}
-                />
-              </div>
-            )}
-
-            {activeTab === "members" && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                  <CardTitle className="flex items-center gap-2">
-                    <Users size={20} />
-                    <span>Members</span>
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">
-                      {group.members.length} members
-                    </span>
-                    {(isOwner ||
-                      isAdmin ||
-                      group.allowMembersToManageMembers) && (
-                      <button
-                        aria-label="Add member"
-                        onClick={() => setIsAddMemberModalOpen(true)}
-                        className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                        title="Add Member"
-                      >
-                        <UserPlus size={16} />
-                      </button>
-                    )}
+                
+                {isExpensesLoading ? (
+                  <div className="flex justify-center p-8" data-testid="loader">
+                    <Loader2 className="animate-spin text-blue-600" size={24} />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="divide-y divide-gray-100">
-                    {group.members.map((member) => {
-                      const displayName =
-                        memberNames[member.userId] ?? `User ${member.userId}`;
+                ) : !expenses || expenses.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
+                      <h3 className="text-lg font-medium text-gray-900 mb-1">
+                        No expenses yet
+                      </h3>
+                      <p className="text-gray-500 italic mb-6">
+                        Add an expense to get started splitting with the group!
+                      </p>
+                      <Button
+                        onClick={() => handleAddExpense()}
+                        className="flex items-center gap-2 mx-auto"
+                      >
+                        <Plus size={18} />
+                        <span>Add Expense</span>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3 flex-1 overflow-y-auto pr-1">
+                    {sortedExpenses.map((expense) => {
+                      const isPayer = expense.paidBy === Number(user?.id);
+                      const payerName = isPayer ? "You" : (memberNames[expense.paidBy] ?? `User ${expense.paidBy}`);
+                      const date = new Date(expense.expenseDate);
+                      const mySplit = expense.splits.find((s) => s.userId === Number(user?.id));
+                      const canManage = canManageExpense(expense);
 
-                      let roleVariant: BadgeVariant = "member";
-                      let roleLabel = "Member";
+                      const category = categories?.find((c) => c.id === expense.categoryId);
+                      const categoryName = category?.name ?? "General";
 
-                      if (member.userId === group.createdBy) {
-                        roleVariant = "owner";
-                        roleLabel = "Owner";
-                      } else if (member.role === "ADMIN") {
-                        roleVariant = "admin";
-                        roleLabel = "Admin";
+                      let balanceIndicator = null;
+                      if (isPayer) {
+                        const lentAmount = expense.splits
+                          .filter((s) => s.userId !== Number(user?.id))
+                          .reduce((sum, s) => sum + s.shareAmount, 0);
+                        if (lentAmount > 0) {
+                          balanceIndicator = (
+                            <span className="text-green-600 font-semibold text-sm">
+                              you lent <span className="font-bold">${lentAmount.toFixed(2)}</span>
+                            </span>
+                          );
+                        } else {
+                          balanceIndicator = <span className="text-gray-500 text-sm">you paid for yourself</span>;
+                        }
+                      } else {
+                        if (mySplit) {
+                          balanceIndicator = (
+                            <span className="text-red-500 font-semibold text-sm">
+                              you owe {payerName} <span className="font-bold">${mySplit.shareAmount.toFixed(2)}</span>
+                            </span>
+                          );
+                        } else {
+                          balanceIndicator = <span className="text-gray-400 text-sm">not involved</span>;
+                        }
                       }
 
-                      const isCurrentUser = member.userId === Number(user?.id);
-                      const isFriend = friends?.some(
-                        (f) => f.id === member.userId,
-                      );
-                      const isTempFriend =
-                        !isCurrentUser && friends && !isFriend;
-
                       return (
-                        <div
-                          key={member.id}
-                          className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium text-sm">
-                              {displayName.charAt(0)}
+                        <Card key={`expense-${expense.id}`} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                                <Receipt size={20} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-gray-900 truncate">{expense.description}</h3>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5 text-xs text-gray-500">
+                                  <span>Paid by <span className="font-medium text-gray-700">{payerName}</span></span>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Calendar size={12} />
+                                    {date.toLocaleDateString()}
+                                  </span>
+                                  <span>•</span>
+                                  <Badge variant="member">{categoryName}</Badge>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium text-gray-900">
-                                {displayName}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {isTempFriend && (
-                              <Badge variant="temp">Temp Friend</Badge>
-                            )}
-                            <Badge variant={roleVariant}>{roleLabel}</Badge>
 
-                            {/* Role Management Dropdown */}
-                            {(isAdmin || isOwner) &&
-                              member.userId !== group.createdBy && (
+                            <div className="flex items-center gap-6 shrink-0">
+                              <div className="text-right">
+                                <div className="text-base font-bold text-gray-900">${expense.amount.toFixed(2)}</div>
+                                <div>{balanceIndicator}</div>
+                              </div>
+                              
+                              {canManage && (
                                 <Dropdown
                                   trigger={
                                     <button
-                                      aria-label="Manage role"
-                                      className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                                      className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                                      aria-label={`Actions for ${expense.description}`}
                                     >
-                                      <MoreVertical size={16} />
+                                      <MoreVertical size={20} />
                                     </button>
                                   }
                                   items={[
                                     {
-                                      label:
-                                        member.role === "ADMIN"
-                                          ? "Demote to Member"
-                                          : "Promote to Admin",
-                                      onClick: () =>
-                                        handleRoleUpdate(
-                                          member.userId,
-                                          member.role === "ADMIN"
-                                            ? "MEMBER"
-                                            : "ADMIN",
-                                        ),
-                                      disabled: updateRoleMutation.isPending,
+                                      label: "Edit",
+                                      onClick: () => handleEditExpense(expense),
+                                    },
+                                    {
+                                      label: "Delete",
+                                      onClick: () => handleDeleteExpenseClick(expense),
+                                      variant: "danger" as const,
                                     },
                                   ]}
                                 />
                               )}
-                          </div>
-                        </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       );
                     })}
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             )}
 
-            {activeTab === "balances" && <GroupBalances groupId={Number(id)} />}
+            {/* MEMBERS TAB CONTENT */}
+            {activeTab === "members" && (
+              <div className="h-full overflow-y-auto pr-1 space-y-4 pb-2">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="flex items-center gap-2">
+                      <Users size={20} />
+                      <span>Members</span>
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">
+                        {group.members.length} members
+                      </span>
+                      {(isOwner ||
+                        isAdmin ||
+                        group.allowMembersToManageMembers) && (
+                        <button
+                          aria-label="Add member"
+                          onClick={() => setIsAddMemberModalOpen(true)}
+                          className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                          title="Add Member"
+                        >
+                          <UserPlus size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="divide-y divide-gray-100">
+                      {group.members.map((member) => {
+                        const displayName =
+                          memberNames[member.userId] ?? `User ${member.userId}`;
+
+                        let roleVariant: BadgeVariant = "member";
+                        let roleLabel = "Member";
+
+                        if (member.userId === group.createdBy) {
+                          roleVariant = "owner";
+                          roleLabel = "Owner";
+                        } else if (member.role === "ADMIN") {
+                          roleVariant = "admin";
+                          roleLabel = "Admin";
+                        }
+
+                        const isCurrentUser = member.userId === Number(user?.id);
+                        const isFriend = friends?.some(
+                          (f) => f.id === member.userId,
+                        );
+                        const isTempFriend =
+                          !isCurrentUser && friends && !isFriend;
+
+                        const debtToMember = balancesResponse?.simplifiedDebts.find(
+                          (d) => d.from === Number(user?.id) && d.to === member.userId,
+                        );
+                        const debtFromMember = balancesResponse?.simplifiedDebts.find(
+                          (d) => d.to === Number(user?.id) && d.from === member.userId,
+                        );
+
+                        const memberInfoContent = (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-medium text-sm shrink-0">
+                              {displayName.charAt(0)}
+                            </div>
+                            <div className="flex flex-col text-left">
+                              <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                                {displayName}
+                              </span>
+                              {!isCurrentUser && (
+                                <span className="text-xs">
+                                  {isBalancesLoading ? (
+                                    <span className="text-gray-400 font-normal animate-pulse">
+                                      loading balance...
+                                    </span>
+                                  ) : debtToMember ? (
+                                    <span className="text-red-500 font-medium">
+                                      you owe ${debtToMember.amount.toFixed(2)}
+                                    </span>
+                                  ) : debtFromMember ? (
+                                    <span className="text-green-600 font-medium">
+                                      owes you ${debtFromMember.amount.toFixed(2)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 font-normal">
+                                      settled up
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        );
+
+                        return (
+                          <div
+                            key={member.id}
+                            className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
+                          >
+                            {isCurrentUser ? (
+                              <div className="flex items-center gap-3">
+                                {memberInfoContent}
+                              </div>
+                            ) : (
+                              <Link
+                                to={`/friends/${member.userId}`}
+                                className="flex items-center gap-3 hover:opacity-80 transition-opacity group cursor-pointer"
+                              >
+                                {memberInfoContent}
+                              </Link>
+                            )}
+                            <div className="flex items-center gap-2">
+                              {isTempFriend && (
+                                <Badge variant="temp">Temp Friend</Badge>
+                              )}
+                              <Badge variant={roleVariant}>{roleLabel}</Badge>
+
+                              {/* Role Management Dropdown */}
+                              {(isAdmin || isOwner) &&
+                                member.userId !== group.createdBy && (
+                                  <Dropdown
+                                    trigger={
+                                      <button
+                                        aria-label="Manage role"
+                                        className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                                      >
+                                        <MoreVertical size={16} />
+                                      </button>
+                                    }
+                                    items={[
+                                      {
+                                        label:
+                                          member.role === "ADMIN"
+                                            ? "Demote to Member"
+                                            : "Promote to Admin",
+                                        onClick: () =>
+                                          handleRoleUpdate(
+                                            member.userId,
+                                            member.role === "ADMIN"
+                                              ? "MEMBER"
+                                              : "ADMIN",
+                                          ),
+                                        disabled: updateRoleMutation.isPending,
+                                      },
+                                    ]}
+                                  />
+                                )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Relocated Group Settings */}
+                {isOwner && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Settings size={20} />
+                        <span>Group Settings</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-gray-900">
+                              Manage Members
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Allow members to add/remove others
+                            </span>
+                          </div>
+                          <button
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${group.allowMembersToManageMembers ? "bg-blue-600" : "bg-gray-200"} ${updateGroupMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
+                            onClick={() =>
+                              updateGroupMutation.mutate({
+                                allowMembersToManageMembers:
+                                  !group.allowMembersToManageMembers,
+                              })
+                            }
+                            disabled={updateGroupMutation.isPending}
+                            aria-label="Toggle allow members to manage members"
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${group.allowMembersToManageMembers ? "translate-x-6" : "translate-x-1"}`}
+                            />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-gray-900">
+                              Collaborative Editing
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Allow members to edit/delete expenses
+                            </span>
+                          </div>
+                          <button
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${group.allowMembersToEditExpenses ? "bg-blue-600" : "bg-gray-200"} ${updateGroupMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
+                            onClick={() =>
+                              updateGroupMutation.mutate({
+                                allowMembersToEditExpenses:
+                                  !group.allowMembersToEditExpenses,
+                              })
+                            }
+                            disabled={updateGroupMutation.isPending}
+                            aria-label="Toggle allow members to edit expenses"
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${group.allowMembersToEditExpenses ? "translate-x-6" : "translate-x-1"}`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Relocated Actions */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setIsLeaveModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <LogOut size={18} />
+                      <span>Leave Group</span>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* BALANCES TAB CONTENT */}
+            {activeTab === "balances" && (
+              <div className="h-full overflow-y-auto pr-1">
+                <GroupBalances groupId={Number(id)} />
+              </div>
+            )}
           </div>
 
-          <div className="space-y-6">
-            {isOwner && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings size={20} />
-                    <span>Group Settings</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900">
-                          Manage Members
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Allow members to add/remove others
-                        </span>
-                      </div>
-                      <button
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${group.allowMembersToManageMembers ? "bg-blue-600" : "bg-gray-200"} ${updateGroupMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
-                        onClick={() =>
-                          updateGroupMutation.mutate({
-                            allowMembersToManageMembers:
-                              !group.allowMembersToManageMembers,
-                          })
-                        }
-                        disabled={updateGroupMutation.isPending}
-                        aria-label="Toggle allow members to manage members"
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${group.allowMembersToManageMembers ? "translate-x-6" : "translate-x-1"}`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900">
-                          Collaborative Editing
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Allow members to edit/delete expenses
-                        </span>
-                      </div>
-                      <button
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${group.allowMembersToEditExpenses ? "bg-blue-600" : "bg-gray-200"} ${updateGroupMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
-                        onClick={() =>
-                          updateGroupMutation.mutate({
-                            allowMembersToEditExpenses:
-                              !group.allowMembersToEditExpenses,
-                          })
-                        }
-                        disabled={updateGroupMutation.isPending}
-                        aria-label="Toggle allow members to edit expenses"
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${group.allowMembersToEditExpenses ? "translate-x-6" : "translate-x-1"}`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="secondary"
-                  onClick={() => setIsLeaveModalOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                >
-                  <LogOut size={18} />
-                  <span>Leave Group</span>
-                </Button>
-              </CardContent>
-            </Card>
+          {/* RIGHT SIDEBAR PANEL: ALWAYS-ON SHARED ACTIVITY (25%) */}
+          <div className="lg:col-span-1 h-full flex flex-col min-h-0 space-y-4">
+            <div className="px-1 flex items-center justify-between shrink-0">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Activity size={20} className="text-blue-600" />
+                <span>Shared Activity</span>
+              </h2>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-1">
+              <GroupActivity
+                groupId={Number(id)}
+                onEditExpense={handleEditExpense}
+                group={group}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -618,6 +875,49 @@ const GroupDetails = () => {
               {updateRoleMutation.isPending
                 ? "Updating..."
                 : "Confirm Demotion"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete Expense"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to delete "
+            <span className="font-semibold text-gray-900">
+              {expenseToDelete?.description}
+            </span>
+            "? This action cannot be undone and will update everyone's balances.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={deleteExpenseMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmDeleteExpense}
+              disabled={deleteExpenseMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              {deleteExpenseMutation.isPending ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 size={18} />
+                  <span>Delete Expense</span>
+                </>
+              )}
             </Button>
           </div>
         </div>

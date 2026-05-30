@@ -118,6 +118,9 @@ describe("GroupDetails", () => {
       </QueryClientProvider>,
     );
 
+    const membersTab = await screen.findByRole("button", { name: /members/i });
+    fireEvent.click(membersTab);
+
     await screen.findByText("Leave Group");
     fireEvent.click(screen.getByText("Leave Group"));
 
@@ -142,6 +145,9 @@ describe("GroupDetails", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
+
+    const membersTab = await screen.findByRole("button", { name: /members/i });
+    fireEvent.click(membersTab);
 
     await screen.findByText("Leave Group");
     fireEvent.click(screen.getByText("Leave Group"));
@@ -192,6 +198,9 @@ describe("GroupDetails", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
+
+    const membersTab = await screen.findByRole("button", { name: /members/i });
+    fireEvent.click(membersTab);
 
     await screen.findByText("Leave Group");
     fireEvent.click(screen.getByText("Leave Group"));
@@ -428,6 +437,9 @@ describe("GroupDetails", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
+
+    const membersTab = await screen.findByRole("button", { name: /members/i });
+    fireEvent.click(membersTab);
 
     await waitFor(() => {
       expect(screen.getByText("Group Settings")).toBeInTheDocument();
