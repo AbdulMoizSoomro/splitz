@@ -3,7 +3,7 @@ import { Check, X, Loader2 } from "lucide-react";
 import api from "../../lib/axios";
 import { friendService } from "./friendService";
 import type { User, Friendship } from "../../types/user";
-import Button from "../../components/core/Button/Button";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "../../store/authStore";
 
 interface FriendRequestItemProps {
@@ -89,7 +89,7 @@ const FriendRequestItem = ({
           <>
             <Button
               size="sm"
-              variant="primary"
+              variant="default"
               onClick={() => respondMutation.mutate("accept")}
               disabled={respondMutation.isPending}
               title="Accept"
@@ -103,7 +103,7 @@ const FriendRequestItem = ({
             </Button>
             <Button
               size="sm"
-              variant="danger"
+              variant="destructive"
               onClick={() => respondMutation.mutate("reject")}
               disabled={respondMutation.isPending}
               title="Reject"
@@ -119,7 +119,7 @@ const FriendRequestItem = ({
         ) : (
           <Button
             size="sm"
-            variant="danger"
+            variant="destructive"
             onClick={() => cancelMutation.mutate()}
             disabled={cancelMutation.isPending}
             title="Cancel Request"

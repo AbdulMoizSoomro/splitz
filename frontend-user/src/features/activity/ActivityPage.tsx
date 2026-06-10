@@ -6,7 +6,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useDisplayNames } from "../../hooks/useDisplayName";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/layout/DashboardLayout";
-import { Card, CardContent } from "../../components/core/Card/Card";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   Loader2, 
   Receipt, 

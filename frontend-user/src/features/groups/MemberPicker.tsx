@@ -6,7 +6,7 @@ import { friendService } from "../users/friendService";
 import { useAuthStore } from "../../store/authStore";
 import { useTempFriends } from "../../hooks/useTempFriends";
 import type { User, PaginatedResponse } from "../../types/user";
-import Badge from "../../components/core/Badge/Badge";
+import { Badge } from "@/components/ui/badge";
 
 interface MemberPickerProps {
   selectedIds: number[];

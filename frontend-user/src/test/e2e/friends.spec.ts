@@ -5,16 +5,16 @@ async function registerAndLogin(page: Page, username: string) {
   const password = "Password123!";
 
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill("Test");
-  await page.getByLabel(/last name/i).fill("User");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.locator('#firstName').fill("Test");
+  await page.locator('#lastName').fill("User");
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(email);
+  await page.locator('#password').fill(password);
   await page.getByRole("button", { name: /register/i }).click();
 
   await expect(page).toHaveURL(/\/login/);
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(password);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(password);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(
@@ -46,7 +46,7 @@ test.describe("Friend Request Management", () => {
 
     // 3. User A sends friend request
     await pageA.getByRole("button", { name: /add friend/i }).click();
-    await expect(pageA.getByText(/pending/i)).toBeVisible();
+    await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible();
 
     // 4. User B should see the friend request on Friends page
     await pageB.goto("/friends");

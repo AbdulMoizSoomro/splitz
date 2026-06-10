@@ -99,7 +99,8 @@ describe("ExpenseModal", () => {
     // Unselect all members
     const checkboxes = screen.getAllByRole("checkbox");
     checkboxes.forEach((checkbox) => {
-      if ((checkbox as HTMLInputElement).checked) {
+      const isChecked = checkbox.getAttribute("aria-checked") === "true";
+      if (isChecked) {
         fireEvent.click(checkbox);
       }
     });

@@ -14,16 +14,16 @@ test.describe('Expense Deletion', () => {
 
     // 1. Register & Login
     await page.goto('/register');
-    await page.getByLabel(/first name/i).fill('Test');
-    await page.getByLabel(/last name/i).fill('User');
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/^password$/i).fill('password123');
+    await page.locator('#firstName').fill('Test');
+    await page.locator('#lastName').fill('User');
+    await page.locator('#username').fill(username);
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill('password123');
     await page.getByRole('button', { name: /register/i }).click();
     await expect(page).toHaveURL(/\/login/);
 
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/password/i).fill('password123');
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill('password123');
     await page.getByRole('button', { name: /login/i }).click();
     await expect(page).toHaveURL(/\/$/);
 
@@ -34,7 +34,7 @@ test.describe('Expense Deletion', () => {
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
     
-    await modal.getByLabel(/group name/i).fill(groupName);
+    await modal.locator('#group-name').fill(groupName);
     await modal.getByRole('button', { name: /create/i }).click();
 
     await expect(modal).not.toBeVisible({ timeout: 5000 });
@@ -50,8 +50,8 @@ test.describe('Expense Deletion', () => {
     const expenseModal = page.getByRole('dialog');
     await expect(expenseModal).toBeVisible({ timeout: 5000 });
 
-    await expenseModal.getByLabel(/description/i).fill('Test Expense');
-    await expenseModal.getByLabel(/amount/i).fill('30');
+    await expenseModal.locator('#description').fill('Test Expense');
+    await expenseModal.locator('#amount').fill('30');
 
     // Diagnostic: Check if members are selected (default should be the creator)
     const submitButton = expenseModal.getByRole('button', { name: /add expense/i });
@@ -61,10 +61,10 @@ test.describe('Expense Deletion', () => {
     await submitButton.click();
 
     await expect(expenseModal).not.toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Test Expense')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Test Expense').first()).toBeVisible({ timeout: 5000 });
 
     // 4. Delete the expense
-    const actionButton = page.getByLabel(/actions for test expense/i);
+    const actionButton = page.getByLabel(/actions for test expense/i).first();
     await expect(actionButton).toBeVisible({ timeout: 5000 });
     await actionButton.click();
 

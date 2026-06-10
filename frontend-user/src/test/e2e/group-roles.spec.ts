@@ -4,19 +4,19 @@ const PASSWORD = "Password123!";
 
 async function registerUser(page: Page, username: string) {
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill("Test");
-  await page.getByLabel(/last name/i).fill("User");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(`${username}@example.com`);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#firstName').fill("Test");
+  await page.locator('#lastName').fill("User");
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(`${username}@example.com`);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
 }
 
 async function loginUser(page: Page, username: string) {
   await page.goto("/login");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
 }
@@ -29,7 +29,7 @@ async function sendFriendRequest(pageA: Page, targetUsername: string) {
     timeout: 10000,
   });
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByText(/pending/i)).toBeVisible({ timeout: 5000 });
+  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 5000 });
 }
 
 /** Accept the first pending friend request on pageB from the given sender. */
@@ -60,7 +60,7 @@ async function createGroupWithMember(
     .click();
   const modal = pageOwner.getByRole("dialog");
   await expect(modal).toBeVisible();
-  await modal.getByLabel(/group name/i).fill(groupName);
+  await modal.locator('#group-name').fill(groupName);
 
   // The friend list shows "Test User" — click the first available friend to add them
   const friendPicker = modal.locator(".max-h-48");
@@ -123,7 +123,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
 
       // 5. Navigate to Members tab
       await pageOwner
-        .getByRole("button", { name: "Members", exact: true })
+        .getByRole("tab", { name: "Members", exact: true })
         .click();
 
       // 6. Verify member row shows "Member" badge (not Admin yet)
@@ -159,7 +159,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
 
       // Navigate to Members tab
       await pageMember
-        .getByRole("button", { name: "Members", exact: true })
+        .getByRole("tab", { name: "Members", exact: true })
         .click();
 
       const membersMemberCard = pageMember.locator(".divide-y");
@@ -217,6 +217,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
       const groupUrl = await createGroupWithMember(pageOwner, groupName);
 
       // 4. Owner verifies "Group Settings" section is visible (owner-only)
+      await pageOwner.getByRole('tab', { name: 'Members' }).click();
       await expect(pageOwner.getByText(/group settings/i)).toBeVisible();
 
       // 5. The governance toggle defaults to ON (allowMembersToManageMembers = true).
@@ -225,15 +226,13 @@ test.describe("[E2E] Group Roles and Permissions", () => {
         /toggle allow members to manage members/i,
       );
       await expect(toggleBtn).toBeVisible();
-      const toggleThumb = toggleBtn.locator("span");
-
-      // Default is ON: thumb should be at translate-x-6
-      await expect(toggleThumb).toHaveClass(/translate-x-6/);
+      // Default is ON: button should have aria-checked="true"
+      await expect(toggleBtn).toHaveAttribute("aria-checked", "true");
 
       // Click to turn OFF
       await toggleBtn.click();
-      // Now OFF: thumb should be at translate-x-1
-      await expect(toggleThumb).toHaveClass(/translate-x-1/, { timeout: 5000 });
+      // Now OFF: button should have aria-checked="false"
+      await expect(toggleBtn).toHaveAttribute("aria-checked", "false", { timeout: 5000 });
 
       // 6. Member navigates to the group page
       await pageMember.goto(groupUrl);
@@ -246,7 +245,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
       // 8. Regular member never sees "Manage role" dropdown (requires Admin or Owner role)
       // Navigate to Members tab first
       await pageMember
-        .getByRole("button", { name: "Members", exact: true })
+        .getByRole("tab", { name: "Members", exact: true })
         .click();
       await expect(pageMember.getByLabel("Manage role")).not.toBeVisible();
     } finally {
@@ -289,7 +288,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
 
       // Navigate to Members tab
       await pageOwner
-        .getByRole("button", { name: "Members", exact: true })
+        .getByRole("tab", { name: "Members", exact: true })
         .click();
 
       const membersCard = pageOwner.locator(".divide-y");
@@ -324,7 +323,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
       await expect(pageAdmin).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
 
       // Navigate to Members tab
-      await pageAdmin.getByRole("button", { name: /members/i }).click();
+      await pageAdmin.getByRole("tab", { name: /members/i }).click();
 
       const adminMembersCard = pageAdmin.locator(".divide-y");
       await expect(

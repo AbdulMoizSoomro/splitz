@@ -11,16 +11,16 @@ test.describe("Stale Token Handling", () => {
 
     // 1. Register and Login to get a valid session
     await page.goto("/register");
-    await page.getByLabel(/first name/i).fill("Stale");
-    await page.getByLabel(/last name/i).fill("User");
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#firstName').fill("Stale");
+    await page.locator('#lastName').fill("User");
+    await page.locator('#username').fill(username);
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /register/i }).click();
 
     await page.waitForURL(/\/login/);
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /login/i }).click();
 
     await page.waitForURL(/\/$/);

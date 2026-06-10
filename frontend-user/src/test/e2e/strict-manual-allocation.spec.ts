@@ -9,19 +9,19 @@ async function registerUser(
   lastName: string,
 ) {
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill(firstName);
-  await page.getByLabel(/last name/i).fill(lastName);
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(`${username}@example.com`);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#firstName').fill(firstName);
+  await page.locator('#lastName').fill(lastName);
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(`${username}@example.com`);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
 }
 
 async function loginUser(page: Page, username: string) {
   await page.goto("/login");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
 }
@@ -33,7 +33,7 @@ async function sendFriendRequest(pageA: Page, targetUsername: string) {
     timeout: 10000,
   });
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByText(/pending/i)).toBeVisible({ timeout: 5000 });
+  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 5000 });
 }
 
 async function acceptFriendRequest(pageB: Page, fromUsername: string) {
@@ -59,7 +59,7 @@ async function createGroupWithMember(
     .click();
   const modal = pageOwner.getByRole("dialog");
   await expect(modal).toBeVisible();
-  await modal.getByLabel(/group name/i).fill(groupName);
+  await modal.locator('#group-name').fill(groupName);
 
   // Wait for loader to disappear if any
   await expect(modal.locator(".animate-spin")).not.toBeVisible();
@@ -113,8 +113,8 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
       // Group 1
       await pageAlice.getByText(groupDinner).click();
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
-      await pageAlice.getByLabel(/description/i).fill("Dinner");
-      await pageAlice.getByLabel(/amount/i).fill("40.00");
+      await pageAlice.locator('#description').fill("Dinner");
+      await pageAlice.locator('#amount').fill("40.00");
       const dinnerResp = pageAlice.waitForResponse(r => r.url().includes('/expenses') && r.status() === 201);
       await pageAlice.getByRole("dialog").getByRole("button", { name: "Add Expense", exact: true }).click();
       await dinnerResp;
@@ -124,8 +124,8 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
       await pageAlice.goto("/groups");
       await pageAlice.getByText(groupTravel).click();
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
-      await pageAlice.getByLabel(/description/i).fill("Flight");
-      await pageAlice.getByLabel(/amount/i).fill("100.00");
+      await pageAlice.locator('#description').fill("Flight");
+      await pageAlice.locator('#amount').fill("100.00");
       const travelResp = pageAlice.waitForResponse(r => r.url().includes('/expenses') && r.status() === 201);
       await pageAlice.getByRole("dialog").getByRole("button", { name: "Add Expense", exact: true }).click();
       await travelResp;

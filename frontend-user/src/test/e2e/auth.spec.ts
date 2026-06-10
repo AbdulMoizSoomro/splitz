@@ -13,19 +13,19 @@ test.describe("Authentication Flow", () => {
     await expect(page).toHaveTitle(/Splitz/);
 
     // 2. Fill registration form
-    await page.getByLabel(/first name/i).fill("Test");
-    await page.getByLabel(/last name/i).fill("User");
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#firstName').fill("Test");
+    await page.locator('#lastName').fill("User");
+    await page.locator('#username').fill(username);
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /register/i }).click();
 
     // 3. Should be redirected to login
     await expect(page).toHaveURL(/\/login/);
 
     // 4. Fill login form
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /login/i }).click();
 
     // 5. Should be redirected to dashboard
@@ -42,7 +42,7 @@ test.describe("Authentication Flow", () => {
   test("should toggle password visibility on login page", async ({ page }) => {
     await page.goto("/login");
 
-    const passwordInput = page.getByLabel(/password/i);
+    const passwordInput = page.locator('#password');
     const toggleButton = page.getByRole("button", { name: /toggle visibility/i });
 
     // Initial state: password hidden

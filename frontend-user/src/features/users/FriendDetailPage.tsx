@@ -17,12 +17,12 @@ import {
   Globe,
 } from "lucide-react";
 import api from "../../lib/axios";
-import Button from "../../components/core/Button/Button";
+import { Button } from "@/components/ui/button";
 import { groupService } from "../groups/groupService";
 import { expenseService } from "../expenses/expenseService";
 import { friendService } from "./friendService";
 import { useAuthStore } from "../../store/authStore";
-import { useToastStore } from "../../store/toastStore";
+import { toast } from "sonner";
 import type { User, FriendshipSettlementDTO } from "../../types/user";
 import type { Expense } from "../../types/expense";
 import DashboardLayout from "../../components/layout/DashboardLayout";
@@ -31,9 +31,10 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-} from "../../components/core/Card/Card";
+} from "@/components/ui/card";
 import FriendshipSettlementModal from "./FriendshipSettlementModal";
-import Badge from "../../components/core/Badge/Badge";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 // Helper type for unified activity feed
 type ActivityItem = 
@@ -49,7 +50,7 @@ const FriendDetailPage = () => {
   const [editingSettlementId, setEditingSettlementId] = useState<number | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const queryClient = useQueryClient();
-  const { addToast } = useToastStore();
+
 
   const { data: friend, isLoading: isLoadingFriend } = useQuery({
     queryKey: ["users", id],
@@ -145,10 +146,10 @@ const FriendDetailPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["friend-balance"] });
       queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
-      addToast("Payment confirmed", "success");
+      toast.success("Payment confirmed");
     },
     onError: () => {
-      addToast("Failed to confirm payment", "error");
+      toast.error("Failed to confirm payment");
     },
   });
 
@@ -160,10 +161,10 @@ const FriendDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
       setEditingSettlementId(null);
       setEditAmount("");
-      addToast("Payment updated", "success");
+      toast.success("Payment updated");
     },
     onError: () => {
-      addToast("Failed to update payment", "error");
+      toast.error("Failed to update payment");
     },
   });
 
@@ -230,7 +231,7 @@ const FriendDetailPage = () => {
   const submitEdit = (settlementId: number) => {
     const parsedAmount = parseFloat(editAmount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      addToast("Please enter a valid amount", "error");
+      toast.error("Please enter a valid amount");
       return;
     }
     updateMutation.mutate({ settlementId, amount: parsedAmount });
@@ -251,7 +252,7 @@ const FriendDetailPage = () => {
           </Button>
 
           <Button
-            variant="primary"
+            variant="default"
             className="flex items-center gap-2"
             onClick={() => setIsSettlementModalOpen(true)}
           >
@@ -461,9 +462,12 @@ const FriendDetailPage = () => {
                       const isEditing = editingSettlementId === settlement.id;
                       const canEdit = settlement.status !== 'COMPLETED';
 
-                      let badgeVariant: 'success' | 'warning' | 'default' = 'default';
-                      if (settlement.status === 'COMPLETED') badgeVariant = 'success';
-                      else if (settlement.status === 'MARKED_PAID') badgeVariant = 'warning';
+                      let badgeClassName = "bg-gray-100 text-gray-800 hover:bg-gray-100/80 border-gray-200";
+                      if (settlement.status === 'COMPLETED') {
+                        badgeClassName = "bg-green-100 text-green-800 border-green-200 hover:bg-green-100/80";
+                      } else if (settlement.status === 'MARKED_PAID') {
+                        badgeClassName = "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100/80";
+                      }
 
                       const isGlobalPayment = !settlement.allocations || 
                                               settlement.allocations.length === 0 || 
@@ -484,7 +488,7 @@ const FriendDetailPage = () => {
                                   <p className="font-medium text-gray-900">
                                     {isPayer ? `You paid ${friend.firstName}` : `${friend.firstName} paid you`}
                                   </p>
-                                  <Badge variant={badgeVariant}>
+                                  <Badge className={badgeClassName}>
                                     {settlement.status === 'MARKED_PAID' ? 'Pending Confirmation' :
                                      settlement.status === 'COMPLETED' ? 'Settled' : 'Pending'}
                                   </Badge>
@@ -495,7 +499,7 @@ const FriendDetailPage = () => {
                                   )}
                                   {!isPayer && settlement.status === 'MARKED_PAID' && (
                                     <Button
-                                      variant="primary"
+                                      variant="default"
                                       size="sm"
                                       onClick={() => confirmMutation.mutate(settlement.id)}
                                       disabled={confirmMutation.isPending}
@@ -524,13 +528,13 @@ const FriendDetailPage = () => {
                               {isEditing ? (
                                 <div className="flex items-center gap-1">
                                   <span className="text-gray-500">$</span>
-                                  <input
+                                  <Input
                                     type="number"
                                     step="0.01"
                                     min="0.01"
                                     value={editAmount}
                                     onChange={(e) => setEditAmount(e.target.value)}
-                                    className="w-20 border border-gray-300 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-20 text-right text-sm"
                                     autoFocus
                                   />
                                   <button
@@ -593,7 +597,7 @@ const FriendDetailPage = () => {
                             <div className="mt-2 ml-13 pl-3 border-l-2 border-gray-100">
                               <div className="flex items-center justify-between text-xs text-gray-500 py-0.5">
                                 <span className="flex items-center gap-1.5">
-                                  <Globe size={10} className="text-indigo-500 animate-pulse" />
+                                  <Globe size={10} className="text-indigo-500" />
                                   <span className="text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
                                     Direct Personal Balance
                                   </span>

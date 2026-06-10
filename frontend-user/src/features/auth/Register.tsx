@@ -6,9 +6,10 @@ import {
   CardTitle,
   CardContent,
   CardFooter,
-} from "../../components/core/Card/Card";
-import Input from "../../components/core/Input/Input";
-import Button from "../../components/core/Button/Button";
+} from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import api, { isAxiosError } from "../../lib/axios";
 
 const Register = () => {
@@ -64,51 +65,66 @@ const Register = () => {
         <CardHeader>
           <CardTitle className="text-center">Create an Account</CardTitle>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel htmlFor="firstName">First Name</FieldLabel>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="John"
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="lastName">Last Name</FieldLabel>
+                <Input
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Doe"
+                />
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="username">Username</FieldLabel>
               <Input
-                label="First Name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="John"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="yourusername"
                 required
               />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
               <Input
-                label="Last Name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Doe"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
               />
-            </div>
-            <Input
-              label="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="yourusername"
-              required
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-            />
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </Field>
             {error && (
               <p className="text-sm font-medium text-red-500">{error}</p>
             )}
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter className="flex flex-col gap-4 pb-6">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Creating account..." : "Register"}
             </Button>

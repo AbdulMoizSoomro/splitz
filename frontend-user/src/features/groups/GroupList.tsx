@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Folder, Users, ReceiptText } from "lucide-react";
 import { groupService } from "./groupService";
-import Button from "../../components/core/Button/Button";
+import { Button } from "@/components/ui/button";
 import ExpenseModal from "../expenses/ExpenseModal";
 import type { Group } from "../../types/group";
 import { useAuthStore } from "../../store/authStore";

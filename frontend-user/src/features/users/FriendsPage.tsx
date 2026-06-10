@@ -4,7 +4,7 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-} from "../../components/core/Card/Card";
+} from "@/components/ui/card";
 import UserSearch from "./UserSearch";
 import FriendRequestsList from "./FriendRequestsList";
 import FriendsList from "./FriendsList";
