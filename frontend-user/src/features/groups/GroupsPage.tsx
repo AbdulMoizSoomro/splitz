@@ -1,7 +1,7 @@
 import { useState } from "react";
 import DashboardLayout from "../../components/layout/DashboardLayout";
-import { Card, CardContent } from "../../components/core/Card/Card";
-import Button from "../../components/core/Button/Button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import GroupList from "./GroupList";
 import CreateGroupModal from "./CreateGroupModal";
 import { Plus } from "lucide-react";

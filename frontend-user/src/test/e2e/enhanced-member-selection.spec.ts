@@ -8,19 +8,19 @@ async function registerUser(
   firstName: string,
 ) {
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill(firstName);
-  await page.getByLabel(/last name/i).fill("User");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(`${username}@example.com`);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#firstName').fill(firstName);
+  await page.locator('#lastName').fill("User");
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(`${username}@example.com`);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/);
 }
 
 async function loginUser(page: Page, username: string) {
   await page.goto("/login");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/);
 }
@@ -48,7 +48,7 @@ test.describe("[E2E] Enhanced Member Selection", () => {
       await pageAlice.goto("/groups");
       await pageAlice.getByRole("button", { name: /create group/i }).first().click();
       const modal = pageAlice.getByRole("dialog");
-      await modal.getByLabel(/group name/i).fill(`Group EMS ${ts}`);
+      await modal.locator('#group-name').fill(`Group EMS ${ts}`);
 
       // SEARCH FOR STRANGER
       // This is expected to fail currently as CreateGroupModal doesn't have search
@@ -65,7 +65,7 @@ test.describe("[E2E] Enhanced Member Selection", () => {
 
       // Verify Stranger is in the group
       await pageAlice.getByText(`Group EMS ${ts}`).click();
-      await pageAlice.getByRole("button", { name: "Members", exact: true }).click();
+      await pageAlice.getByRole("tab", { name: "Members", exact: true }).click();
       await expect(pageAlice.getByText(/Stranger User/i)).toBeVisible();
 
     } finally {

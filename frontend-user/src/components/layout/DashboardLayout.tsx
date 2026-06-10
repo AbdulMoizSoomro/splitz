@@ -1,22 +1,34 @@
-import React, { useState } from "react";
-import Navbar from "./Navbar";
-import Sidebar from "./Sidebar";
+import React from "react";
+import { AppSidebar } from "../app-sidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+
+import { useAuthStore } from "../../store/authStore";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { user } = useAuthStore();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <main className="p-4 lg:ml-64 pt-20">
-        <div className="mx-auto max-w-7xl">{children}</div>
-      </main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border px-4 bg-background">
+          <SidebarTrigger className="-ml-1" />
+          <div className="flex-1" />
+          {user && (
+            <div className="text-sm font-medium text-gray-700">
+              Hi, {user.username}
+            </div>
+          )}
+        </header>
+        <main className="flex flex-1 flex-col p-4 md:p-6 bg-gray-50">
+          <div className="mx-auto w-full max-w-7xl">{children}</div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 };
 

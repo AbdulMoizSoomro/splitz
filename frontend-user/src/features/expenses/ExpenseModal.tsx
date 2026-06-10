@@ -1,8 +1,23 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Modal from "../../components/core/Modal/Modal";
-import Input from "../../components/core/Input/Input";
-import Button from "../../components/core/Button/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { expenseService } from "./expenseService";
 import { categoryService } from "./categoryService";
 import type { Group } from "../../types/group";
@@ -185,6 +200,19 @@ const ExpenseModal = ({
     e.preventDefault();
     if (!amount || selectedMembers.length === 0 || !validation.isValid) return;
 
+    const splitsPayload = selectedMembers.map((userId) => ({
+      userId,
+      splitType,
+      splitValue:
+        splitType !== "EQUAL"
+          ? parseFloat(splitValues[userId] || "0")
+          : undefined,
+      shareAmount:
+        splitType === "EXACT"
+          ? parseFloat(splitValues[userId] || "0")
+          : undefined,
+    }));
+
     if (isEditing) {
       const expenseData: UpdateExpenseRequest = {
         description,
@@ -193,18 +221,7 @@ const ExpenseModal = ({
         categoryId,
         expenseDate,
         splitType,
-        splits: selectedMembers.map((userId) => ({
-          userId,
-          splitType,
-          splitValue:
-            splitType !== "EQUAL"
-              ? parseFloat(splitValues[userId] || "0")
-              : undefined,
-          shareAmount:
-            splitType === "EXACT"
-              ? parseFloat(splitValues[userId] || "0")
-              : undefined,
-        })),
+        splits: splitsPayload,
       };
       updateMutation.mutate(expenseData);
     } else {
@@ -215,18 +232,7 @@ const ExpenseModal = ({
         categoryId,
         expenseDate,
         splitType,
-        splits: selectedMembers.map((userId) => ({
-          userId,
-          splitType,
-          splitValue:
-            splitType !== "EQUAL"
-              ? parseFloat(splitValues[userId] || "0")
-              : undefined,
-          shareAmount:
-            splitType === "EXACT"
-              ? parseFloat(splitValues[userId] || "0")
-              : undefined,
-        })),
+        splits: splitsPayload,
       };
       createMutation.mutate(expenseData);
     }
@@ -270,250 +276,253 @@ const ExpenseModal = ({
   const isError = createMutation.isError || updateMutation.isError;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={isEditing ? "Edit Expense" : "Add New Expense"}
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Description"
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="e.g., Dinner, Groceries"
-          required
-        />
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg bg-white">
+        <DialogHeader className="border-b border-gray-200 pb-3">
+          <DialogTitle className="text-xl font-semibold text-gray-900">
+            {isEditing ? "Edit Expense" : "Add New Expense"}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 pt-2">
+          <Field>
+            <FieldLabel htmlFor="description">Description</FieldLabel>
+            <Input
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g., Dinner, Groceries"
+              required
+            />
+          </Field>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Amount"
-            id="amount"
-            type="number"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            required
-          />
-          <Input
-            label="Date"
-            id="date"
-            type="date"
-            value={expenseDate}
-            onChange={(e) => setExpenseDate(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="paidBy" className="block text-sm font-medium text-gray-700 mb-1">
-              Paid By
-            </label>
-            <select
-              id="paidBy"
-              value={paidBy}
-              onChange={(e) => setPaidBy(parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              {group.members.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.userId === parseInt(currentUser?.id || "0")
-                    ? "You"
-                    : memberNames[member.userId] ?? `User ${member.userId}`}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="amount">Amount</FieldLabel>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="date">Date</FieldLabel>
+              <Input
+                id="date"
+                type="date"
+                value={expenseDate}
+                onChange={(e) => setExpenseDate(e.target.value)}
+                required
+              />
+            </Field>
           </div>
 
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <select
-              id="category"
-              value={categoryId || ""}
-              onChange={(e) =>
-                setCategoryId(
-                  e.target.value ? parseInt(e.target.value) : undefined,
-                )
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select a category</option>
-              {categories?.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="space-y-2 py-2 border-y border-gray-100">
-          <span className="text-sm font-medium text-gray-700">Split Type:</span>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {(
-              ["EQUAL", "EXACT", "PERCENTAGE", "SHARES", "ADJUSTMENT"] as const
-            ).map((type) => (
-              <label
-                key={type}
-                className="flex items-center gap-1.5 cursor-pointer"
+          <div className="grid grid-cols-2 gap-4">
+            <Field>
+              <FieldLabel htmlFor="paidBy">Paid By</FieldLabel>
+              <Select
+                value={paidBy.toString()}
+                onValueChange={(val) => setPaidBy(parseInt(val || "0"))}
               >
-                <input
-                  type="radio"
-                  name="splitType"
-                  value={type}
-                  checked={splitType === type}
-                  onChange={() => {
-                    setSplitType(type);
-                    setSplitValues({});
-                  }}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span className="text-sm text-gray-700 capitalize">
-                  {getSplitTypeLabel(type)}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
+                <SelectTrigger id="paidBy" className="w-full">
+                  <SelectValue placeholder="Select Payer">{paidBy === parseInt(currentUser?.id || "0") ? "You" : memberNames[paidBy] ?? `User ${paidBy}`}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {group.members.map((member) => (
+                    <SelectItem key={member.userId} value={member.userId.toString()}>
+                      {member.userId === parseInt(currentUser?.id || "0")
+                        ? "You"
+                        : memberNames[member.userId] ?? `User ${member.userId}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Split between members
-          </label>
-          <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 space-y-3">
-            {group.members.map((member) => (
-              <div
-                key={member.userId}
-                className="flex flex-col gap-2 p-2 rounded-md hover:bg-gray-50"
+            <Field>
+              <FieldLabel htmlFor="category">Category</FieldLabel>
+              <Select
+                value={categoryId?.toString() || ""}
+                onValueChange={(val) => setCategoryId(val ? parseInt(val) : undefined)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id={`member-${member.userId}`}
-                      checked={selectedMembers.includes(member.userId)}
-                      onChange={() => handleMemberToggle(member.userId)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor={`member-${member.userId}`}
-                      className="ml-2 text-sm text-gray-900"
-                    >
-                      {memberNames[member.userId] ?? `User ${member.userId}`}
-                    </label>
-                  </div>
-                  {splitType !== "EQUAL" &&
-                    selectedMembers.includes(member.userId) && (
-                      <div className="flex items-center gap-1 w-32">
-                        <span className="text-sm text-gray-500">
-                          {getUnitPrefix()}
-                        </span>
-                        <Input
-                          id={`split-value-${member.userId}`}
-                          type="number"
-                          step={splitType === "SHARES" ? "1" : "0.01"}
-                          value={splitValues[member.userId] || ""}
-                          onChange={(e) =>
-                            handleSplitValueChange(
-                              member.userId,
-                              e.target.value,
-                            )
-                          }
-                          placeholder={getPlaceholder()}
-                          inputSize="sm"
-                          aria-label={`${memberNames[member.userId] ?? `User ${member.userId}`} split value`}
-                        />
-                        <span className="text-xs text-gray-500 whitespace-nowrap">
-                          {getUnitSuffix()}
-                        </span>
-                      </div>
-                    )}
+                <SelectTrigger id="category" className="w-full">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories?.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+
+          <div className="space-y-2 py-2 border-y border-gray-100">
+            <span className="text-sm font-medium text-gray-700">Split Type:</span>
+            <RadioGroup
+              value={splitType}
+              onValueChange={(val) => {
+                setSplitType(val as SplitType);
+                setSplitValues({});
+              }}
+              className="flex flex-wrap gap-x-4 gap-y-2"
+            >
+              {(
+                ["EQUAL", "EXACT", "PERCENTAGE", "SHARES", "ADJUSTMENT"] as const
+              ).map((type) => (
+                <div key={type} className="flex items-center gap-1.5">
+                  <RadioGroupItem
+                    value={type}
+                    id={`split-type-${type}`}
+                  />
+                  <label
+                    htmlFor={`split-type-${type}`}
+                    className="text-sm text-gray-700 capitalize cursor-pointer"
+                  >
+                    {getSplitTypeLabel(type)}
+                  </label>
                 </div>
-              </div>
-            ))}
+              ))}
+            </RadioGroup>
           </div>
-          {selectedMembers.length === 0 && (
-            <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-              <AlertCircle size={12} />
-              Select at least one member to split with.
-            </p>
-          )}
-        </div>
 
-        {amount && selectedMembers.length > 0 && (
-          <div
-            className={`p-3 rounded-md ${validation.isValid ? "bg-blue-50" : "bg-orange-50"}`}
-          >
-            {splitType === "EQUAL" ? (
-              <p className="text-sm text-blue-700">
-                Each person pays:{" "}
-                <span className="font-bold">${sharePerPerson}</span>
-              </p>
-            ) : (
-              <div className="flex justify-between items-center text-sm">
-                <p
-                  className={
-                    validation.isValid ? "text-blue-700" : "text-orange-700"
-                  }
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Split between members
+            </label>
+            <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 space-y-3">
+              {group.members.map((member) => (
+                <div
+                  key={member.userId}
+                  className="flex flex-col gap-2 p-2 rounded-md hover:bg-gray-50"
                 >
-                  {validation.message}
-                </p>
-                {splitType === "PERCENTAGE" && validation.isValid && (
-                  <p className="text-blue-700">
-                    Total:{" "}
-                    <span className="font-bold">${numAmount.toFixed(2)}</span>
-                  </p>
-                )}
-              </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`member-${member.userId}`}
+                        checked={selectedMembers.includes(member.userId)}
+                        onCheckedChange={() => handleMemberToggle(member.userId)}
+                      />
+                      <label
+                        htmlFor={`member-${member.userId}`}
+                        className="text-sm text-gray-900 cursor-pointer select-none"
+                      >
+                        {memberNames[member.userId] ?? `User ${member.userId}`}
+                      </label>
+                    </div>
+                    {splitType !== "EQUAL" &&
+                      selectedMembers.includes(member.userId) && (
+                        <div className="flex items-center gap-1 w-32">
+                          <span className="text-sm text-gray-500">
+                            {getUnitPrefix()}
+                          </span>
+                          <Input
+                            id={`split-value-${member.userId}`}
+                            type="number"
+                            step={splitType === "SHARES" ? "1" : "0.01"}
+                            value={splitValues[member.userId] || ""}
+                            onChange={(e) =>
+                              handleSplitValueChange(
+                                member.userId,
+                                e.target.value,
+                              )
+                            }
+                            placeholder={getPlaceholder()}
+                            aria-label={`${memberNames[member.userId] ?? `User ${member.userId}`} split value`}
+                          />
+                          <span className="text-xs text-gray-500 whitespace-nowrap">
+                            {getUnitSuffix()}
+                          </span>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {selectedMembers.length === 0 && (
+              <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle size={12} />
+                Select at least one member to split with.
+              </p>
             )}
           </div>
-        )}
 
-        {!validation.isValid && validation.error && (
-          <p className="text-xs text-orange-600 flex items-center gap-1">
-            <AlertCircle size={12} />
-            {validation.error}
-          </p>
-        )}
+          {amount && selectedMembers.length > 0 && (
+            <div
+              className={`p-3 rounded-md ${validation.isValid ? "bg-blue-50" : "bg-orange-50"}`}
+            >
+              {splitType === "EQUAL" ? (
+                <p className="text-sm text-blue-700">
+                  Each person pays:{" "}
+                  <span className="font-bold">${sharePerPerson}</span>
+                </p>
+              ) : (
+                <div className="flex justify-between items-center text-sm">
+                  <p
+                    className={
+                      validation.isValid ? "text-blue-700" : "text-orange-700"
+                    }
+                  >
+                    {validation.message}
+                  </p>
+                  {splitType === "PERCENTAGE" && validation.isValid && (
+                    <p className="text-blue-700">
+                      Total:{" "}
+                      <span className="font-bold">${numAmount.toFixed(2)}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
-        {isError && (
-          <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
-            {isEditing
-              ? "Failed to update expense. Please try again."
-              : "Failed to create expense. Please try again."}
+          {!validation.isValid && validation.error && (
+            <p className="text-xs text-orange-600 flex items-center gap-1">
+              <AlertCircle size={12} />
+              {validation.error}
+            </p>
+          )}
+
+          {isError && (
+            <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
+              {isEditing
+                ? "Failed to update expense. Please try again."
+                : "Failed to create expense. Please try again."}
+            </div>
+          )}
+
+          {isEditing && expense?.lastModifiedBy && (
+            <p className="text-xs text-gray-500 italic">
+              Last modified by {memberNames[expense.lastModifiedBy] ?? `User ${expense.lastModifiedBy}`}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                isPending ||
+                !amount ||
+                selectedMembers.length === 0 ||
+                !validation.isValid
+              }
+              className="flex items-center gap-2"
+            >
+              {isPending && <Loader2 size={16} className="animate-spin" />}
+              <span>{isEditing ? "Save Changes" : "Add Expense"}</span>
+            </Button>
           </div>
-        )}
-
-        {isEditing && expense?.lastModifiedBy && (
-          <p className="text-xs text-gray-500 italic">
-            Last modified by {memberNames[expense.lastModifiedBy] ?? `User ${expense.lastModifiedBy}`}
-          </p>
-        )}
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={
-              isPending ||
-              !amount ||
-              selectedMembers.length === 0 ||
-              !validation.isValid
-            }
-            className="flex items-center gap-2"
-          >
-            {isPending && <Loader2 size={16} className="animate-spin" />}
-            <span>{isEditing ? "Save Changes" : "Add Expense"}</span>
-          </Button>
-        </div>
-      </form>
-    </Modal>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

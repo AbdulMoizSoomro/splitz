@@ -4,8 +4,8 @@ import { Search, Loader2, UserPlus, Check, Clock } from "lucide-react";
 import api from "../../lib/axios";
 import { friendService } from "./friendService";
 import type { User, PaginatedResponse } from "../../types/user";
-import Input from "../../components/core/Input/Input";
-import Button from "../../components/core/Button/Button";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "../../store/authStore";
 
 const UserSearch = () => {
@@ -149,14 +149,14 @@ const UserSearch = () => {
 
   return (
     <div className="w-full space-y-4">
-      <div className="relative">
+      <div className="relative flex items-center">
+        <Search className="absolute left-3 text-gray-400" size={20} />
         <Input
           placeholder="Search by name or email..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="pl-10"
+          className="pl-10 w-full"
         />
-        <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
       </div>
 
       <div className="space-y-2">
@@ -230,7 +230,7 @@ const UserSearch = () => {
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
-                      variant="primary"
+                      variant="default"
                       onClick={() =>
                         respondMutation.mutate({
                           friendshipId: status.id!,
@@ -248,7 +248,7 @@ const UserSearch = () => {
                     </Button>
                     <Button
                       size="sm"
-                      variant="danger"
+                      variant="destructive"
                       onClick={() =>
                         respondMutation.mutate({
                           friendshipId: status.id!,
@@ -269,7 +269,7 @@ const UserSearch = () => {
                 {status.type === "none" && (
                   <Button
                     size="sm"
-                    variant="secondary"
+                    variant="outline"
                     className="flex items-center gap-1"
                     onClick={() => sendRequestMutation.mutate(user.id)}
                     disabled={isSending}

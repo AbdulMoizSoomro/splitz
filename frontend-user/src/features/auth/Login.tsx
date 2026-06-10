@@ -1,19 +1,26 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardContent,
-  CardFooter,
-} from "../../components/core/Card/Card";
-import Input from "../../components/core/Input/Input";
-import Button from "../../components/core/Button/Button";
+} from "@/components/ui/card";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldError,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import api, { isAxiosError } from "../../lib/axios";
 import { useAuthStore } from "../../store/authStore";
 
-const Login = () => {
+const Login = ({ className, ...props }: React.ComponentProps<"div">) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,10 +29,6 @@ const Login = () => {
   const [error, setError] = useState("");
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
 
   const validate = () => {
     const newErrors: { username?: string; password?: string } = {};
@@ -68,68 +71,84 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+    <div className={cn("flex flex-col gap-6 items-center justify-center min-h-[calc(100vh-80px)]", className)} {...props}>
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-center">Login to Splitz</CardTitle>
+          <CardTitle className="text-center text-2xl">Login to Splitz</CardTitle>
+          <CardDescription className="text-center">
+            Enter your credentials below to login to your account
+          </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit} noValidate>
-          <CardContent className="space-y-4">
-            <Input
-              label="Username"
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value);
-                if (errors.username) {
-                  setErrors((prev) => ({ ...prev, username: undefined }));
-                }
-              }}
-              placeholder="yourusername"
-              error={errors.username}
-            />
-            <Input
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (errors.password) {
-                  setErrors((prev) => ({ ...prev, password: undefined }));
-                }
-              }}
-              placeholder="••••••••"
-              error={errors.password}
-              rightElement={
-                <button
-                  type="button"
-                  onClick={togglePasswordVisibility}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                  aria-label="Toggle visibility"
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} data-lucide="eye-off" />
-                  ) : (
-                    <Eye size={20} data-lucide="eye" />
-                  )}
-                </button>
-              }
-            />
-            {error && (
-              <p className="text-sm font-medium text-red-500">{error}</p>
-            )}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
-            </Button>
-            <p className="text-sm text-center text-gray-600">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-blue-600 hover:underline">
-                Register here
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+        <CardContent>
+          <form onSubmit={handleSubmit} noValidate>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="username">Username</FieldLabel>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="yourusername"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (errors.username) {
+                      setErrors((prev) => ({ ...prev, username: undefined }));
+                    }
+                  }}
+                  required
+                />
+                {errors.username && <FieldError>{errors.username}</FieldError>}
+              </Field>
+              <Field>
+                <div className="flex items-center">
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                </div>
+                <div className="relative">
+                  <Input 
+                    id="password" 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (errors.password) {
+                        setErrors((prev) => ({ ...prev, password: undefined }));
+                      }
+                    }}
+                    required 
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label="toggle visibility"
+                  >
+                    {showPassword ? (
+                      <EyeOff size={16} data-lucide="eye-off" />
+                    ) : (
+                      <Eye size={16} data-lucide="eye" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && <FieldError>{errors.password}</FieldError>}
+              </Field>
+              {error && (
+                <p className="text-sm font-medium text-red-500 text-center">{error}</p>
+              )}
+              <Field>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Logging in..." : "Login"}
+                </Button>
+                <div className="text-center text-sm text-muted-foreground mt-4">
+                  Don&apos;t have an account?{" "}
+                  <Link to="/register" className="underline underline-offset-4 hover:text-primary">
+                    Register here
+                  </Link>
+                </div>
+              </Field>
+            </FieldGroup>
+          </form>
+        </CardContent>
       </Card>
     </div>
   );

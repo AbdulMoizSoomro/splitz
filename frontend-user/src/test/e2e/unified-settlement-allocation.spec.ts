@@ -9,19 +9,19 @@ async function registerUser(
   lastName: string,
 ) {
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill(firstName);
-  await page.getByLabel(/last name/i).fill(lastName);
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(`${username}@example.com`);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#firstName').fill(firstName);
+  await page.locator('#lastName').fill(lastName);
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(`${username}@example.com`);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
 }
 
 async function loginUser(page: Page, username: string) {
   await page.goto("/login");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
 }
@@ -33,7 +33,7 @@ async function sendFriendRequest(pageA: Page, targetUsername: string) {
     timeout: 10000,
   });
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByText(/pending/i)).toBeVisible({ timeout: 5000 });
+  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 5000 });
 }
 
 async function acceptFriendRequest(pageB: Page, fromUsername: string) {
@@ -59,7 +59,7 @@ async function createGroupWithMember(
     .click();
   const modal = pageOwner.getByRole("dialog");
   await expect(modal).toBeVisible();
-  await modal.getByLabel(/group name/i).fill(groupName);
+  await modal.locator('#group-name').fill(groupName);
 
   await expect(modal.locator(".animate-spin")).not.toBeVisible();
   
@@ -82,8 +82,8 @@ async function addEqualExpense(
   await pageOwner.goto("/groups");
   await pageOwner.getByText(groupName).click();
   await pageOwner.getByRole("button", { name: /add expense/i }).first().click();
-  await pageOwner.getByLabel(/description/i).fill(description);
-  await pageOwner.getByLabel(/amount/i).fill(amount);
+  await pageOwner.locator('#description').fill(description);
+  await pageOwner.locator('#amount').fill(amount);
   
   const addResp = pageOwner.waitForResponse(
     (r) => r.url().includes("/expenses") && r.status() === 201
@@ -173,14 +173,14 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
       // Let's verify Group A balance (both you don't owe anything and no outstanding debt of bobName)
       await pageAlice.goto("/groups");
       await pageAlice.getByText(setup.groupAName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(/you don't owe anything/i)).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText(bobName)).not.toBeVisible({ timeout: 5000 });
 
       // Let's verify Group B balance
       await pageAlice.goto("/groups");
       await pageAlice.getByText(setup.groupBName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(/you don't owe anything/i)).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText(bobName)).not.toBeVisible({ timeout: 5000 });
 
@@ -226,14 +226,14 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
       // Let's verify oldest Group A balance (Dinner: $100, Bob owes $50. $50 allocation should fully clear Group A)
       await pageAlice.goto("/groups");
       await pageAlice.getByText(setup.groupAName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(/you don't owe anything/i)).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText(bobName)).not.toBeVisible({ timeout: 5000 });
 
       // Let's verify newer Group B balance (Travel: $100, Bob owes $50. $30 allocation should partially clear Group B, leaving $20 Bob owes Alice)
       await pageAlice.goto("/groups");
       await pageAlice.getByText(setup.groupBName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(bobName).first()).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText("$20.00").first()).toBeVisible({ timeout: 10000 });
 
@@ -279,14 +279,14 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
       // Let's verify oldest Group A balance ($30 allocation partially settles it from $50 to $20)
       await pageAlice.goto("/groups");
       await pageAlice.getByText(setup.groupAName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(bobName).first()).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText("$20.00").first()).toBeVisible({ timeout: 10000 });
 
       // Let's verify newer Group B balance ($0 allocation leaves it untouched at $50 Bob owes Alice)
       await pageAlice.goto("/groups");
       await pageAlice.getByText(setup.groupBName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(bobName).first()).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText("$50.00").first()).toBeVisible({ timeout: 10000 });
 
@@ -332,13 +332,13 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
       // Verify both groups are completely settled ($0 balance)
       await pageAlice.goto("/groups");
       await pageAlice.getByText(setup.groupAName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(/you don't owe anything/i)).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText(bobName)).not.toBeVisible({ timeout: 5000 });
 
       await pageAlice.goto("/groups");
       await pageAlice.getByText(setup.groupBName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(/you don't owe anything/i)).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText(bobName)).not.toBeVisible({ timeout: 5000 });
 
@@ -408,14 +408,14 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
       // Verify Group A balance is updated (Bob owed $50, paid $20, so he still owes $30)
       await pageAlice.goto("/groups");
       await pageAlice.getByText(groupAName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(bobName).first()).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText("$30.00").first()).toBeVisible({ timeout: 10000 });
 
       // Verify Group B balance remains untouched (Alice owes Bob $30.00)
       await pageAlice.goto("/groups");
       await pageAlice.getByText(groupBName).click();
-      await pageAlice.getByRole("button", { name: /balances/i }).click();
+      await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText("You owe").first()).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText("$30.00").first()).toBeVisible({ timeout: 10000 });
 
@@ -474,6 +474,7 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
       await pageBob.getByText(groupName).click();
       
       // Bob clicks "Leave Group" button in the action card
+      await pageBob.getByRole("tab", { name: "Members" }).click();
       await pageBob.getByRole("button", { name: /leave group/i }).click();
       
       // Leave group modal should appear

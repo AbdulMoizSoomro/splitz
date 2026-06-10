@@ -2,14 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, Loader2, AlertCircle, UserMinus } from "lucide-react";
 import { friendService } from "./friendService";
 import { useAuthStore } from "../../store/authStore";
-import Button from "../../components/core/Button/Button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
-} from "../../components/core/Card/Card";
-import Badge from "../../components/core/Badge/Badge";
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useTempFriends } from "../../hooks/useTempFriends";
 
 const TempFriendsList = () => {
@@ -94,7 +94,6 @@ const TempFriendsList = () => {
                       {tf.groups.map((g) => (
                         <Badge
                           key={g.id}
-                          variant="default"
                           className="text-[10px] py-0 px-1 bg-orange-100 text-orange-700 border-orange-200"
                         >
                           {g.name}
@@ -133,7 +132,7 @@ const TempFriendsList = () => {
                 ) : (
                   <Button
                     size="sm"
-                    variant="secondary"
+                    variant="outline"
                     className="flex items-center gap-1 border-orange-200 hover:bg-orange-50"
                     onClick={() => addFriendMutation.mutate(tf.userId)}
                     disabled={isMutationPending}

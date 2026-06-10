@@ -9,19 +9,19 @@ async function registerUser(
   lastName: string,
 ) {
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill(firstName);
-  await page.getByLabel(/last name/i).fill(lastName);
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(`${username}@example.com`);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#firstName').fill(firstName);
+  await page.locator('#lastName').fill(lastName);
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(`${username}@example.com`);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
 }
 
 async function loginUser(page: Page, username: string) {
   await page.goto("/login");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
 }
@@ -34,7 +34,7 @@ async function sendFriendRequest(pageA: Page, targetUsername: string) {
     timeout: 10000,
   });
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByText(/pending/i)).toBeVisible({ timeout: 5000 });
+  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 5000 });
 }
 
 /** Accept the first pending friend request from the given sender. */
@@ -65,7 +65,7 @@ async function createGroupWithMember(
     .click();
   const modal = pageOwner.getByRole("dialog");
   await expect(modal).toBeVisible();
-  await modal.getByLabel(/group name/i).fill(groupName);
+  await modal.locator('#group-name').fill(groupName);
 
   // Click the friend's name in the friend picker list
   const friendPicker = modal.locator(".max-h-48");
@@ -126,7 +126,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
 
       // 5. In GroupDetails, navigate to Members tab
       await pageOwner
-        .getByRole("button", { name: "Members", exact: true })
+        .getByRole("tab", { name: "Members", exact: true })
         .click();
 
       // 6. The member (who is a friend of owner) should show "Member" badge
@@ -153,7 +153,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
 
       // Navigate to Members tab
       await pageOwner
-        .getByRole("button", { name: "Members", exact: true })
+        .getByRole("tab", { name: "Members", exact: true })
         .click();
 
       // The member should now show the "Temp Friend" badge
@@ -211,8 +211,8 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
         name: /add new expense/i,
       });
       await expect(expenseModal).toBeVisible();
-      await expenseModal.getByLabel(/description/i).fill("Dinner");
-      await expenseModal.getByLabel(/amount/i).fill("20.00");
+      await expenseModal.locator('#description').fill("Dinner");
+      await expenseModal.locator('#amount').fill("20.00");
       await expenseModal.getByRole("button", { name: /add expense/i }).click();
       await expect(expenseModal).not.toBeVisible({ timeout: 10000 });
 
@@ -222,6 +222,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
       await expect(pageDebtor.getByText(groupName)).toBeVisible();
 
       // 7. Debtor clicks "Leave Group" (in sidebar, always visible)
+      await pageDebtor.getByRole("tab", { name: "Members" }).click();
       await pageDebtor.getByRole("button", { name: /leave group/i }).click();
       const leaveModal = pageDebtor.getByRole("dialog");
       await expect(leaveModal).toBeVisible();
@@ -263,7 +264,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
       .click();
     const modal = page.getByRole("dialog");
     const groupName = `Zero Balance Group ${ts}`;
-    await modal.getByLabel(/group name/i).fill(groupName);
+    await modal.locator('#group-name').fill(groupName);
     await modal.getByRole("button", { name: /create group/i }).click();
     await expect(modal).not.toBeVisible({ timeout: 10000 });
 
@@ -273,6 +274,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
     await expect(page).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
 
     // 4. Click "Leave Group"
+    await page.getByRole("tab", { name: "Members" }).click();
     await page.getByRole("button", { name: /leave group/i }).click();
     const leaveModal = page.getByRole("dialog");
     await expect(leaveModal).toBeVisible();

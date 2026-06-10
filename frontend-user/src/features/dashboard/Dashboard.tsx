@@ -5,8 +5,8 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-} from "../../components/core/Card/Card";
-import Button from "../../components/core/Button/Button";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import UserSearch from "../users/UserSearch";
 import FriendRequestsList from "../users/FriendRequestsList";
 import FriendsList from "../users/FriendsList";

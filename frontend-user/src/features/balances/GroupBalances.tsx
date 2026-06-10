@@ -2,17 +2,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { settlementService } from "./settlementService";
 import { groupService } from "../groups/groupService";
 import { useAuthStore } from "../../store/authStore";
-import { useToastStore } from "../../store/toastStore";
+import { toast } from "sonner";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
-} from "../../components/core/Card/Card";
-import Button from "../../components/core/Button/Button";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Loader2, ArrowRight, Clock } from "lucide-react";
 import { useState } from "react";
-import Modal from "../../components/core/Modal/Modal";
 
 interface GroupBalancesProps {
   groupId: number;
@@ -22,7 +27,7 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
   const { user } = useAuthStore();
   const currentUserId = Number(user?.id);
   const queryClient = useQueryClient();
-  const { addToast } = useToastStore();
+
   const [isSettleModalOpen, setIsAddSettleModalOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<{
     from: number;
@@ -60,11 +65,11 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
       queryClient.invalidateQueries({
         queryKey: ["group-settlements", groupId],
       });
-      addToast("Payment recorded and marked as paid", "success");
+      toast.success("Payment recorded and marked as paid");
       setIsAddSettleModalOpen(false);
     },
     onError: () => {
-      addToast("Failed to record payment", "error");
+      toast.error("Failed to record payment");
     },
   });
 
@@ -75,14 +80,14 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
       queryClient.invalidateQueries({
         queryKey: ["group-settlements", groupId],
       });
-      addToast("Payment confirmed", "success");
+      toast.success("Payment confirmed");
     },
   });
 
   if (isLoading || isLoadingSettlements) {
     return (
       <div className="flex justify-center p-8">
-        <Loader2 className="animate-spin" />
+        <Loader2 className="animate-spin text-blue-600" />
       </div>
     );
   }
@@ -245,7 +250,7 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
                     </div>
                   </div>
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     onClick={() => confirmMutation.mutate(s.id)}
                     disabled={confirmMutation.isPending}
@@ -276,37 +281,38 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
       )}
 
       {/* Settle Modal */}
-      <Modal
-        isOpen={isSettleModalOpen}
-        onClose={() => setIsAddSettleModalOpen(false)}
-        title="Record Payment"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600">
-            Confirm that you have sent{" "}
-            <strong>${selectedDebt?.amount.toFixed(2)}</strong> to{" "}
-            <strong>{selectedDebt?.toUsername}</strong>.
-          </p>
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => setIsAddSettleModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() =>
-                selectedDebt && createSettlementMutation.mutate(selectedDebt)
-              }
-              disabled={createSettlementMutation.isPending}
-            >
-              {createSettlementMutation.isPending
-                ? "Processing..."
-                : "Confirm & Mark Paid"}
-            </Button>
+      <Dialog open={isSettleModalOpen} onOpenChange={(open) => { if (!open) setIsAddSettleModalOpen(false); }}>
+        <DialogContent className="max-w-lg bg-white">
+          <DialogHeader className="border-b border-gray-200 pb-3">
+            <DialogTitle className="text-xl font-semibold text-gray-900">Record Payment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-gray-600">
+              Confirm that you have sent{" "}
+              <strong>${selectedDebt?.amount.toFixed(2)}</strong> to{" "}
+              <strong>{selectedDebt?.toUsername}</strong>.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsAddSettleModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() =>
+                  selectedDebt && createSettlementMutation.mutate(selectedDebt)
+                }
+                disabled={createSettlementMutation.isPending}
+              >
+                {createSettlementMutation.isPending
+                  ? "Processing..."
+                  : "Confirm & Mark Paid"}
+              </Button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

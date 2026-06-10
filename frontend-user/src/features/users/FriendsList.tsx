@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import api from "../../lib/axios";
 import type { User } from "../../types/user";
 import { useAuthStore } from "../../store/authStore";
-import Button from "../../components/core/Button/Button";
+import { Button } from "@/components/ui/button";
 
 const FriendsList = () => {
   const currentUser = useAuthStore((state) => state.user);
@@ -79,7 +79,7 @@ const FriendsList = () => {
 
             <Button
               size="sm"
-              variant="secondary"
+              variant="outline"
               className="text-gray-400 hover:text-red-600 hover:bg-red-50"
               onClick={() => {
                 if (

@@ -10,18 +10,18 @@ test.describe("Group Management", () => {
     // 1. Register and Login
     await page.goto("/register");
     console.log("On Register Page");
-    await page.getByLabel(/first name/i).fill("Group");
-    await page.getByLabel(/last name/i).fill("Tester");
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#firstName').fill("Group");
+    await page.locator('#lastName').fill("Tester");
+    await page.locator('#username').fill(username);
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(password);
     console.log("Submitting Registration");
     await page.getByRole("button", { name: /register/i }).click();
 
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
     console.log("On Login Page");
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(password);
     console.log("Submitting Login");
     await page.getByRole("button", { name: /login/i }).click();
 
@@ -49,8 +49,8 @@ test.describe("Group Management", () => {
     // 4. Fill group form
     const groupName = `Group ${timestamp}`;
     console.log("Filling group form:", groupName);
-    await modal.getByLabel(/group name/i).fill(groupName);
-    await modal.getByLabel(/description/i).fill("Testing group creation");
+    await modal.locator('#group-name').fill(groupName);
+    await modal.locator('#group-description').fill("Testing group creation");
 
     // Explicitly find the submit button in the modal
     const submitButton = modal.getByRole("button", { name: /create group/i });
@@ -81,16 +81,16 @@ test.describe("Group Management", () => {
 
     // 1. Register and Login
     await page.goto("/register");
-    await page.getByLabel(/first name/i).fill("Role");
-    await page.getByLabel(/last name/i).fill("Tester");
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#firstName').fill("Role");
+    await page.locator('#lastName').fill("Tester");
+    await page.locator('#username').fill(username);
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /register/i }).click();
 
     await expect(page).toHaveURL(/\/login/);
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /login/i }).click();
     await expect(page).toHaveURL(/\/$/);
 
@@ -99,7 +99,7 @@ test.describe("Group Management", () => {
     await page.getByRole("button", { name: /create group/i }).click();
     const groupName = `Role Group ${timestamp}`;
     const modal = page.getByRole("dialog");
-    await modal.getByLabel(/group name/i).fill(groupName);
+    await modal.locator('#group-name').fill(groupName);
     await modal.getByRole("button", { name: /create group/i }).click();
 
     // 3. Wait for group to appear and click it
@@ -112,7 +112,7 @@ test.describe("Group Management", () => {
     await expect(page.getByText(groupName)).toBeVisible();
 
     // Navigate to Members tab
-    await page.getByRole("button", { name: "Members", exact: true }).click();
+    await page.getByRole("tab", { name: "Members", exact: true }).click();
 
     // 5. Verify "Owner" badge is visible for the creator
     await expect(page.getByText("You", { exact: true })).toBeVisible();
@@ -128,26 +128,26 @@ test.describe("Group Management", () => {
 
     // 1. Register Member User
     await page.goto("/register");
-    await page.getByLabel(/first name/i).fill("Member");
-    await page.getByLabel(/last name/i).fill("User");
-    await page.getByLabel(/username/i).fill(memberUser);
-    await page.getByLabel(/email/i).fill(`${memberUser}@example.com`);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#firstName').fill("Member");
+    await page.locator('#lastName').fill("User");
+    await page.locator('#username').fill(memberUser);
+    await page.locator('#email').fill(`${memberUser}@example.com`);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /register/i }).click();
     await expect(page).toHaveURL(/\/login/);
 
     // 2. Register and Login Owner User
     await page.goto("/register");
-    await page.getByLabel(/first name/i).fill("Owner");
-    await page.getByLabel(/last name/i).fill("User");
-    await page.getByLabel(/username/i).fill(ownerUser);
-    await page.getByLabel(/email/i).fill(`${ownerUser}@example.com`);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#firstName').fill("Owner");
+    await page.locator('#lastName').fill("User");
+    await page.locator('#username').fill(ownerUser);
+    await page.locator('#email').fill(`${ownerUser}@example.com`);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /register/i }).click();
     await expect(page).toHaveURL(/\/login/);
 
-    await page.getByLabel(/username/i).fill(ownerUser);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#username').fill(ownerUser);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /login/i }).click();
     await expect(page).toHaveURL(/\/$/);
 
@@ -158,14 +158,14 @@ test.describe("Group Management", () => {
       .first()
       .click();
     const modal = page.getByRole("dialog");
-    await modal.getByLabel(/group name/i).fill(`Role Group ${timestamp}`);
+    await modal.locator('#group-name').fill(`Role Group ${timestamp}`);
     await modal
       .getByRole("button", { name: "Create Group", exact: true })
       .click();
     await page.getByText(`Role Group ${timestamp}`).click();
 
     // Navigate to Members tab
-    await page.getByRole("button", { name: "Members", exact: true }).click();
+    await page.getByRole("tab", { name: "Members", exact: true }).click();
 
     // Verify "Manage role" is NOT visible for self (Owner cannot demote self)
     await expect(page.getByText("You", { exact: true })).toBeVisible();

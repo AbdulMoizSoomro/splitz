@@ -9,19 +9,19 @@ async function registerUser(
   lastName: string,
 ) {
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill(firstName);
-  await page.getByLabel(/last name/i).fill(lastName);
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(`${username}@example.com`);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#firstName').fill(firstName);
+  await page.locator('#lastName').fill(lastName);
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(`${username}@example.com`);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
 }
 
 async function loginUser(page: Page, username: string) {
   await page.goto("/login");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
 }
@@ -33,7 +33,7 @@ async function sendFriendRequest(pageA: Page, targetUsername: string) {
     timeout: 10000,
   });
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByText(/pending/i)).toBeVisible({ timeout: 5000 });
+  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 5000 });
 }
 
 async function acceptFriendRequest(pageB: Page, fromUsername: string) {
@@ -59,7 +59,7 @@ async function createGroupWithMember(
     .click();
   const modal = pageOwner.getByRole("dialog");
   await expect(modal).toBeVisible();
-  await modal.getByLabel(/group name/i).fill(groupName);
+  await modal.locator('#group-name').fill(groupName);
 
   const friendPicker = modal.locator(".max-h-48");
   const friendEntry = friendPicker.getByText(
@@ -124,7 +124,7 @@ test.describe("[E2E] Friend Detail Page", () => {
 
       // 7. Assert Shared Groups
       await expect(pageAlice.getByText("Shared Groups")).toBeVisible();
-      await expect(pageAlice.getByText(groupName)).toBeVisible();
+      await expect(pageAlice.getByText(groupName).first()).toBeVisible();
 
       // 8. Alice creates an expense in the shared group
       await pageAlice.goto("/groups");
@@ -135,8 +135,8 @@ test.describe("[E2E] Friend Detail Page", () => {
         name: /add new expense/i,
       });
       await expect(expenseModal).toBeVisible();
-      await expenseModal.getByLabel(/description/i).fill("Pizza Party");
-      await expenseModal.getByLabel(/amount/i).fill("40.00");
+      await expenseModal.locator('#description').fill("Pizza Party");
+      await expenseModal.locator('#amount').fill("40.00");
       await expenseModal.getByRole("button", { name: /add expense/i }).click();
       await expect(expenseModal).not.toBeVisible({ timeout: 10000 });
 
