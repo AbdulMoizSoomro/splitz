@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, Loader2, AlertCircle, UserMinus } from "lucide-react";
+import { Link } from "react-router-dom";
 import { friendService } from "./friendService";
 import { useAuthStore } from "../../store/authStore";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTempFriends } from "../../hooks/useTempFriends";
 
 const TempFriendsList = () => {
@@ -63,15 +65,16 @@ const TempFriendsList = () => {
   }
 
   return (
-    <Card className="border-orange-200 bg-orange-50/30">
+    <Card className="border-orange-200 dark:border-orange-900/50 bg-orange-50/30 dark:bg-orange-900/10">
       <CardHeader>
-        <CardTitle className="text-orange-800 flex items-center gap-2">
+        <CardTitle className="text-orange-800 dark:text-orange-400 flex items-center gap-2">
           <AlertCircle size={20} />
           Temporary Friends
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+        <ScrollArea className="h-[300px] pr-4">
+          <div className="space-y-3">
           {tempFriends.map((tf) => {
             const pendingRequest = outgoingRequests?.find(
               (r) => r.addresseeId === tf.userId,
@@ -83,18 +86,21 @@ const TempFriendsList = () => {
             return (
               <div
                 key={tf.userId}
-                className="flex items-center justify-between p-3 bg-white border border-orange-100 rounded-lg shadow-sm"
+                className="flex items-center justify-between p-3 bg-background border border-orange-100 dark:border-orange-900/30 rounded-lg shadow-sm"
               >
-                <div className="flex-1 min-w-0 mr-4">
+                <Link
+                  to={`/friends/${tf.userId}`}
+                  className="flex-1 min-w-0 mr-4 group block hover:opacity-80 transition-opacity"
+                >
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold text-gray-900 truncate">
+                    <p className="font-semibold text-foreground truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {tf.username}
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {tf.groups.map((g) => (
                         <Badge
                           key={g.id}
-                          className="text-[10px] py-0 px-1 bg-orange-100 text-orange-700 border-orange-200"
+                          className="text-[10px] py-0 px-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800/50"
                         >
                           {g.name}
                         </Badge>
@@ -102,19 +108,19 @@ const TempFriendsList = () => {
                     </div>
                   </div>
                   <p
-                    className={`text-sm ${tf.balance > 0 ? "text-green-600" : "text-red-600"}`}
+                    className={`text-sm ${tf.balance > 0 ? "text-emerald-500" : "text-destructive"}`}
                   >
                     {tf.balance > 0
                       ? `Owes you ${tf.balance.toFixed(2)}`
                       : `You owe ${Math.abs(tf.balance).toFixed(2)}`}
                   </p>
-                </div>
+                </Link>
 
                 {isPending ? (
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="flex items-center gap-1 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
                     onClick={() => cancelRequestMutation.mutate(tf.userId)}
                     disabled={isMutationPending}
                   >
@@ -133,7 +139,7 @@ const TempFriendsList = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex items-center gap-1 border-orange-200 hover:bg-orange-50"
+                    className="flex items-center gap-1 border-orange-200 dark:border-orange-800/50 hover:bg-orange-50 dark:hover:bg-orange-900/20 text-foreground"
                     onClick={() => addFriendMutation.mutate(tf.userId)}
                     disabled={isMutationPending}
                   >
@@ -152,7 +158,8 @@ const TempFriendsList = () => {
               </div>
             );
           })}
-        </div>
+          </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );

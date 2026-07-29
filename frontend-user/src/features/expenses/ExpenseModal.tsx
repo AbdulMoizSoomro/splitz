@@ -277,9 +277,9 @@ const ExpenseModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-lg bg-white">
-        <DialogHeader className="border-b border-gray-200 pb-3">
-          <DialogTitle className="text-xl font-semibold text-gray-900">
+      <DialogContent className="max-w-lg bg-background text-foreground border-border">
+        <DialogHeader className="border-b border-border pb-3">
+          <DialogTitle className="text-xl font-semibold">
             {isEditing ? "Edit Expense" : "Add New Expense"}
           </DialogTitle>
         </DialogHeader>
@@ -362,8 +362,8 @@ const ExpenseModal = ({
             </Field>
           </div>
 
-          <div className="space-y-2 py-2 border-y border-gray-100">
-            <span className="text-sm font-medium text-gray-700">Split Type:</span>
+          <div className="space-y-2 py-2 border-y border-border">
+            <span className="text-sm font-medium text-foreground">Split Type:</span>
             <RadioGroup
               value={splitType}
               onValueChange={(val) => {
@@ -382,7 +382,7 @@ const ExpenseModal = ({
                   />
                   <label
                     htmlFor={`split-type-${type}`}
-                    className="text-sm text-gray-700 capitalize cursor-pointer"
+                    className="text-sm text-muted-foreground hover:text-foreground capitalize cursor-pointer"
                   >
                     {getSplitTypeLabel(type)}
                   </label>
@@ -392,14 +392,14 @@ const ExpenseModal = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Split between members
             </label>
-            <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 space-y-3">
+            <div className="max-h-60 overflow-y-auto border border-border rounded-md p-2 space-y-3">
               {group.members.map((member) => (
                 <div
                   key={member.userId}
-                  className="flex flex-col gap-2 p-2 rounded-md hover:bg-gray-50"
+                  className="flex flex-col gap-2 p-2 rounded-md hover:bg-muted/50"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -410,7 +410,7 @@ const ExpenseModal = ({
                       />
                       <label
                         htmlFor={`member-${member.userId}`}
-                        className="text-sm text-gray-900 cursor-pointer select-none"
+                        className="text-sm text-foreground cursor-pointer select-none"
                       >
                         {memberNames[member.userId] ?? `User ${member.userId}`}
                       </label>
@@ -418,7 +418,7 @@ const ExpenseModal = ({
                     {splitType !== "EQUAL" &&
                       selectedMembers.includes(member.userId) && (
                         <div className="flex items-center gap-1 w-32">
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-muted-foreground">
                             {getUnitPrefix()}
                           </span>
                           <Input
@@ -435,7 +435,7 @@ const ExpenseModal = ({
                             placeholder={getPlaceholder()}
                             aria-label={`${memberNames[member.userId] ?? `User ${member.userId}`} split value`}
                           />
-                          <span className="text-xs text-gray-500 whitespace-nowrap">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {getUnitSuffix()}
                           </span>
                         </div>
@@ -454,10 +454,10 @@ const ExpenseModal = ({
 
           {amount && selectedMembers.length > 0 && (
             <div
-              className={`p-3 rounded-md ${validation.isValid ? "bg-blue-50" : "bg-orange-50"}`}
+              className={`p-3 rounded-md ${validation.isValid ? "bg-blue-50 dark:bg-blue-900/20" : "bg-orange-50 dark:bg-orange-900/20"}`}
             >
               {splitType === "EQUAL" ? (
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-blue-700 dark:text-blue-400">
                   Each person pays:{" "}
                   <span className="font-bold">${sharePerPerson}</span>
                 </p>
@@ -465,13 +465,13 @@ const ExpenseModal = ({
                 <div className="flex justify-between items-center text-sm">
                   <p
                     className={
-                      validation.isValid ? "text-blue-700" : "text-orange-700"
+                      validation.isValid ? "text-blue-700 dark:text-blue-400" : "text-orange-700 dark:text-orange-400"
                     }
                   >
                     {validation.message}
                   </p>
                   {splitType === "PERCENTAGE" && validation.isValid && (
-                    <p className="text-blue-700">
+                    <p className="text-blue-700 dark:text-blue-400">
                       Total:{" "}
                       <span className="font-bold">${numAmount.toFixed(2)}</span>
                     </p>
@@ -482,14 +482,14 @@ const ExpenseModal = ({
           )}
 
           {!validation.isValid && validation.error && (
-            <p className="text-xs text-orange-600 flex items-center gap-1">
+            <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
               <AlertCircle size={12} />
               {validation.error}
             </p>
           )}
 
           {isError && (
-            <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-md text-sm">
               {isEditing
                 ? "Failed to update expense. Please try again."
                 : "Failed to create expense. Please try again."}
@@ -497,7 +497,7 @@ const ExpenseModal = ({
           )}
 
           {isEditing && expense?.lastModifiedBy && (
-            <p className="text-xs text-gray-500 italic">
+            <p className="text-xs text-muted-foreground italic">
               Last modified by {memberNames[expense.lastModifiedBy] ?? `User ${expense.lastModifiedBy}`}
             </p>
           )}

@@ -6,6 +6,7 @@ import { friendService } from "./friendService";
 import type { User, PaginatedResponse } from "../../types/user";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAuthStore } from "../../store/authStore";
 
 const UserSearch = () => {
@@ -150,7 +151,7 @@ const UserSearch = () => {
   return (
     <div className="w-full space-y-4">
       <div className="relative flex items-center">
-        <Search className="absolute left-3 text-gray-400" size={20} />
+        <Search className="absolute left-3 text-muted-foreground" size={20} />
         <Input
           placeholder="Search by name or email..."
           value={query}
@@ -169,7 +170,7 @@ const UserSearch = () => {
         {!isSearching &&
           query.length > 2 &&
           searchData?.content.length === 0 && (
-            <p className="text-center text-gray-500 py-4">No users found.</p>
+            <p className="text-center text-muted-foreground py-4">No users found.</p>
           )}
 
         {searchData?.content.map((user) => {
@@ -185,105 +186,104 @@ const UserSearch = () => {
             respondMutation.variables?.friendshipId === status.id;
 
           return (
-            <div
-              key={user.id}
-              className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg shadow-sm"
-            >
-              <div>
-                <p className="font-semibold text-gray-900">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-sm text-gray-500">@{user.username}</p>
-              </div>
+            <Card key={user.id} className="shadow-sm border-border">
+              <CardContent className="flex items-center justify-between p-4">
+                <div>
+                  <p className="font-semibold text-foreground">
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">@{user.username}</p>
+                </div>
 
-              <div>
-                {status.type === "self" && (
-                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    You
-                  </span>
-                )}
-                {status.type === "friend" && (
-                  <div className="flex items-center gap-1 text-green-600">
-                    <Check size={16} />
-                    <span className="text-sm font-medium">Friends</span>
-                  </div>
-                )}
-                {status.type === "outgoing" && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="flex items-center gap-1 text-orange-500 hover:text-orange-600 hover:bg-orange-50"
-                    onClick={() => cancelRequestMutation.mutate(user.id)}
-                    disabled={isCancelling}
-                  >
-                    {isCancelling ? (
-                      <Loader2 className="animate-spin" size={16} />
-                    ) : (
-                      <Clock size={16} />
-                    )}
-                    <span>
-                      {isCancelling ? "Cancelling..." : "Pending (Cancel)"}
+                <div>
+                  {status.type === "self" && (
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      You
                     </span>
-                  </Button>
-                )}
-                {status.type === "incoming" && (
-                  <div className="flex items-center gap-2">
+                  )}
+                  {status.type === "friend" && (
+                    <div className="flex items-center gap-1 text-green-600 dark:text-green-500">
+                      <Check size={16} />
+                      <span className="text-sm font-medium">Friends</span>
+                    </div>
+                  )}
+                  {status.type === "outgoing" && (
                     <Button
                       size="sm"
-                      variant="default"
-                      onClick={() =>
-                        respondMutation.mutate({
-                          friendshipId: status.id!,
-                          action: "accept",
-                        })
-                      }
-                      disabled={isResponding}
+                      variant="ghost"
+                      className="flex items-center gap-1 text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30"
+                      onClick={() => cancelRequestMutation.mutate(user.id)}
+                      disabled={isCancelling}
                     >
-                      {isResponding &&
-                      respondMutation.variables?.action === "accept" ? (
+                      {isCancelling ? (
                         <Loader2 className="animate-spin" size={16} />
                       ) : (
-                        "Accept"
+                        <Clock size={16} />
                       )}
+                      <span>
+                        {isCancelling ? "Cancelling..." : "Pending (Cancel)"}
+                      </span>
                     </Button>
+                  )}
+                  {status.type === "incoming" && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() =>
+                          respondMutation.mutate({
+                            friendshipId: status.id!,
+                            action: "accept",
+                          })
+                        }
+                        disabled={isResponding}
+                      >
+                        {isResponding &&
+                        respondMutation.variables?.action === "accept" ? (
+                          <Loader2 className="animate-spin" size={16} />
+                        ) : (
+                          "Accept"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          respondMutation.mutate({
+                            friendshipId: status.id!,
+                            action: "reject",
+                          })
+                        }
+                        disabled={isResponding}
+                      >
+                        {isResponding &&
+                        respondMutation.variables?.action === "reject" ? (
+                          <Loader2 className="animate-spin" size={16} />
+                        ) : (
+                          "Reject"
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                  {status.type === "none" && (
                     <Button
                       size="sm"
-                      variant="destructive"
-                      onClick={() =>
-                        respondMutation.mutate({
-                          friendshipId: status.id!,
-                          action: "reject",
-                        })
-                      }
-                      disabled={isResponding}
+                      variant="outline"
+                      className="flex items-center gap-1"
+                      onClick={() => sendRequestMutation.mutate(user.id)}
+                      disabled={isSending}
                     >
-                      {isResponding &&
-                      respondMutation.variables?.action === "reject" ? (
+                      {isSending ? (
                         <Loader2 className="animate-spin" size={16} />
                       ) : (
-                        "Reject"
+                        <UserPlus size={16} />
                       )}
+                      <span>{isSending ? "Sending..." : "Add Friend"}</span>
                     </Button>
-                  </div>
-                )}
-                {status.type === "none" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center gap-1"
-                    onClick={() => sendRequestMutation.mutate(user.id)}
-                    disabled={isSending}
-                  >
-                    {isSending ? (
-                      <Loader2 className="animate-spin" size={16} />
-                    ) : (
-                      <UserPlus size={16} />
-                    )}
-                    <span>{isSending ? "Sending..." : "Add Friend"}</span>
-                  </Button>
-                )}
-              </div>
-            </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

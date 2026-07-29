@@ -4,6 +4,7 @@ import TempFriendsList from "./TempFriendsList";
 import { friendService } from "./friendService";
 import { groupService } from "../groups/groupService";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,7 +42,9 @@ describe("TempFriendsList", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <TempFriendsList />
+        <MemoryRouter>
+          <TempFriendsList />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -93,7 +96,9 @@ describe("TempFriendsList", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <TempFriendsList />
+        <MemoryRouter>
+          <TempFriendsList />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -143,7 +148,9 @@ describe("TempFriendsList", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <TempFriendsList />
+        <MemoryRouter>
+          <TempFriendsList />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -171,7 +178,9 @@ describe("TempFriendsList", () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <TempFriendsList />
+        <MemoryRouter>
+          <TempFriendsList />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 

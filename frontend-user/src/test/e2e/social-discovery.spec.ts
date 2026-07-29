@@ -204,7 +204,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
 
       // 5. Payer creates an expense (equal split): $20 → each owes $10
       await pagePayer.goto("/groups");
-      const groupCard = pagePayer.locator(".bg-white", { hasText: groupName });
+      const groupCard = pagePayer.locator(".bg-card", { hasText: groupName });
       await groupCard.getByRole("button", { name: /add expense/i }).click();
 
       const expenseModal = pagePayer.getByRole("dialog", {
@@ -219,7 +219,7 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
       // 6. Debtor navigates to the group details
       await pageDebtor.goto(groupUrl);
       await expect(pageDebtor).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
-      await expect(pageDebtor.getByText(groupName)).toBeVisible();
+      await expect(pageDebtor.getByRole('heading', { name: groupName })).toBeVisible();
 
       // 7. Debtor clicks "Leave Group" (in sidebar, always visible)
       await pageDebtor.getByRole("tab", { name: "Members" }).click();

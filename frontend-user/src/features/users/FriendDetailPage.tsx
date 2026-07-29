@@ -15,7 +15,17 @@ import {
   X,
   Check,
   Globe,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import api from "../../lib/axios";
 import { Button } from "@/components/ui/button";
 import { groupService } from "../groups/groupService";
@@ -49,7 +59,54 @@ const FriendDetailPage = () => {
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
   const [editingSettlementId, setEditingSettlementId] = useState<number | null>(null);
   const [editAmount, setEditAmount] = useState("");
+  const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
+  const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  const { data: friendsList } = useQuery({
+    queryKey: ["friends", currentUser?.id],
+    queryFn: () => friendService.getFriends(currentUser!.id),
+    enabled: !!currentUser?.id,
+  });
+
+  const { data: outgoingRequests } = useQuery({
+    queryKey: ["friend-requests", currentUser?.id, "OUTGOING"],
+    queryFn: () => friendService.getFriendRequests(currentUser!.id, "OUTGOING"),
+    enabled: !!currentUser?.id,
+  });
+
+  const hasLoadedStatus = friendsList !== undefined && outgoingRequests !== undefined;
+  const friendArray = Array.isArray(friendsList)
+    ? friendsList
+    : (friendsList as any)?.content && Array.isArray((friendsList as any).content)
+    ? (friendsList as any).content
+    : [];
+  const outgoingArray = Array.isArray(outgoingRequests)
+    ? outgoingRequests
+    : (outgoingRequests as any)?.content && Array.isArray((outgoingRequests as any).content)
+    ? (outgoingRequests as any).content
+    : [];
+
+  const isConfirmedFriend = friendArray.some((f: any) => f.id === friendId);
+  const isPendingOutgoing = outgoingArray.some((r: any) => r.addresseeId === friendId || r.friendId === friendId);
+
+  const addFriendMutation = useMutation({
+    mutationFn: () => friendService.sendFriendRequest(currentUser!.id, friendId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
+      setIsAddFriendModalOpen(false);
+      toast.success("Friend request sent");
+    },
+  });
+
+  const cancelRequestMutation = useMutation({
+    mutationFn: () => friendService.removeFriend(currentUser!.id, friendId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
+      setIsCancelRequestModalOpen(false);
+      toast.success("Friend request cancelled");
+    },
+  });
 
 
   const { data: friend, isLoading: isLoadingFriend } = useQuery({
@@ -212,7 +269,7 @@ const FriendDetailPage = () => {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <p className="text-gray-500">Friend not found.</p>
+          <p className="text-muted-foreground">Friend not found.</p>
         </div>
       </DashboardLayout>
     );
@@ -238,27 +295,32 @@ const FriendDetailPage = () => {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout breadcrumbs={[{ label: "Friends", href: "/friends" }, { label: `${friend.firstName} ${friend.lastName}` }]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
             size="sm"
-            className="flex items-center gap-2 text-gray-600"
+            className="flex items-center gap-2 text-muted-foreground"
             onClick={() => navigate("/friends")}
           >
             <ArrowLeft size={18} />
             Back to Friends
           </Button>
 
-          <Button
-            variant="default"
-            className="flex items-center gap-2"
-            onClick={() => setIsSettlementModalOpen(true)}
-          >
-            <DollarSign size={18} />
-            Settle Debt
-          </Button>
+          {hasLoadedStatus && !isConfirmedFriend && (
+            isPendingOutgoing ? (
+              <Button variant="outline" size="sm" onClick={() => setIsCancelRequestModalOpen(true)}>
+                <UserMinus size={16} className="mr-2" />
+                Cancel Request
+              </Button>
+            ) : (
+              <Button variant="default" size="sm" onClick={() => setIsAddFriendModalOpen(true)}>
+                <UserPlus size={16} className="mr-2" />
+                Add Friend
+              </Button>
+            )
+          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -267,10 +329,10 @@ const FriendDetailPage = () => {
             {friend.lastName ? friend.lastName[0] : ""}
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-foreground">
               {friend.firstName} {friend.lastName}
             </h1>
-            <p className="text-gray-600 flex items-center gap-1">
+            <p className="text-muted-foreground flex items-center gap-1">
               <UserIcon size={16} /> @{friend.username}
             </p>
           </div>
@@ -279,44 +341,56 @@ const FriendDetailPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 space-y-6">
             <Card className="overflow-hidden">
-              <div
+              <CardContent
                 className={`p-4 ${
                   netBalance > 0
-                    ? "bg-green-50 text-green-700"
+                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
                     : netBalance < 0
-                      ? "bg-orange-50 text-orange-700"
-                      : "bg-gray-50 text-gray-700"
+                      ? "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400"
+                      : "bg-muted text-muted-foreground"
                 }`}
               >
-                <p className="text-sm font-medium uppercase tracking-wider mb-1">
+                <p className="text-sm font-medium uppercase tracking-wider mb-2">
                   Net Balance
                 </p>
-                <div className="flex items-center gap-2">
-                  {netBalance > 0 ? (
-                    <TrendingUp size={24} />
-                  ) : netBalance < 0 ? (
-                    <TrendingDown size={24} />
-                  ) : (
-                    <DollarSign size={24} />
-                  )}
-                  <span className="text-3xl font-bold">
-                    {netBalance === 0 ? "" : netBalance > 0 ? "+" : ""}
-                    {netBalance.toFixed(2)}
-                  </span>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      {netBalance > 0 ? (
+                        <TrendingUp size={24} />
+                      ) : netBalance < 0 ? (
+                        <TrendingDown size={24} />
+                      ) : (
+                        <DollarSign size={24} />
+                      )}
+                      <span className="text-3xl font-bold">
+                        {netBalance === 0 ? "" : netBalance > 0 ? "+" : ""}
+                        {netBalance.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-2 opacity-80">
+                      {netBalance > 0
+                        ? `${friend.firstName} owes you`
+                        : netBalance < 0
+                          ? `You owe ${friend.firstName}`
+                          : "You are all settled up!"}
+                    </p>
+                  </div>
+                  <Button
+                    variant={netBalance === 0 ? "outline" : "default"}
+                    className="flex items-center gap-2 shrink-0 bg-background text-foreground hover:bg-muted"
+                    onClick={() => setIsSettlementModalOpen(true)}
+                  >
+                    <DollarSign size={18} />
+                    Settle Debt
+                  </Button>
                 </div>
-                <p className="text-xs mt-2 opacity-80">
-                  {netBalance > 0
-                    ? `${friend.firstName} owes you`
-                    : netBalance < 0
-                      ? `You owe ${friend.firstName}`
-                      : "You are all settled up!"}
-                </p>
-              </div>
+              </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold text-gray-900">Balance Breakdown</CardTitle>
+                <CardTitle className="text-lg font-bold text-foreground">Balance Breakdown</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {/* Direct Personal Balance Row */}
@@ -326,10 +400,10 @@ const FriendDetailPage = () => {
                       <Globe size={18} />
                     </div>
                     <div>
-                      <span className="font-semibold text-gray-950 block text-xs tracking-tight">
+                      <span className="font-semibold text-foreground block text-xs tracking-tight">
                         Direct Balance
                       </span>
-                      <span className="text-[10px] text-gray-500 font-medium">
+                      <span className="text-[10px] text-muted-foreground font-medium">
                         Personal Settlements
                       </span>
                     </div>
@@ -345,17 +419,17 @@ const FriendDetailPage = () => {
 
                 {/* Group Balances List */}
                 {sharedGroups.length > 0 && (
-                  <div className="pt-2 border-t border-gray-100 space-y-2">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">Group Splits</p>
+                  <div className="pt-2 border-t border-border space-y-2">
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">Group Splits</p>
                     {sharedGroups.map((group) => {
                       const bal = groupBalancesMap[group.id] || 0;
                       return (
-                        <div key={group.id} className="flex items-center justify-between p-2.5 hover:bg-gray-50/80 rounded-lg transition-colors">
-                          <span className="text-xs font-semibold text-gray-700 truncate max-w-[130px]" title={group.name}>
+                        <div key={group.id} className="flex items-center justify-between p-2.5 hover:bg-muted/80 rounded-lg transition-colors">
+                          <span className="text-xs font-semibold text-foreground truncate max-w-[130px]" title={group.name}>
                             {group.name}
                           </span>
                           <span className={`text-xs font-bold ${
-                            bal > 0 ? "text-emerald-600" : bal < 0 ? "text-rose-600" : "text-gray-500"
+                            bal > 0 ? "text-emerald-600 dark:text-emerald-400" : bal < 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
                           }`}>
                             {bal === 0 ? "$0.00" : bal > 0 ? `+$${bal.toFixed(2)}` : `-$${Math.abs(bal).toFixed(2)}`}
                           </span>
@@ -372,7 +446,7 @@ const FriendDetailPage = () => {
                 <CardTitle className="text-lg">Contact Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Mail size={18} />
                   <span>{friend.email}</span>
                 </div>
@@ -389,24 +463,24 @@ const FriendDetailPage = () => {
                 {sharedGroups.length > 0 ? (
                   <div className="space-y-3">
                     {sharedGroups.map((group) => (
-                      <Link
-                        key={group.id}
-                        to={`/groups/${group.id}`}
-                        className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
-                            <Users size={20} />
-                          </div>
-                          <span className="font-medium text-gray-900">
-                            {group.name}
-                          </span>
-                        </div>
-                      </Link>
+                      <Card key={group.id} className="hover:bg-muted/50 transition-colors border-border shadow-sm">
+                        <Link to={`/groups/${group.id}`}>
+                          <CardContent className="flex items-center justify-between p-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400">
+                                <Users size={20} />
+                              </div>
+                              <span className="font-medium text-foreground">
+                                {group.name}
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Link>
+                      </Card>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 italic">
+                  <p className="text-muted-foreground italic">
                     No shared groups found.
                   </p>
                 )}
@@ -424,37 +498,36 @@ const FriendDetailPage = () => {
                     if (activity.type === 'expense') {
                       const expense = activity.data as Expense;
                       return (
-                        <div
-                          key={`expense-${expense.id}-${index}`}
-                          className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                              <Receipt size={20} />
+                        <Card key={`expense-${expense.id}-${index}`} className="border-border shadow-sm">
+                          <CardContent className="flex items-center justify-between p-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                <Receipt size={20} />
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {expense.description}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(
+                                    expense.expenseDate,
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {expense.description}
+                            <div className="text-right">
+                              <p className="font-bold text-foreground">
+                                {expense.currency} {expense.amount.toFixed(2)}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                {new Date(
-                                  expense.expenseDate,
-                                ).toLocaleDateString()}
+                              <p className="text-xs text-muted-foreground">
+                                Paid by{" "}
+                                {expense.paidBy === friendId
+                                  ? friend.firstName
+                                  : "You"}
                               </p>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-900">
-                              {expense.currency} {expense.amount.toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Paid by{" "}
-                              {expense.paidBy === friendId
-                                ? friend.firstName
-                                : "You"}
-                            </p>
-                          </div>
-                        </div>
+                          </CardContent>
+                        </Card>
                       );
                     } else {
                       const settlement = activity.data as FriendshipSettlementDTO;
@@ -474,147 +547,146 @@ const FriendDetailPage = () => {
                                               settlement.allocations.some(a => !a.groupId);
 
                       return (
-                        <div
-                          key={`settlement-${settlement.id}-${index}`}
-                          className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                                <DollarSign size={20} />
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="font-medium text-gray-900">
-                                    {isPayer ? `You paid ${friend.firstName}` : `${friend.firstName} paid you`}
-                                  </p>
-                                  <Badge className={badgeClassName}>
-                                    {settlement.status === 'MARKED_PAID' ? 'Pending Confirmation' :
-                                     settlement.status === 'COMPLETED' ? 'Settled' : 'Pending'}
-                                  </Badge>
-                                  {isGlobalPayment && (
-                                    <span className="px-2 py-0.5 text-[9px] font-bold rounded bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center gap-1 shadow-sm uppercase tracking-wider">
-                                      <Globe size={10} /> Direct
-                                    </span>
-                                  )}
-                                  {!isPayer && settlement.status === 'MARKED_PAID' && (
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      onClick={() => confirmMutation.mutate(settlement.id)}
-                                      disabled={confirmMutation.isPending}
-                                      className="h-6 py-0 px-2 text-[10px]"
-                                    >
-                                      {confirmMutation.isPending ? <Loader2 className="animate-spin" size={12} /> : 'Confirm Receipt'}
-                                    </Button>
-                                  )}
-                                  {canEdit && !isEditing && (
-                                    <button
-                                      onClick={() => startEditing(settlement)}
-                                      className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded"
-                                      title="Edit payment"
-                                    >
-                                      <Pencil size={14} />
-                                    </button>
-                                  )}
+                        <Card key={`settlement-${settlement.id}-${index}`} className="shadow-sm hover:shadow-md transition-shadow border-border">
+                          <CardContent className="p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
+                                  <DollarSign size={20} />
                                 </div>
-                                <p className="text-xs text-gray-500">
-                                  {new Date(settlement.createdAt).toLocaleDateString()}{" "}
-                                  {new Date(settlement.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              {isEditing ? (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-gray-500">$</span>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    value={editAmount}
-                                    onChange={(e) => setEditAmount(e.target.value)}
-                                    className="w-20 text-right text-sm"
-                                    autoFocus
-                                  />
-                                  <button
-                                    onClick={() => submitEdit(settlement.id)}
-                                    disabled={updateMutation.isPending}
-                                    className="p-1 text-green-600 hover:text-green-700 transition-colors"
-                                    title="Save"
-                                  >
-                                    {updateMutation.isPending ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
-                                  </button>
-                                  <button
-                                    onClick={cancelEditing}
-                                    className="p-1 text-red-500 hover:text-red-600 transition-colors"
-                                    title="Cancel"
-                                  >
-                                    <X size={14} />
-                                  </button>
-                                </div>
-                              ) : (
-                                <p className="font-bold text-gray-900">
-                                  ${settlement.amount.toFixed(2)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Group Allocations */}
-                          {settlement.allocations && settlement.allocations.length > 0 ? (
-                            <div className="mt-2 ml-13 pl-3 border-l-2 border-gray-100 space-y-1">
-                              {settlement.allocations.map((alloc, aIdx) => (
-                                <div key={aIdx} className="flex items-center justify-between text-xs text-gray-500 py-0.5">
-                                  <span className="flex items-center gap-1.5">
-                                    {alloc.groupId ? (
-                                      <>
-                                        <Users size={10} className="text-gray-400" />
-                                        <Link
-                                          to={`/groups/${alloc.groupId}`}
-                                          className="text-blue-600 hover:underline"
-                                        >
-                                          {groupNameMap[alloc.groupId] || `Group #${alloc.groupId}`}
-                                        </Link>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Globe size={10} className="text-indigo-500" />
-                                        <span className="text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
-                                          Direct Personal Balance
-                                        </span>
-                                      </>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-medium text-foreground">
+                                      {isPayer ? `You paid ${friend.firstName}` : `${friend.firstName} paid you`}
+                                    </p>
+                                    <Badge className={badgeClassName}>
+                                      {settlement.status === 'MARKED_PAID' ? 'Pending Confirmation' :
+                                       settlement.status === 'COMPLETED' ? 'Settled' : 'Pending'}
+                                    </Badge>
+                                    {isGlobalPayment && (
+                                      <span className="px-2 py-0.5 text-[9px] font-bold rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 flex items-center gap-1 shadow-sm uppercase tracking-wider">
+                                        <Globe size={10} /> Direct
+                                      </span>
                                     )}
-                                  </span>
-                                  <span className="font-medium text-gray-600">
-                                    ${alloc.amount.toFixed(2)}
-                                  </span>
+                                    {!isPayer && settlement.status === 'MARKED_PAID' && (
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        onClick={() => confirmMutation.mutate(settlement.id)}
+                                        disabled={confirmMutation.isPending}
+                                        className="h-6 py-0 px-2 text-[10px]"
+                                      >
+                                        {confirmMutation.isPending ? <Loader2 className="animate-spin" size={12} /> : 'Confirm Receipt'}
+                                      </Button>
+                                    )}
+                                    {canEdit && !isEditing && (
+                                      <button
+                                        onClick={() => startEditing(settlement)}
+                                        className="p-1 text-muted-foreground hover:text-blue-600 transition-colors rounded"
+                                        title="Edit payment"
+                                      >
+                                        <Pencil size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(settlement.createdAt).toLocaleDateString()}{" "}
+                                    {new Date(settlement.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
                                 </div>
-                              ))}
-                            </div>
-                          ) : (
-                            /* Entirely Direct Payment indicator when no allocations array exists */
-                            <div className="mt-2 ml-13 pl-3 border-l-2 border-gray-100">
-                              <div className="flex items-center justify-between text-xs text-gray-500 py-0.5">
-                                <span className="flex items-center gap-1.5">
-                                  <Globe size={10} className="text-indigo-500" />
-                                  <span className="text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
-                                    Direct Personal Balance
-                                  </span>
-                                </span>
-                                <span className="font-medium text-gray-600">
-                                  ${settlement.amount.toFixed(2)}
-                                </span>
+                              </div>
+                              <div className="text-right">
+                                {isEditing ? (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-muted-foreground">$</span>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0.01"
+                                      value={editAmount}
+                                      onChange={(e) => setEditAmount(e.target.value)}
+                                      className="w-20 text-right text-sm"
+                                      autoFocus
+                                    />
+                                    <button
+                                      onClick={() => submitEdit(settlement.id)}
+                                      disabled={updateMutation.isPending}
+                                      className="p-1 text-green-600 hover:text-green-700 transition-colors"
+                                      title="Save"
+                                    >
+                                      {updateMutation.isPending ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
+                                    </button>
+                                    <button
+                                      onClick={cancelEditing}
+                                      className="p-1 text-red-500 hover:text-red-600 transition-colors"
+                                      title="Cancel"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <p className="font-bold text-foreground">
+                                    ${settlement.amount.toFixed(2)}
+                                  </p>
+                                )}
                               </div>
                             </div>
-                          )}
-                        </div>
+
+                            {/* Group Allocations */}
+                            {settlement.allocations && settlement.allocations.length > 0 ? (
+                              <div className="mt-2 ml-13 pl-3 border-l-2 border-border space-y-1">
+                                {settlement.allocations.map((alloc, aIdx) => (
+                                  <div key={aIdx} className="flex items-center justify-between text-xs text-muted-foreground py-0.5">
+                                    <span className="flex items-center gap-1.5">
+                                      {alloc.groupId ? (
+                                        <>
+                                          <Users size={10} className="text-muted-foreground" />
+                                          <Link
+                                            to={`/groups/${alloc.groupId}`}
+                                            className="text-blue-600 hover:underline"
+                                          >
+                                            {groupNameMap[alloc.groupId] || `Group #${alloc.groupId}`}
+                                          </Link>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Globe size={10} className="text-indigo-500" />
+                                          <span className="text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
+                                            Direct Personal Balance
+                                          </span>
+                                        </>
+                                      )}
+                                    </span>
+                                    <span className="font-medium text-foreground">
+                                      ${alloc.amount.toFixed(2)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              /* Entirely Direct Payment indicator when no allocations array exists */
+                              <div className="mt-2 ml-13 pl-3 border-l-2 border-border">
+                                <div className="flex items-center justify-between text-xs text-muted-foreground py-0.5">
+                                  <span className="flex items-center gap-1.5">
+                                    <Globe size={10} className="text-indigo-500" />
+                                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded text-[10px]">
+                                      Direct Personal Balance
+                                    </span>
+                                  </span>
+                                  <span className="font-medium text-foreground">
+                                    ${settlement.amount.toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
                       );
                     }
                   })}
                 </div>
               ) : (
-                <p className="text-gray-500 italic">
+                <p className="text-muted-foreground italic">
                   No shared activity found.
                 </p>
               )}
@@ -638,6 +710,44 @@ const FriendDetailPage = () => {
           friend={friend}
           suggestedAmount={netBalance}
         />
+      )}
+
+      {friend && (
+        <>
+          <Dialog open={isAddFriendModalOpen} onOpenChange={(open) => { if (!open) setIsAddFriendModalOpen(false); }}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add Friend</DialogTitle>
+                <DialogDescription>
+                  Send a friend request to {friend.firstName} {friend.lastName}?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddFriendModalOpen(false)}>Cancel</Button>
+                <Button onClick={() => addFriendMutation.mutate()} disabled={addFriendMutation.isPending}>
+                  {addFriendMutation.isPending ? "Sending..." : "Send Request"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isCancelRequestModalOpen} onOpenChange={(open) => { if (!open) setIsCancelRequestModalOpen(false); }}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Cancel Friend Request</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to cancel the friend request sent to {friend.firstName} {friend.lastName}?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCancelRequestModalOpen(false)}>Keep Request</Button>
+                <Button variant="destructive" onClick={() => cancelRequestMutation.mutate()} disabled={cancelRequestMutation.isPending}>
+                  {cancelRequestMutation.isPending ? "Cancelling..." : "Cancel Request"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </DashboardLayout>
   );

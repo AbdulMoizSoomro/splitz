@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, ArrowRight, Clock } from "lucide-react";
 import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface GroupBalancesProps {
   groupId: number;
@@ -114,30 +115,31 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
     }) || [];
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* You Owe */}
-        <Card>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
+      {/* You Owe */}
+      <Card>
           <CardHeader>
-            <CardTitle className="text-red-600">You Owe</CardTitle>
+            <CardTitle className="text-destructive">You Owe</CardTitle>
           </CardHeader>
           <CardContent>
             {userDebts.length === 0 ? (
-              <p className="text-gray-500 text-sm italic">
+              <p className="text-muted-foreground text-sm italic">
                 You don't owe anything!
               </p>
             ) : (
-              <div className="space-y-3">
-                {userDebts.map((debt, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">
-                        To {debt.toUsername || `User ${debt.to}`}
-                      </p>
-                      <p className="text-lg font-bold text-red-600">
-                        ${debt.amount.toFixed(2)}
-                      </p>
-                    </div>
+              <ScrollArea className="h-[200px] pr-4">
+                <div className="space-y-3">
+                  {userDebts.map((debt, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">
+                          To {debt.toUsername || `User ${debt.to}`}
+                        </p>
+                        <p className="text-lg font-bold text-destructive">
+                          ${debt.amount.toFixed(2)}
+                        </p>
+                      </div>
                     <Button
                       size="sm"
                       onClick={() => {
@@ -152,7 +154,8 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
                     </Button>
                   </div>
                 ))}
-              </div>
+                </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
@@ -160,35 +163,38 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
         {/* You Are Owed */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-green-600">You Are Owed</CardTitle>
+            <CardTitle className="text-emerald-500">You Are Owed</CardTitle>
           </CardHeader>
           <CardContent>
             {userOwed.length === 0 ? (
-              <p className="text-gray-500 text-sm italic">No one owes you.</p>
+              <p className="text-muted-foreground text-sm italic">No one owes you.</p>
             ) : (
-              <div className="space-y-3">
-                {userOwed.map((debt, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">
-                        From {debt.fromUsername || `User ${debt.from}`}
-                      </p>
-                      <p className="text-lg font-bold text-green-600">
-                        ${debt.amount.toFixed(2)}
-                      </p>
-                    </div>
+              <ScrollArea className="h-[200px] pr-4">
+                <div className="space-y-3">
+                  {userOwed.map((debt, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">
+                          From {debt.fromUsername || `User ${debt.from}`}
+                        </p>
+                        <p className="text-lg font-bold text-emerald-500">
+                          ${debt.amount.toFixed(2)}
+                        </p>
+                      </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
       </div>
 
+      <div className="space-y-6">
       {/* All Group Debts */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-gray-900 flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <ArrowRight size={20} className="text-blue-500" />
             <span>All Group Debts</span>
           </CardTitle>
@@ -196,31 +202,33 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
         <CardContent>
           {!balances?.simplifiedDebts ||
           balances.simplifiedDebts.length === 0 ? (
-            <p className="text-gray-500 text-sm italic">
+            <p className="text-muted-foreground text-sm italic">
               No outstanding debts in this group.
             </p>
           ) : (
-            <div className="space-y-4">
-              {balances.simplifiedDebts.map((debt, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
-                >
-                  <div className="flex-1">
-                    <span className="font-semibold text-gray-900">
-                      {debt.fromUsername || `User ${debt.from}`}
-                    </span>
-                    <span className="mx-2 text-gray-500">owes</span>
-                    <span className="font-semibold text-gray-900">
-                      {debt.toUsername || `User ${debt.to}`}
-                    </span>
+            <ScrollArea className="h-[300px] pr-4">
+              <div className="space-y-4">
+                {balances.simplifiedDebts.map((debt, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-3 p-3 bg-muted rounded-lg border border-border"
+                  >
+                    <div className="flex-1">
+                      <span className="font-semibold text-foreground">
+                        {debt.fromUsername || `User ${debt.from}`}
+                      </span>
+                      <span className="mx-2 text-muted-foreground">owes</span>
+                      <span className="font-semibold text-foreground">
+                        {debt.toUsername || `User ${debt.to}`}
+                      </span>
+                    </div>
+                    <div className="text-lg font-bold text-blue-500">
+                      ${debt.amount.toFixed(2)}
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-blue-600">
-                    ${debt.amount.toFixed(2)}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>
@@ -279,15 +287,16 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
           </CardContent>
         </Card>
       )}
+      </div>
 
       {/* Settle Modal */}
       <Dialog open={isSettleModalOpen} onOpenChange={(open) => { if (!open) setIsAddSettleModalOpen(false); }}>
-        <DialogContent className="max-w-lg bg-white">
-          <DialogHeader className="border-b border-gray-200 pb-3">
-            <DialogTitle className="text-xl font-semibold text-gray-900">Record Payment</DialogTitle>
+        <DialogContent className="max-w-lg bg-background text-foreground border-border">
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold">Record Payment</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               Confirm that you have sent{" "}
               <strong>${selectedDebt?.amount.toFixed(2)}</strong> to{" "}
               <strong>{selectedDebt?.toUsername}</strong>.

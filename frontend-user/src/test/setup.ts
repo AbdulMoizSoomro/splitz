@@ -28,7 +28,7 @@ vi.mock("@/components/ui/select", () => {
     );
   };
 
-  const SelectTrigger = ({ children, id, className, ...props }: any) => {
+  const SelectTrigger = ({ children, id, ...props }: any) => {
     const ctx = React.useContext(SelectContext);
     React.useEffect(() => {
       if (id && ctx.setId) {
@@ -138,7 +138,7 @@ vi.mock("@/components/ui/dropdown-menu", () => {
     return React.createElement("div", { "data-slot": "dropdown-menu-content" }, children);
   };
 
-  const DropdownMenuItem = ({ children, onClick, disabled, variant, ...props }: any) => {
+  const DropdownMenuItem = ({ children, onClick, disabled, ...props }: any) => {
     return React.createElement(
       "button",
       {

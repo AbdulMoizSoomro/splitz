@@ -105,7 +105,7 @@ test.describe("[E2E] Temporary Friends List", () => {
       // 5. Alice adds an expense (Alice pays $10, shared with Bob)
       //    Bob will owe Alice $5
       await pageAlice.goto("/groups");
-      const groupCard = pageAlice.locator(".bg-white", { hasText: groupName });
+      const groupCard = pageAlice.locator(".bg-card", { hasText: groupName });
       await groupCard.getByRole("button", { name: /add expense/i }).click();
 
       const expenseModal = pageAlice.getByRole("dialog", {

@@ -4,6 +4,7 @@ import { groupService } from "./groupService";
 import { useAuthStore } from "../../store/authStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -127,11 +128,11 @@ const GroupActivity = ({
       ) : !activities || activities.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">
+            <Receipt className="mx-auto text-muted-foreground mb-4 opacity-50" size={48} />
+            <h3 className="text-lg font-medium text-foreground mb-1">
               No activity yet
             </h3>
-            <p className="text-gray-500 italic mb-6">
+            <p className="text-muted-foreground italic mb-6">
               Add an expense or record a payment to get started!
             </p>
             {onAddExpense && (
@@ -146,12 +147,14 @@ const GroupActivity = ({
           </CardContent>
         </Card>
       ) : (
-        activities.map((activity: ActivityLog) => {
-          const actorName = nameMap[activity.actorId] ?? `User ${activity.actorId}`;
+        <ScrollArea className="h-[500px] pr-4">
+          <div className="space-y-4">
+            {activities.map((activity: ActivityLog) => {
+              const actorName = nameMap[activity.actorId] ?? `User ${activity.actorId}`;
           const date = new Date(activity.timestamp);
 
           let Icon = Receipt;
-          let iconBg = "bg-gray-100 text-gray-700";
+          let iconBg = "bg-muted text-foreground";
           let title = "";
           let description = "";
 
@@ -218,14 +221,14 @@ const GroupActivity = ({
                       <Icon size={20} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{title}</h3>
-                      <p className="text-sm text-gray-500">{description}</p>
+                      <h3 className="font-semibold text-foreground">{title}</h3>
+                      <p className="text-sm text-muted-foreground">{description}</p>
                     </div>
                   </div>
                   {canManage && (
                     <DropdownMenu>
                       <DropdownMenuTrigger
-                        className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors"
                         aria-label={`Actions for ${activity.entityName}`}
                       >
                         <MoreVertical size={20} />
@@ -249,18 +252,20 @@ const GroupActivity = ({
               </CardContent>
             </Card>
           );
-        })
+        })}
+          </div>
+        </ScrollArea>
       )}
 
       <Dialog open={isDeleteModalOpen} onOpenChange={(open) => { if (!open) setIsDeleteModalOpen(false); }}>
-        <DialogContent className="max-w-lg bg-white">
-          <DialogHeader className="border-b border-gray-200 pb-3">
-            <DialogTitle className="text-xl font-semibold text-gray-900">Delete Expense</DialogTitle>
+        <DialogContent className="max-w-lg bg-background">
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">Delete Expense</DialogTitle>
           </DialogHeader>
-          <div className="pt-2 space-y-4">
-            <p className="text-gray-600">
-              Are you sure you want to delete "
-              <span className="font-semibold text-gray-900">
+          <div className="space-y-4 pt-2">
+            <p className="text-muted-foreground">
+              Are you sure you want to delete this expense? This will remove the expense for all group members and recalculate balances.
+              <span className="font-semibold text-foreground">
                 {expenseToDelete?.description}
               </span>
               "? This action cannot be undone and will update everyone's balances.

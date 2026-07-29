@@ -47,7 +47,7 @@ test.describe('Activity Logging', () => {
     await modal.locator('#group-name').fill(groupName);
     await modal.getByRole('button', { name: /create/i }).click();
     await expect(modal).not.toBeVisible();
-    await page.getByText(groupName).click();
+    await page.getByRole('heading', { name: groupName }).click();
   });
 
   test('should log creation and deletion of expenses', async ({ page }) => {

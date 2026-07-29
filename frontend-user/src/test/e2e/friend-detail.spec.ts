@@ -128,7 +128,7 @@ test.describe("[E2E] Friend Detail Page", () => {
 
       // 8. Alice creates an expense in the shared group
       await pageAlice.goto("/groups");
-      const groupCard = pageAlice.locator(".bg-white", { hasText: groupName });
+      const groupCard = pageAlice.locator(".bg-card", { hasText: groupName });
       await groupCard.getByRole("button", { name: /add expense/i }).click();
 
       const expenseModal = pageAlice.getByRole("dialog", {
