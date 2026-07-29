@@ -16,6 +16,21 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: splitz-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   user-service:
     build:
       context: .
@@ -29,12 +44,16 @@ services:
       - POSTGRES_URL=jdbc:postgresql://db:5432/user_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
       - CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://frontend-user:5173
     volumes:
       - .:/build
       - m2_cache:/root/.m2
     depends_on:
       db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   expense-service:
@@ -50,12 +69,16 @@ services:
       - POSTGRES_URL=jdbc:postgresql://db:5432/expense_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
       - CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://frontend-user:5173
     volumes:
       - .:/build
       - m2_cache:/root/.m2
     depends_on:
       db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   frontend-user:

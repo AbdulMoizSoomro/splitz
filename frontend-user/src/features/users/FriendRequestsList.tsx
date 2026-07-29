@@ -4,6 +4,8 @@ import { UserCheck, UserPlus, Loader2 } from "lucide-react";
 import { friendService } from "./friendService";
 import { useAuthStore } from "../../store/authStore";
 import FriendRequestItem from "./FriendRequestItem";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const FriendRequestsList = () => {
   const currentUser = useAuthStore((state) => state.user);
@@ -30,12 +32,12 @@ const FriendRequestsList = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-border">
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             direction === "INCOMING"
               ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
           }`}
           onClick={() => setDirection("INCOMING")}
         >
@@ -45,7 +47,7 @@ const FriendRequestsList = () => {
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             direction === "OUTGOING"
               ? "border-blue-600 text-blue-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
           }`}
           onClick={() => setDirection("OUTGOING")}
         >
@@ -54,28 +56,32 @@ const FriendRequestsList = () => {
       </div>
 
       {!requests || requests.length === 0 ? (
-        <div className="text-center py-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
-          {direction === "INCOMING" ? (
-            <UserCheck className="mx-auto text-gray-400 mb-2" size={32} />
-          ) : (
-            <UserPlus className="mx-auto text-gray-400 mb-2" size={32} />
-          )}
-          <p className="text-sm text-gray-500">
-            {direction === "INCOMING"
-              ? "No pending friend requests."
-              : "No pending sent requests."}
-          </p>
-        </div>
+        <Card className="text-center py-6 bg-muted/50 border border-dashed border-border shadow-none">
+          <CardContent className="pt-6">
+            {direction === "INCOMING" ? (
+              <UserCheck className="mx-auto text-muted-foreground mb-2" size={32} />
+            ) : (
+              <UserPlus className="mx-auto text-muted-foreground mb-2" size={32} />
+            )}
+            <p className="text-sm text-muted-foreground">
+              {direction === "INCOMING"
+                ? "No pending friend requests."
+                : "No pending sent requests."}
+            </p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="space-y-3">
-          {requests.map((request) => (
-            <FriendRequestItem
-              key={request.id}
-              request={request}
-              direction={direction}
-            />
-          ))}
-        </div>
+        <ScrollArea className="h-[300px] pr-4">
+          <div className="space-y-3">
+            {requests.map((request) => (
+              <FriendRequestItem
+                key={request.id}
+                request={request}
+                direction={direction}
+              />
+            ))}
+          </div>
+        </ScrollArea>
       )}
     </div>
   );

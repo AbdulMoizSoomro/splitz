@@ -9,19 +9,19 @@ async function registerUser(
   lastName: string = "User",
 ) {
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill(firstName);
-  await page.getByLabel(/last name/i).fill(lastName);
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(`${username}@example.com`);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#firstName').fill(firstName);
+  await page.locator('#lastName').fill(lastName);
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(`${username}@example.com`);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
 }
 
 async function loginUser(page: Page, username: string) {
   await page.goto("/login");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
 }
@@ -34,7 +34,7 @@ async function sendFriendRequest(pageA: Page, targetUsername: string) {
     timeout: 10000,
   });
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByText(/pending/i)).toBeVisible({ timeout: 5000 });
+  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 5000 });
 }
 
 /** Accept the first pending friend request on pageB from the given sender. */
@@ -81,7 +81,7 @@ test.describe("Leave Group", () => {
         .click();
       let modal = pageOwner.getByRole("dialog");
       const groupName = `Leave Test Group ${timestamp}`;
-      await modal.getByLabel(/group name/i).fill(groupName);
+      await modal.locator('#group-name').fill(groupName);
 
       // Select member in picker
       await modal
@@ -104,6 +104,7 @@ test.describe("Leave Group", () => {
       await expect(pageMember).toHaveURL(/\/groups\/\d+/);
 
       // 5. Member clicks "Leave Group"
+      await pageMember.getByRole("tab", { name: "Members" }).click();
       await pageMember.getByRole("button", { name: /leave group/i }).click();
       modal = pageMember.getByRole("dialog");
       await expect(modal).toBeVisible();

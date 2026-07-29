@@ -12,13 +12,25 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-} from "../../components/core/Card/Card";
-import Button from "../../components/core/Button/Button";
-import Modal from "../../components/core/Modal/Modal";
-import Badge from "../../components/core/Badge/Badge";
-import type { BadgeVariant } from "../../components/core/Badge/Badge";
-import Dropdown from "../../components/core/Dropdown/Dropdown";
-import { useToastStore } from "../../store/toastStore";
+} from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import AddMemberModal from "./AddMemberModal";
 import ExpenseModal from "../expenses/ExpenseModal";
 import type { Expense } from "../../types/expense";
@@ -49,7 +61,7 @@ const GroupDetails = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const { addToast } = useToastStore();
+
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isSelfDemoteModalOpen, setIsSelfDemoteModalOpen] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
@@ -76,7 +88,7 @@ const GroupDetails = () => {
   });
 
   const { data: friends, isLoading: isFriendsLoading } = useQuery({
-    queryKey: ["friends", user?.id],
+    queryKey: ["friends", Number(user?.id)],
     queryFn: () => friendService.getFriends(Number(user?.id)),
     enabled: !!user?.id,
   });
@@ -145,12 +157,12 @@ const GroupDetails = () => {
       queryClient.invalidateQueries({ queryKey: ["group-activity", Number(id)] });
       queryClient.invalidateQueries({ queryKey: ["expenses", Number(id)] });
       queryClient.invalidateQueries({ queryKey: ["group-balances", Number(id)] });
-      addToast("Expense deleted successfully", "success");
+      toast.success("Expense deleted successfully");
       setIsDeleteModalOpen(false);
       setExpenseToDelete(null);
     },
     onError: () => {
-      addToast("Failed to delete expense", "error");
+      toast.error("Failed to delete expense");
     },
   });
 
@@ -169,11 +181,11 @@ const GroupDetails = () => {
     mutationFn: () => groupService.removeMember(Number(id), Number(user?.id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
-      addToast("Left group successfully", "success");
+      toast.success("Left group successfully");
       navigate("/groups");
     },
     onError: () => {
-      addToast("Failed to leave group", "error");
+      toast.error("Failed to leave group");
     },
   });
 
@@ -187,7 +199,7 @@ const GroupDetails = () => {
     }) => groupService.updateMemberRole(Number(id), userId, role),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["group", Number(id)] });
-      addToast("Role updated successfully", "success");
+      toast.success("Role updated successfully");
       if (
         variables.userId === Number(user?.id) &&
         variables.role === "MEMBER"
@@ -200,7 +212,7 @@ const GroupDetails = () => {
       if (axios.isAxiosError(error)) {
         message = error.response?.data?.message || message;
       }
-      addToast(message, "error");
+      toast.error(message);
       setIsSelfDemoteModalOpen(false);
     },
   });
@@ -210,10 +222,10 @@ const GroupDetails = () => {
       groupService.updateGroup(Number(id), data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group", Number(id)] });
-      addToast("Group settings updated", "success");
+      toast.success("Group settings updated");
     },
     onError: () => {
-      addToast("Failed to update group settings", "error");
+      toast.error("Failed to update group settings");
     },
   });
 
@@ -270,7 +282,7 @@ const GroupDetails = () => {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <h2 className="text-xl font-bold text-gray-900">Group not found</h2>
+          <h2 className="text-xl font-bold text-foreground">Group not found</h2>
           <Button onClick={() => navigate("/groups")} className="mt-4">
             Back to Groups
           </Button>
@@ -280,126 +292,108 @@ const GroupDetails = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout breadcrumbs={[{ label: "Groups", href: "/groups" }, { label: group.name }]}>
       <div className="flex flex-col h-[calc(100vh-112px)] overflow-hidden space-y-4 pb-2">
         <div className="flex items-center gap-4 shrink-0">
           <Button variant="ghost" size="sm" onClick={() => navigate("/groups")}>
             <ArrowLeft size={20} />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{group.name}</h1>
             {group.description && (
-              <p className="text-gray-500">{group.description}</p>
+              <p className="text-muted-foreground">{group.description}</p>
             )}
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200 shrink-0">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab("expenses")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "expenses"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+        {/* Tab Navigation & Content managed by Shadcn Tabs */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => setActiveTab(val as "expenses" | "members" | "balances")}
+          className="w-full flex-1 flex flex-col min-h-0"
+        >
+          <TabsList variant="line" className="border-b border-border shrink-0 w-full justify-start gap-8 bg-transparent p-0 rounded-none h-auto -mb-px">
+            <TabsTrigger
+              value="expenses"
+              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
             >
               <div className="flex items-center gap-2">
                 <Receipt size={18} />
                 <span>Expenses</span>
               </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("members")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "members"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+            </TabsTrigger>
+            <TabsTrigger
+              value="members"
+              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
             >
               <div className="flex items-center gap-2">
                 <Users size={18} />
                 <span>Members</span>
               </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("balances")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === "balances"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+            </TabsTrigger>
+            <TabsTrigger
+              value="balances"
+              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
             >
               <div className="flex items-center gap-2">
                 <DollarSign size={18} />
                 <span>Balances</span>
               </div>
-            </button>
-          </nav>
-        </div>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Balance Summary Card */}
-        {!isBalancesLoading && currentUserBalance !== 0 && (
-          <Card
-            className={`shrink-0 ${
-              currentUserBalance > 0
-                ? "bg-green-50/50 border-green-100"
-                : "bg-red-50/50 border-red-100"
-            }`}
-          >
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`p-2 rounded-full ${
-                    currentUserBalance > 0
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  <DollarSign size={20} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Your Group Balance
-                  </p>
-                  <div className="flex items-baseline gap-2">
+          {/* Balance Summary Card */}
+          {!isBalancesLoading && currentUserBalance !== 0 && (
+            <Card className="shrink-0 my-4 shadow-sm border-border">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`p-3 rounded-full flex items-center justify-center ${
+                      currentUserBalance > 0
+                        ? "bg-emerald-500/10 text-emerald-500"
+                        : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    <DollarSign size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Your Group Balance
+                    </p>
                     <h3
-                      className={`text-lg font-bold ${
+                      className={`text-xl font-bold ${
                         currentUserBalance > 0
-                          ? "text-green-600"
-                          : "text-red-600"
+                          ? "text-emerald-500"
+                          : "text-destructive"
                       }`}
                     >
                       {currentUserBalance > 0 ? "You are owed" : "You owe"} ${Math.abs(currentUserBalance).toFixed(2)}
                     </h3>
                   </div>
                 </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setActiveTab("balances")}
-                className={
-                  currentUserBalance > 0
-                    ? "text-green-700 hover:bg-green-100"
-                    : "text-red-700 hover:bg-red-100"
-                }
-              >
-                View Details
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveTab("balances")}
+                  className={
+                    currentUserBalance > 0
+                      ? "text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-600"
+                      : "text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                  }
+                >
+                  View Details
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
-          <div className="lg:col-span-3 h-full flex flex-col min-h-0">
-            
-            {/* EXPENSES TAB CONTENT */}
-            {activeTab === "expenses" && (
-              <div className="h-full flex flex-col min-h-0 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0 pt-4">
+            <div className="lg:col-span-3 h-full flex flex-col min-h-0">
+              
+              {/* EXPENSES TAB CONTENT */}
+              <TabsContent value="expenses" className="h-full flex flex-col min-h-0 space-y-4">
                 <div className="flex justify-between items-center px-1 shrink-0">
-                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <Receipt size={20} className="text-blue-600" />
                     <span>Group Expenses</span>
                   </h2>
@@ -421,10 +415,10 @@ const GroupDetails = () => {
                   <Card>
                     <CardContent className="py-12 text-center">
                       <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
-                      <h3 className="text-lg font-medium text-gray-900 mb-1">
+                      <h3 className="text-lg font-medium text-foreground mb-1">
                         No expenses yet
                       </h3>
-                      <p className="text-gray-500 italic mb-6">
+                      <p className="text-muted-foreground italic mb-6">
                         Add an expense to get started splitting with the group!
                       </p>
                       <Button
@@ -437,8 +431,9 @@ const GroupDetails = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="space-y-3 flex-1 overflow-y-auto pr-1">
-                    {sortedExpenses.map((expense) => {
+                  <ScrollArea className="h-[500px] pr-4">
+                    <div className="space-y-3">
+                      {sortedExpenses.map((expense) => {
                       const isPayer = expense.paidBy === Number(user?.id);
                       const payerName = isPayer ? "You" : (memberNames[expense.paidBy] ?? `User ${expense.paidBy}`);
                       const date = new Date(expense.expenseDate);
@@ -460,7 +455,7 @@ const GroupDetails = () => {
                             </span>
                           );
                         } else {
-                          balanceIndicator = <span className="text-gray-500 text-sm">you paid for yourself</span>;
+                          balanceIndicator = <span className="text-muted-foreground text-sm">you paid for yourself</span>;
                         }
                       } else {
                         if (mySplit) {
@@ -470,7 +465,7 @@ const GroupDetails = () => {
                             </span>
                           );
                         } else {
-                          balanceIndicator = <span className="text-gray-400 text-sm">not involved</span>;
+                          balanceIndicator = <span className="text-muted-foreground text-sm">not involved</span>;
                         }
                       }
 
@@ -482,8 +477,8 @@ const GroupDetails = () => {
                                 <Receipt size={20} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-gray-900 truncate">{expense.description}</h3>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5 text-xs text-gray-500">
+                                <h3 className="font-semibold text-foreground truncate">{expense.description}</h3>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5 text-xs text-muted-foreground">
                                   <span>Paid by <span className="font-medium text-gray-700">{payerName}</span></span>
                                   <span>•</span>
                                   <span className="flex items-center gap-1">
@@ -491,53 +486,50 @@ const GroupDetails = () => {
                                     {date.toLocaleDateString()}
                                   </span>
                                   <span>•</span>
-                                  <Badge variant="member">{categoryName}</Badge>
+                                  <Badge className="bg-muted text-foreground border-border hover:bg-muted/80">{categoryName}</Badge>
                                 </div>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-6 shrink-0">
                               <div className="text-right">
-                                <div className="text-base font-bold text-gray-900">${expense.amount.toFixed(2)}</div>
+                                <div className="text-base font-bold text-foreground">${expense.amount.toFixed(2)}</div>
                                 <div>{balanceIndicator}</div>
                               </div>
                               
                               {canManage && (
-                                <Dropdown
-                                  trigger={
-                                    <button
-                                      className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-                                      aria-label={`Actions for ${expense.description}`}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger
+                                    className="p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-muted-foreground transition-colors"
+                                    aria-label={`Actions for ${expense.description}`}
+                                  >
+                                    <MoreVertical size={20} />
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={() => handleDeleteExpenseClick(expense)}
                                     >
-                                      <MoreVertical size={20} />
-                                    </button>
-                                  }
-                                  items={[
-                                    {
-                                      label: "Edit",
-                                      onClick: () => handleEditExpense(expense),
-                                    },
-                                    {
-                                      label: "Delete",
-                                      onClick: () => handleDeleteExpenseClick(expense),
-                                      variant: "danger" as const,
-                                    },
-                                  ]}
-                                />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               )}
                             </div>
                           </CardContent>
                         </Card>
                       );
                     })}
-                  </div>
+                    </div>
+                  </ScrollArea>
                 )}
-              </div>
-            )}
+              </TabsContent>
 
-            {/* MEMBERS TAB CONTENT */}
-            {activeTab === "members" && (
-              <div className="h-full overflow-y-auto pr-1 space-y-4 pb-2">
+              {/* MEMBERS TAB CONTENT */}
+              <TabsContent value="members" className="h-full overflow-y-auto pr-1 space-y-4 pb-2">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="flex items-center gap-2">
@@ -545,7 +537,7 @@ const GroupDetails = () => {
                       <span>Members</span>
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-muted-foreground">
                         {group.members.length} members
                       </span>
                       {(isOwner ||
@@ -568,14 +560,14 @@ const GroupDetails = () => {
                         const displayName =
                           memberNames[member.userId] ?? `User ${member.userId}`;
 
-                        let roleVariant: BadgeVariant = "member";
+                        let badgeClassName = "bg-muted text-foreground border-border hover:bg-muted/80";
                         let roleLabel = "Member";
 
                         if (member.userId === group.createdBy) {
-                          roleVariant = "owner";
+                          badgeClassName = "bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-100/80";
                           roleLabel = "Owner";
                         } else if (member.role === "ADMIN") {
-                          roleVariant = "admin";
+                          badgeClassName = "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100/80";
                           roleLabel = "Admin";
                         }
 
@@ -599,13 +591,13 @@ const GroupDetails = () => {
                               {displayName.charAt(0)}
                             </div>
                             <div className="flex flex-col text-left">
-                              <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                              <span className="text-sm font-medium text-foreground group-hover:text-blue-600 transition-colors">
                                 {displayName}
                               </span>
                               {!isCurrentUser && (
                                 <span className="text-xs">
                                   {isBalancesLoading ? (
-                                    <span className="text-gray-400 font-normal animate-pulse">
+                                    <span className="text-muted-foreground font-normal animate-pulse">
                                       loading balance...
                                     </span>
                                   ) : debtToMember ? (
@@ -617,7 +609,7 @@ const GroupDetails = () => {
                                       owes you ${debtFromMember.amount.toFixed(2)}
                                     </span>
                                   ) : (
-                                    <span className="text-gray-400 font-normal">
+                                    <span className="text-muted-foreground font-normal">
                                       settled up
                                     </span>
                                   )}
@@ -646,39 +638,38 @@ const GroupDetails = () => {
                             )}
                             <div className="flex items-center gap-2">
                               {isTempFriend && (
-                                <Badge variant="temp">Temp Friend</Badge>
+                                <Badge className="bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100/80">Temp Friend</Badge>
                               )}
-                              <Badge variant={roleVariant}>{roleLabel}</Badge>
+                              <Badge className={badgeClassName}>{roleLabel}</Badge>
 
                               {/* Role Management Dropdown */}
                               {(isAdmin || isOwner) &&
                                 member.userId !== group.createdBy && (
-                                  <Dropdown
-                                    trigger={
-                                      <button
-                                        aria-label="Manage role"
-                                        className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-                                      >
-                                        <MoreVertical size={16} />
-                                      </button>
-                                    }
-                                    items={[
-                                      {
-                                        label:
-                                          member.role === "ADMIN"
-                                            ? "Demote to Member"
-                                            : "Promote to Admin",
-                                        onClick: () =>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger
+                                      className="p-1 text-muted-foreground hover:text-muted-foreground rounded-full hover:bg-muted"
+                                      aria-label="Manage role"
+                                    >
+                                      <MoreVertical size={16} />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        disabled={updateRoleMutation.isPending}
+                                        onClick={() =>
                                           handleRoleUpdate(
                                             member.userId,
                                             member.role === "ADMIN"
                                               ? "MEMBER"
                                               : "ADMIN",
-                                          ),
-                                        disabled: updateRoleMutation.isPending,
-                                      },
-                                    ]}
-                                  />
+                                          )
+                                        }
+                                      >
+                                        {member.role === "ADMIN"
+                                          ? "Demote to Member"
+                                          : "Promote to Admin"}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 )}
                             </div>
                           </div>
@@ -701,54 +692,44 @@ const GroupDetails = () => {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-foreground">
                               Manage Members
                             </span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               Allow members to add/remove others
                             </span>
                           </div>
-                          <button
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${group.allowMembersToManageMembers ? "bg-blue-600" : "bg-gray-200"} ${updateGroupMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
-                            onClick={() =>
+                          <Switch
+                            checked={group.allowMembersToManageMembers}
+                            onCheckedChange={(checked) =>
                               updateGroupMutation.mutate({
-                                allowMembersToManageMembers:
-                                  !group.allowMembersToManageMembers,
+                                allowMembersToManageMembers: checked,
                               })
                             }
                             disabled={updateGroupMutation.isPending}
                             aria-label="Toggle allow members to manage members"
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${group.allowMembersToManageMembers ? "translate-x-6" : "translate-x-1"}`}
-                            />
-                          </button>
+                          />
                         </div>
 
                         <div className="flex items-center justify-between">
                           <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-foreground">
                               Collaborative Editing
                             </span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               Allow members to edit/delete expenses
                             </span>
                           </div>
-                          <button
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${group.allowMembersToEditExpenses ? "bg-blue-600" : "bg-gray-200"} ${updateGroupMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
-                            onClick={() =>
+                          <Switch
+                            checked={group.allowMembersToEditExpenses}
+                            onCheckedChange={(checked) =>
                               updateGroupMutation.mutate({
-                                allowMembersToEditExpenses:
-                                  !group.allowMembersToEditExpenses,
+                                allowMembersToEditExpenses: checked,
                               })
                             }
                             disabled={updateGroupMutation.isPending}
                             aria-label="Toggle allow members to edit expenses"
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${group.allowMembersToEditExpenses ? "translate-x-6" : "translate-x-1"}`}
-                            />
-                          </button>
+                          />
                         </div>
                       </div>
                     </CardContent>
@@ -762,7 +743,7 @@ const GroupDetails = () => {
                   </CardHeader>
                   <CardContent>
                     <Button
-                      variant="secondary"
+                      variant="outline"
                       onClick={() => setIsLeaveModalOpen(true)}
                       className="w-full flex items-center justify-center gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
                     >
@@ -771,157 +752,158 @@ const GroupDetails = () => {
                     </Button>
                   </CardContent>
                 </Card>
-              </div>
-            )}
+              </TabsContent>
 
-            {/* BALANCES TAB CONTENT */}
-            {activeTab === "balances" && (
-              <div className="h-full overflow-y-auto pr-1">
+              {/* BALANCES TAB CONTENT */}
+              <TabsContent value="balances" className="h-full overflow-y-auto pr-1">
                 <GroupBalances groupId={Number(id)} />
-              </div>
-            )}
-          </div>
+              </TabsContent>
+            </div>
 
-          {/* RIGHT SIDEBAR PANEL: ALWAYS-ON SHARED ACTIVITY (25%) */}
-          <div className="lg:col-span-1 h-full flex flex-col min-h-0 space-y-4">
-            <div className="px-1 flex items-center justify-between shrink-0">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Activity size={20} className="text-blue-600" />
-                <span>Shared Activity</span>
-              </h2>
-            </div>
-            <div className="flex-1 overflow-y-auto pr-1">
-              <GroupActivity
-                groupId={Number(id)}
-                onEditExpense={handleEditExpense}
-                group={group}
-              />
+            {/* RIGHT SIDEBAR PANEL: ALWAYS-ON SHARED ACTIVITY (25%) */}
+            <div className="lg:col-span-1 h-full flex flex-col min-h-0 space-y-4">
+              <div className="px-1 flex items-center justify-between shrink-0">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Activity size={20} className="text-blue-600" />
+                  <span>Shared Activity</span>
+                </h2>
+              </div>
+              <div className="flex-1 overflow-y-auto pr-1">
+                <GroupActivity
+                  groupId={Number(id)}
+                  onEditExpense={handleEditExpense}
+                  group={group}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </Tabs>
       </div>
 
-      <Modal
-        isOpen={isLeaveModalOpen}
-        onClose={() => setIsLeaveModalOpen(false)}
-        title="Leave Group"
-      >
-        <div className="space-y-4">
-          {isBalancesLoading || isSettlementsLoading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="animate-spin text-blue-600" size={24} />
+      <Dialog open={isLeaveModalOpen} onOpenChange={(open) => { if (!open) setIsLeaveModalOpen(false); }}>
+        <DialogContent className="max-w-lg bg-white">
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">Leave Group</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {isBalancesLoading || isSettlementsLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="animate-spin text-blue-600" size={24} />
+              </div>
+            ) : !canLeave ? (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {hasPendingSettlements ? (
+                  "You cannot leave this group while you have pending unconfirmed payments."
+                ) : (
+                  `You cannot leave this group while you have an outstanding balance (${currentUserBalance}).`
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                Are you sure you want to leave this group? You will no longer be
+                able to see expenses or add new ones.
+              </p>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsLeaveModalOpen(false)}
+                disabled={leaveMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleLeave}
+                disabled={
+                  leaveMutation.isPending || isBalancesLoading || isSettlementsLoading || !canLeave
+                }
+              >
+                {leaveMutation.isPending ? "Leaving..." : "Leave Group"}
+              </Button>
             </div>
-          ) : !canLeave ? (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {hasPendingSettlements ? (
-                "You cannot leave this group while you have pending unconfirmed payments."
-              ) : (
-                `You cannot leave this group while you have an outstanding balance (${currentUserBalance}).`
-              )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSelfDemoteModalOpen} onOpenChange={(open) => { if (!open) setIsSelfDemoteModalOpen(false); }}>
+        <DialogContent className="max-w-lg bg-white">
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">Confirm Self-Demotion</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+              <ShieldAlert className="shrink-0" size={20} />
+              <p>
+                Are you sure you want to demote yourself to a Member? You will
+                lose all administrative privileges in this group.
+              </p>
             </div>
-          ) : (
-            <p className="text-gray-600">
-              Are you sure you want to leave this group? You will no longer be
-              able to see expenses or add new ones.
-            </p>
-          )}
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => setIsLeaveModalOpen(false)}
-              disabled={leaveMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={handleLeave}
-              disabled={
-                leaveMutation.isPending || isBalancesLoading || isSettlementsLoading || !canLeave
-              }
-            >
-              {leaveMutation.isPending ? "Leaving..." : "Leave Group"}
-            </Button>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsSelfDemoteModalOpen(false)}
+                disabled={updateRoleMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={confirmSelfDemote}
+                disabled={updateRoleMutation.isPending}
+              >
+                {updateRoleMutation.isPending
+                  ? "Updating..."
+                  : "Confirm Demotion"}
+              </Button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
 
-      <Modal
-        isOpen={isSelfDemoteModalOpen}
-        onClose={() => setIsSelfDemoteModalOpen(false)}
-        title="Confirm Self-Demotion"
-      >
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
-            <ShieldAlert className="shrink-0" size={20} />
-            <p>
-              Are you sure you want to demote yourself to a Member? You will
-              lose all administrative privileges in this group.
+      <Dialog open={isDeleteModalOpen} onOpenChange={(open) => { if (!open) setIsDeleteModalOpen(false); }}>
+        <DialogContent className="max-w-lg bg-white">
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">Delete Expense</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-muted-foreground">
+              Are you sure you want to delete "
+              <span className="font-semibold text-foreground">
+                {expenseToDelete?.description}
+              </span>
+              "? This action cannot be undone and will update everyone's balances.
             </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={deleteExpenseMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteExpense}
+                disabled={deleteExpenseMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                {deleteExpenseMutation.isPending ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={18} />
+                    <span>Delete Expense</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => setIsSelfDemoteModalOpen(false)}
-              disabled={updateRoleMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={confirmSelfDemote}
-              disabled={updateRoleMutation.isPending}
-            >
-              {updateRoleMutation.isPending
-                ? "Updating..."
-                : "Confirm Demotion"}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        title="Delete Expense"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600">
-            Are you sure you want to delete "
-            <span className="font-semibold text-gray-900">
-              {expenseToDelete?.description}
-            </span>
-            "? This action cannot be undone and will update everyone's balances.
-          </p>
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => setIsDeleteModalOpen(false)}
-              disabled={deleteExpenseMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={confirmDeleteExpense}
-              disabled={deleteExpenseMutation.isPending}
-              className="flex items-center gap-2"
-            >
-              {deleteExpenseMutation.isPending ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  <span>Deleting...</span>
-                </>
-              ) : (
-                <>
-                  <Trash2 size={18} />
-                  <span>Delete Expense</span>
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
 
       {group && (
         <AddMemberModal

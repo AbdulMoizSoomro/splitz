@@ -1,6 +1,6 @@
 import { Menu, Bell, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import Button from "../core/Button/Button";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "../../store/authStore";
 
 interface NavbarProps {
