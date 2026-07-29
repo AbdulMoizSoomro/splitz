@@ -20,4 +20,14 @@ public class SecurityExpressions {
       return false;
     }
   }
+
+  public boolean isGroupAdmin(Long groupId) {
+    try {
+      Long currentUserId = splitzAuthorizer.getCurrentUserId();
+      groupGovernance.assertCanManageGroup(groupId, currentUserId);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
 }
