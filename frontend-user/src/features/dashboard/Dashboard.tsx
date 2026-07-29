@@ -16,7 +16,7 @@ function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout breadcrumbs={[{ label: "Dashboard" }]}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
@@ -25,7 +25,7 @@ function Dashboard() {
               <CardTitle>Welcome to Splitz</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 Start by adding your friends or creating a group to split
                 expenses.
               </p>
@@ -37,29 +37,35 @@ function Dashboard() {
             </CardContent>
           </Card>
 
-          <div className="max-w-2xl">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">
-              Find Friends
-            </h2>
-            <UserSearch />
-          </div>
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Find Friends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <UserSearch />
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-8">
-          <div>
-            <h2 className="text-xl font-bold mb-4 text-gray-900">
-              Friend Requests
-            </h2>
-            <FriendRequestsList />
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Friend Requests</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FriendRequestsList />
+            </CardContent>
+          </Card>
 
-          <div>
-            <h2 className="text-xl font-bold mb-4 text-gray-900">
-              Your Friends
-            </h2>
-            <FriendsList />
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Friends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FriendsList />
+            </CardContent>
+          </Card>
         </div>
       </div>
 

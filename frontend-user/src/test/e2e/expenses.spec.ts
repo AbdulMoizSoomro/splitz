@@ -35,7 +35,7 @@ test.describe("Expense Management", () => {
     await expect(groupModal).not.toBeVisible({ timeout: 10000 });
 
     // 3. Open Create Expense Modal from the new group card
-    const groupCard = page.locator(".bg-white", { hasText: groupName });
+    const groupCard = page.locator(".bg-card", { hasText: groupName });
     await groupCard.getByRole("button", { name: /add expense/i }).click();
 
     const expenseModal = page.getByRole("dialog", { name: /add new expense/i });
@@ -91,7 +91,7 @@ test.describe("Expense Management", () => {
     await expect(groupModal).not.toBeVisible({ timeout: 10000 });
 
     // 3. Open Create Expense Modal
-    const groupCard = page.locator(".bg-white", { hasText: groupName });
+    const groupCard = page.locator(".bg-card", { hasText: groupName });
     await groupCard.getByRole("button", { name: /add expense/i }).click();
 
     const expenseModal = page.getByRole("dialog", { name: /add new expense/i });
@@ -276,7 +276,7 @@ test.describe("Expense Management", () => {
 
       // Change payer back to Alice ("You")
       await editModal.locator('#paidBy').click();
-      await pageAlice.getByRole('option', { name: /^You$/i }).click();
+      await pageAlice.getByRole('option', { name: /Alice|You/i }).click();
       await editModal.locator('#description').fill("Dinner paid by Alice now");
 
       // Intercept PUT request to verify updated payer is sent

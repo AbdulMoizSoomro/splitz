@@ -13,6 +13,7 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -87,7 +88,7 @@ const GroupDetails = () => {
   });
 
   const { data: friends, isLoading: isFriendsLoading } = useQuery({
-    queryKey: ["friends", user?.id],
+    queryKey: ["friends", Number(user?.id)],
     queryFn: () => friendService.getFriends(Number(user?.id)),
     enabled: !!user?.id,
   });
@@ -281,7 +282,7 @@ const GroupDetails = () => {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <h2 className="text-xl font-bold text-gray-900">Group not found</h2>
+          <h2 className="text-xl font-bold text-foreground">Group not found</h2>
           <Button onClick={() => navigate("/groups")} className="mt-4">
             Back to Groups
           </Button>
@@ -291,16 +292,16 @@ const GroupDetails = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout breadcrumbs={[{ label: "Groups", href: "/groups" }, { label: group.name }]}>
       <div className="flex flex-col h-[calc(100vh-112px)] overflow-hidden space-y-4 pb-2">
         <div className="flex items-center gap-4 shrink-0">
           <Button variant="ghost" size="sm" onClick={() => navigate("/groups")}>
             <ArrowLeft size={20} />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{group.name}</h1>
             {group.description && (
-              <p className="text-gray-500">{group.description}</p>
+              <p className="text-muted-foreground">{group.description}</p>
             )}
           </div>
         </div>
@@ -311,10 +312,10 @@ const GroupDetails = () => {
           onValueChange={(val) => setActiveTab(val as "expenses" | "members" | "balances")}
           className="w-full flex-1 flex flex-col min-h-0"
         >
-          <TabsList variant="line" className="border-b border-gray-200 shrink-0 w-full justify-start gap-8 bg-transparent p-0 rounded-none h-auto -mb-px">
+          <TabsList variant="line" className="border-b border-border shrink-0 w-full justify-start gap-8 bg-transparent p-0 rounded-none h-auto -mb-px">
             <TabsTrigger
               value="expenses"
-              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
+              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
             >
               <div className="flex items-center gap-2">
                 <Receipt size={18} />
@@ -323,7 +324,7 @@ const GroupDetails = () => {
             </TabsTrigger>
             <TabsTrigger
               value="members"
-              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
+              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
             >
               <div className="flex items-center gap-2">
                 <Users size={18} />
@@ -332,7 +333,7 @@ const GroupDetails = () => {
             </TabsTrigger>
             <TabsTrigger
               value="balances"
-              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
+              className="py-4 px-1 border-b-2 bg-transparent rounded-none border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300 data-[active]:border-blue-500 data-[active]:text-blue-600"
             >
               <div className="flex items-center gap-2">
                 <DollarSign size={18} />
@@ -343,49 +344,41 @@ const GroupDetails = () => {
 
           {/* Balance Summary Card */}
           {!isBalancesLoading && currentUserBalance !== 0 && (
-            <Card
-              className={`shrink-0 my-4 ${
-                currentUserBalance > 0
-                  ? "bg-green-50/50 border-green-100"
-                  : "bg-red-50/50 border-red-100"
-              }`}
-            >
+            <Card className="shrink-0 my-4 shadow-sm border-border">
               <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div
-                    className={`p-2 rounded-full ${
+                    className={`p-3 rounded-full flex items-center justify-center ${
                       currentUserBalance > 0
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
+                        ? "bg-emerald-500/10 text-emerald-500"
+                        : "bg-destructive/10 text-destructive"
                     }`}
                   >
-                    <DollarSign size={20} />
+                    <DollarSign size={24} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-muted-foreground">
                       Your Group Balance
                     </p>
-                    <div className="flex items-baseline gap-2">
-                      <h3
-                        className={`text-lg font-bold ${
-                          currentUserBalance > 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {currentUserBalance > 0 ? "You are owed" : "You owe"} ${Math.abs(currentUserBalance).toFixed(2)}
-                      </h3>
-                    </div>
+                    <h3
+                      className={`text-xl font-bold ${
+                        currentUserBalance > 0
+                          ? "text-emerald-500"
+                          : "text-destructive"
+                      }`}
+                    >
+                      {currentUserBalance > 0 ? "You are owed" : "You owe"} ${Math.abs(currentUserBalance).toFixed(2)}
+                    </h3>
                   </div>
                 </div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setActiveTab("balances")}
                   className={
                     currentUserBalance > 0
-                      ? "text-green-700 hover:bg-green-100"
-                      : "text-red-700 hover:bg-red-100"
+                      ? "text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-600"
+                      : "text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                   }
                 >
                   View Details
@@ -400,7 +393,7 @@ const GroupDetails = () => {
               {/* EXPENSES TAB CONTENT */}
               <TabsContent value="expenses" className="h-full flex flex-col min-h-0 space-y-4">
                 <div className="flex justify-between items-center px-1 shrink-0">
-                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <Receipt size={20} className="text-blue-600" />
                     <span>Group Expenses</span>
                   </h2>
@@ -422,10 +415,10 @@ const GroupDetails = () => {
                   <Card>
                     <CardContent className="py-12 text-center">
                       <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
-                      <h3 className="text-lg font-medium text-gray-900 mb-1">
+                      <h3 className="text-lg font-medium text-foreground mb-1">
                         No expenses yet
                       </h3>
-                      <p className="text-gray-500 italic mb-6">
+                      <p className="text-muted-foreground italic mb-6">
                         Add an expense to get started splitting with the group!
                       </p>
                       <Button
@@ -438,8 +431,9 @@ const GroupDetails = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="space-y-3 flex-1 overflow-y-auto pr-1">
-                    {sortedExpenses.map((expense) => {
+                  <ScrollArea className="h-[500px] pr-4">
+                    <div className="space-y-3">
+                      {sortedExpenses.map((expense) => {
                       const isPayer = expense.paidBy === Number(user?.id);
                       const payerName = isPayer ? "You" : (memberNames[expense.paidBy] ?? `User ${expense.paidBy}`);
                       const date = new Date(expense.expenseDate);
@@ -461,7 +455,7 @@ const GroupDetails = () => {
                             </span>
                           );
                         } else {
-                          balanceIndicator = <span className="text-gray-500 text-sm">you paid for yourself</span>;
+                          balanceIndicator = <span className="text-muted-foreground text-sm">you paid for yourself</span>;
                         }
                       } else {
                         if (mySplit) {
@@ -471,7 +465,7 @@ const GroupDetails = () => {
                             </span>
                           );
                         } else {
-                          balanceIndicator = <span className="text-gray-400 text-sm">not involved</span>;
+                          balanceIndicator = <span className="text-muted-foreground text-sm">not involved</span>;
                         }
                       }
 
@@ -483,8 +477,8 @@ const GroupDetails = () => {
                                 <Receipt size={20} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-gray-900 truncate">{expense.description}</h3>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5 text-xs text-gray-500">
+                                <h3 className="font-semibold text-foreground truncate">{expense.description}</h3>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5 text-xs text-muted-foreground">
                                   <span>Paid by <span className="font-medium text-gray-700">{payerName}</span></span>
                                   <span>•</span>
                                   <span className="flex items-center gap-1">
@@ -492,21 +486,21 @@ const GroupDetails = () => {
                                     {date.toLocaleDateString()}
                                   </span>
                                   <span>•</span>
-                                  <Badge className="bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-100/80">{categoryName}</Badge>
+                                  <Badge className="bg-muted text-foreground border-border hover:bg-muted/80">{categoryName}</Badge>
                                 </div>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-6 shrink-0">
                               <div className="text-right">
-                                <div className="text-base font-bold text-gray-900">${expense.amount.toFixed(2)}</div>
+                                <div className="text-base font-bold text-foreground">${expense.amount.toFixed(2)}</div>
                                 <div>{balanceIndicator}</div>
                               </div>
                               
                               {canManage && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger
-                                    className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                                    className="p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-muted-foreground transition-colors"
                                     aria-label={`Actions for ${expense.description}`}
                                   >
                                     <MoreVertical size={20} />
@@ -529,7 +523,8 @@ const GroupDetails = () => {
                         </Card>
                       );
                     })}
-                  </div>
+                    </div>
+                  </ScrollArea>
                 )}
               </TabsContent>
 
@@ -542,7 +537,7 @@ const GroupDetails = () => {
                       <span>Members</span>
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-muted-foreground">
                         {group.members.length} members
                       </span>
                       {(isOwner ||
@@ -565,7 +560,7 @@ const GroupDetails = () => {
                         const displayName =
                           memberNames[member.userId] ?? `User ${member.userId}`;
 
-                        let badgeClassName = "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-100/80";
+                        let badgeClassName = "bg-muted text-foreground border-border hover:bg-muted/80";
                         let roleLabel = "Member";
 
                         if (member.userId === group.createdBy) {
@@ -596,13 +591,13 @@ const GroupDetails = () => {
                               {displayName.charAt(0)}
                             </div>
                             <div className="flex flex-col text-left">
-                              <span className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                              <span className="text-sm font-medium text-foreground group-hover:text-blue-600 transition-colors">
                                 {displayName}
                               </span>
                               {!isCurrentUser && (
                                 <span className="text-xs">
                                   {isBalancesLoading ? (
-                                    <span className="text-gray-400 font-normal animate-pulse">
+                                    <span className="text-muted-foreground font-normal animate-pulse">
                                       loading balance...
                                     </span>
                                   ) : debtToMember ? (
@@ -614,7 +609,7 @@ const GroupDetails = () => {
                                       owes you ${debtFromMember.amount.toFixed(2)}
                                     </span>
                                   ) : (
-                                    <span className="text-gray-400 font-normal">
+                                    <span className="text-muted-foreground font-normal">
                                       settled up
                                     </span>
                                   )}
@@ -652,7 +647,7 @@ const GroupDetails = () => {
                                 member.userId !== group.createdBy && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger
-                                      className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                                      className="p-1 text-muted-foreground hover:text-muted-foreground rounded-full hover:bg-muted"
                                       aria-label="Manage role"
                                     >
                                       <MoreVertical size={16} />
@@ -697,10 +692,10 @@ const GroupDetails = () => {
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-foreground">
                               Manage Members
                             </span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               Allow members to add/remove others
                             </span>
                           </div>
@@ -718,10 +713,10 @@ const GroupDetails = () => {
 
                         <div className="flex items-center justify-between">
                           <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-foreground">
                               Collaborative Editing
                             </span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               Allow members to edit/delete expenses
                             </span>
                           </div>
@@ -768,7 +763,7 @@ const GroupDetails = () => {
             {/* RIGHT SIDEBAR PANEL: ALWAYS-ON SHARED ACTIVITY (25%) */}
             <div className="lg:col-span-1 h-full flex flex-col min-h-0 space-y-4">
               <div className="px-1 flex items-center justify-between shrink-0">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <Activity size={20} className="text-blue-600" />
                   <span>Shared Activity</span>
                 </h2>
@@ -787,8 +782,8 @@ const GroupDetails = () => {
 
       <Dialog open={isLeaveModalOpen} onOpenChange={(open) => { if (!open) setIsLeaveModalOpen(false); }}>
         <DialogContent className="max-w-lg bg-white">
-          <DialogHeader className="border-b border-gray-200 pb-3">
-            <DialogTitle className="text-xl font-semibold text-gray-900">Leave Group</DialogTitle>
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">Leave Group</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {isBalancesLoading || isSettlementsLoading ? (
@@ -804,7 +799,7 @@ const GroupDetails = () => {
                 )}
               </div>
             ) : (
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Are you sure you want to leave this group? You will no longer be
                 able to see expenses or add new ones.
               </p>
@@ -833,8 +828,8 @@ const GroupDetails = () => {
 
       <Dialog open={isSelfDemoteModalOpen} onOpenChange={(open) => { if (!open) setIsSelfDemoteModalOpen(false); }}>
         <DialogContent className="max-w-lg bg-white">
-          <DialogHeader className="border-b border-gray-200 pb-3">
-            <DialogTitle className="text-xl font-semibold text-gray-900">Confirm Self-Demotion</DialogTitle>
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">Confirm Self-Demotion</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
@@ -868,13 +863,13 @@ const GroupDetails = () => {
 
       <Dialog open={isDeleteModalOpen} onOpenChange={(open) => { if (!open) setIsDeleteModalOpen(false); }}>
         <DialogContent className="max-w-lg bg-white">
-          <DialogHeader className="border-b border-gray-200 pb-3">
-            <DialogTitle className="text-xl font-semibold text-gray-900">Delete Expense</DialogTitle>
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">Delete Expense</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               Are you sure you want to delete "
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-foreground">
                 {expenseToDelete?.description}
               </span>
               "? This action cannot be undone and will update everyone's balances.

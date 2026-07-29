@@ -109,7 +109,7 @@ test.describe("Group Management", () => {
 
     // 4. Verify we are on details page
     await expect(page).toHaveURL(/\/groups\/\d+/);
-    await expect(page.getByText(groupName)).toBeVisible();
+    await expect(page.getByRole('heading', { name: groupName })).toBeVisible();
 
     // Navigate to Members tab
     await page.getByRole("tab", { name: "Members", exact: true }).click();

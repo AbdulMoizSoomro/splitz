@@ -237,7 +237,7 @@ test.describe("[E2E] Group Roles and Permissions", () => {
       // 6. Member navigates to the group page
       await pageMember.goto(groupUrl);
       await expect(pageMember).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
-      await expect(pageMember.getByText(groupName)).toBeVisible();
+      await expect(pageMember.getByRole('heading', { name: groupName })).toBeVisible();
 
       // 7. Member should NOT see "Group Settings" section (owner-only)
       await expect(pageMember.getByText(/group settings/i)).not.toBeVisible();

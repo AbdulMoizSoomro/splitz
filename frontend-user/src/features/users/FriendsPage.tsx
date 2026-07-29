@@ -15,8 +15,8 @@ const FriendsPage = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Friends</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-foreground">Friends</h1>
+          <p className="text-muted-foreground">
             Manage your connections and find new friends.
           </p>
         </div>
@@ -33,8 +33,6 @@ const FriendsPage = () => {
               </CardContent>
             </Card>
 
-            <TempFriendsList />
-
             <Card>
               <CardHeader>
                 <CardTitle>Your Friends</CardTitle>
@@ -43,6 +41,8 @@ const FriendsPage = () => {
                 <FriendsList />
               </CardContent>
             </Card>
+
+            <TempFriendsList />
           </div>
 
           {/* Sidebar */}

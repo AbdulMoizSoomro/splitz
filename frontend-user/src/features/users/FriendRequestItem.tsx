@@ -63,11 +63,11 @@ const FriendRequestItem = ({
 
   if (isLoadingUser) {
     return (
-      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md animate-pulse">
-        <div className="h-4 w-32 bg-gray-200 rounded"></div>
+      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md animate-pulse">
+        <div className="h-4 w-32 bg-muted rounded"></div>
         <div className="flex gap-2">
-          <div className="h-8 w-8 bg-gray-200 rounded"></div>
-          <div className="h-8 w-8 bg-gray-200 rounded"></div>
+          <div className="h-8 w-8 bg-muted rounded"></div>
+          <div className="h-8 w-8 bg-muted rounded"></div>
         </div>
       </div>
     );
@@ -76,12 +76,12 @@ const FriendRequestItem = ({
   if (!user) return null;
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+    <div className="flex items-center justify-between p-3 bg-card border border-border rounded-lg shadow-sm">
       <div>
-        <p className="text-sm font-semibold text-gray-900">
+        <p className="text-sm font-semibold text-foreground">
           {user.firstName} {user.lastName}
         </p>
-        <p className="text-xs text-gray-500">@{user.username}</p>
+        <p className="text-xs text-muted-foreground">@{user.username}</p>
       </div>
 
       <div className="flex gap-2">

@@ -1,5 +1,7 @@
 package com.splitz.user.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.splitz.event.FriendshipEvent;
 import com.splitz.user.dto.FriendshipDTO;
 import com.splitz.user.dto.UserDTO;
 import com.splitz.user.exception.ResourceNotFoundException;
@@ -7,37 +9,56 @@ import com.splitz.user.mapper.FriendshipMapper;
 import com.splitz.user.mapper.UserMapper;
 import com.splitz.user.model.Friendship;
 import com.splitz.user.model.FriendshipStatus;
+import com.splitz.user.model.OutboxEvent;
 import com.splitz.user.model.User;
 import com.splitz.user.repository.FriendshipRepository;
+import com.splitz.user.repository.OutboxRepository;
 import com.splitz.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class FriendshipService {
 
-  @Autowired private final FriendshipRepository friendshipRepository;
+  private final FriendshipRepository friendshipRepository;
+  private final UserRepository userRepository;
+  private final OutboxRepository outboxRepository;
+  private final FriendshipMapper friendshipMapper;
+  private final UserMapper userMapper;
+  private final ObjectMapper objectMapper;
 
-  @Autowired private final UserRepository userRepository;
-
-  @Autowired private final FriendshipMapper friendshipMapper;
-
-  @Autowired private final UserMapper userMapper;
+  @Autowired
+  public FriendshipService(
+      FriendshipRepository friendshipRepository,
+      UserRepository userRepository,
+      OutboxRepository outboxRepository,
+      FriendshipMapper friendshipMapper,
+      UserMapper userMapper,
+      ObjectMapper objectMapper) {
+    this.friendshipRepository = friendshipRepository;
+    this.userRepository = userRepository;
+    this.outboxRepository = outboxRepository;
+    this.friendshipMapper = friendshipMapper;
+    this.userMapper = userMapper;
+    this.objectMapper =
+        objectMapper != null ? objectMapper : new ObjectMapper().findAndRegisterModules();
+  }
 
   public FriendshipService(
       FriendshipRepository friendshipRepository,
       UserRepository userRepository,
       FriendshipMapper friendshipMapper,
       UserMapper userMapper) {
-    this.friendshipRepository = friendshipRepository;
-    this.userRepository = userRepository;
-    this.friendshipMapper = friendshipMapper;
-    this.userMapper = userMapper;
+    this(friendshipRepository, userRepository, null, friendshipMapper, userMapper, null);
   }
 
   /** Send a friend request from requester to addressee. */
+  @Transactional
   public FriendshipDTO sendFriendRequest(Long requesterId, Long addresseeId) {
     Objects.requireNonNull(requesterId, "requesterId");
     Objects.requireNonNull(addresseeId, "addresseeId");
@@ -55,10 +76,14 @@ public class FriendshipService {
     Friendship friendship = Friendship.createRequest(requester, addressee);
     Friendship saved =
         Objects.requireNonNull(friendshipRepository.save(friendship), "saved friendship");
+
+    saveFriendshipOutboxEvent("FRIENDSHIP_REQUESTED", saved);
+
     return friendshipMapper.toDTO(saved);
   }
 
   /** Accept a pending friend request. Only the addressee may accept. */
+  @Transactional
   public FriendshipDTO acceptFriendRequest(Long friendshipId, Long actingUserId) {
     Objects.requireNonNull(friendshipId, "friendshipId");
     Objects.requireNonNull(actingUserId, "actingUserId");
@@ -71,10 +96,14 @@ public class FriendshipService {
     friendship.accept();
     Friendship saved =
         Objects.requireNonNull(friendshipRepository.save(friendship), "saved friendship");
+
+    saveFriendshipOutboxEvent("FRIENDSHIP_ACCEPTED", saved);
+
     return friendshipMapper.toDTO(saved);
   }
 
   /** Reject a pending friend request. Only the addressee may reject. */
+  @Transactional
   public FriendshipDTO rejectFriendRequest(Long friendshipId, Long actingUserId) {
     Objects.requireNonNull(friendshipId, "friendshipId");
     Objects.requireNonNull(actingUserId, "actingUserId");
@@ -87,6 +116,9 @@ public class FriendshipService {
     friendship.reject();
     Friendship saved =
         Objects.requireNonNull(friendshipRepository.save(friendship), "saved friendship");
+
+    saveFriendshipOutboxEvent("FRIENDSHIP_REJECTED", saved);
+
     return friendshipMapper.toDTO(saved);
   }
 
@@ -123,6 +155,7 @@ public class FriendshipService {
   }
 
   /** Remove a friendship or cancel a pending request. Either party may remove/cancel. */
+  @Transactional
   public void removeFriend(Long userId, Long friendId) {
     Objects.requireNonNull(userId, "userId");
     Objects.requireNonNull(friendId, "friendId");
@@ -147,6 +180,8 @@ public class FriendshipService {
     }
 
     friendshipRepository.delete(friendship);
+
+    saveFriendshipOutboxEvent("FRIENDSHIP_REMOVED", friendship);
   }
 
   private User getUserOrThrow(Long userId) {
@@ -162,5 +197,40 @@ public class FriendshipService {
         .findById(friendshipId)
         .orElseThrow(
             () -> new ResourceNotFoundException("Friendship not found with id: " + friendshipId));
+  }
+
+  private void saveFriendshipOutboxEvent(String eventType, Friendship friendship) {
+    if (outboxRepository == null) {
+      return;
+    }
+    try {
+      FriendshipEvent event =
+          FriendshipEvent.builder()
+              .eventId(UUID.randomUUID().toString())
+              .eventType(eventType)
+              .userId(friendship.getRequester().getId())
+              .friendId(friendship.getAddressee().getId())
+              .status(friendship.getStatus() != null ? friendship.getStatus().name() : "REMOVED")
+              .timestamp(Instant.now())
+              .build();
+
+      String payload = objectMapper.writeValueAsString(event);
+
+      OutboxEvent outboxEvent =
+          OutboxEvent.builder()
+              .id(event.getEventId())
+              .aggregateType("FRIENDSHIP")
+              .aggregateId(String.valueOf(friendship.getId()))
+              .eventType(eventType)
+              .payload(payload)
+              .createdAt(event.getTimestamp())
+              .processed(false)
+              .build();
+
+      outboxRepository.save(outboxEvent);
+    } catch (Exception e) {
+      throw new RuntimeException(
+          "Failed to serialize OutboxEvent payload for friendship: " + friendship.getId(), e);
+    }
   }
 }

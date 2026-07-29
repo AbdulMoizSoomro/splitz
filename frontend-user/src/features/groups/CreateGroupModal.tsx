@@ -91,9 +91,9 @@ const CreateGroupModal = ({ isOpen, onClose }: CreateGroupModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-lg bg-white">
-        <DialogHeader className="border-b border-gray-200 pb-3">
-          <DialogTitle className="text-xl font-semibold text-gray-900">Create New Group</DialogTitle>
+      <DialogContent className="max-w-lg bg-background">
+        <DialogHeader className="border-b border-border pb-3">
+          <DialogTitle className="text-xl font-semibold text-foreground">Create New Group</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 pt-2">
           <div className="space-y-4">
@@ -123,7 +123,7 @@ const CreateGroupModal = ({ isOpen, onClose }: CreateGroupModalProps) => {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
+            <label className="text-sm font-medium text-foreground mb-2 block">
               Add Members
             </label>
             <MemberPicker
@@ -134,8 +134,8 @@ const CreateGroupModal = ({ isOpen, onClose }: CreateGroupModalProps) => {
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-100 rounded-md">
-              <p className="text-sm text-red-600 font-medium">{error}</p>
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 rounded-md">
+              <p className="text-sm text-red-600 dark:text-red-400 font-medium">{error}</p>
             </div>
           )}
 
