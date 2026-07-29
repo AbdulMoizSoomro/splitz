@@ -2,11 +2,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { expenseService } from "../expenses/expenseService";
 import { groupService } from "./groupService";
 import { useAuthStore } from "../../store/authStore";
-import { Card, CardContent } from "../../components/core/Card/Card";
-import Button from "../../components/core/Button/Button";
-import Dropdown from "../../components/core/Dropdown/Dropdown";
-import Modal from "../../components/core/Modal/Modal";
-import { useToastStore } from "../../store/toastStore";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { useDisplayNames } from "../../hooks/useDisplayName";
 import {
   Loader2,
@@ -40,7 +51,7 @@ const GroupActivity = ({
   const { user } = useAuthStore();
   const currentUserId = Number(user?.id);
   const queryClient = useQueryClient();
-  const { addToast } = useToastStore();
+
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
@@ -62,12 +73,12 @@ const GroupActivity = ({
       queryClient.invalidateQueries({ queryKey: ["group-activity", groupId] });
       queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
       queryClient.invalidateQueries({ queryKey: ["group-balances", groupId] });
-      addToast("Expense deleted successfully", "success");
+      toast.success("Expense deleted successfully");
       setIsDeleteModalOpen(false);
       setExpenseToDelete(null);
     },
     onError: () => {
-      addToast("Failed to delete expense", "error");
+      toast.error("Failed to delete expense");
     },
   });
 
@@ -117,11 +128,11 @@ const GroupActivity = ({
       ) : !activities || activities.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Receipt className="mx-auto text-gray-300 mb-4" size={48} />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">
+            <Receipt className="mx-auto text-muted-foreground mb-4 opacity-50" size={48} />
+            <h3 className="text-lg font-medium text-foreground mb-1">
               No activity yet
             </h3>
-            <p className="text-gray-500 italic mb-6">
+            <p className="text-muted-foreground italic mb-6">
               Add an expense or record a payment to get started!
             </p>
             {onAddExpense && (
@@ -136,12 +147,14 @@ const GroupActivity = ({
           </CardContent>
         </Card>
       ) : (
-        activities.map((activity: ActivityLog) => {
-          const actorName = nameMap[activity.actorId] ?? `User ${activity.actorId}`;
+        <ScrollArea className="h-[500px] pr-4">
+          <div className="space-y-4">
+            {activities.map((activity: ActivityLog) => {
+              const actorName = nameMap[activity.actorId] ?? `User ${activity.actorId}`;
           const date = new Date(activity.timestamp);
 
           let Icon = Receipt;
-          let iconBg = "bg-gray-100 text-gray-700";
+          let iconBg = "bg-muted text-foreground";
           let title = "";
           let description = "";
 
@@ -208,72 +221,85 @@ const GroupActivity = ({
                       <Icon size={20} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{title}</h3>
-                      <p className="text-sm text-gray-500">{description}</p>
+                      <h3 className="font-semibold text-foreground">{title}</h3>
+                      <p className="text-sm text-muted-foreground">{description}</p>
                     </div>
                   </div>
                   {canManage && (
-                    <Dropdown
-                      trigger={
-                        <button
-                          className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-                          aria-label={`Actions for ${activity.entityName}`}
-                        >
-                          <MoreVertical size={20} />
-                        </button>
-                      }
-                      items={dropdownItems}
-                    />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={`Actions for ${activity.entityName}`}
+                      >
+                        <MoreVertical size={20} />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {dropdownItems.map((item, index) => (
+                          <DropdownMenuItem
+                            key={index}
+                            onClick={item.onClick}
+                            variant={item.variant === "danger" ? "destructive" : "default"}
+                            className="flex items-center gap-1.5"
+                          >
+                            {item.icon}
+                            <span>{item.label}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
               </CardContent>
             </Card>
           );
-        })
+        })}
+          </div>
+        </ScrollArea>
       )}
 
-      <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        title="Delete Expense"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600">
-            Are you sure you want to delete "
-            <span className="font-semibold text-gray-900">
-              {expenseToDelete?.description}
-            </span>
-            "? This action cannot be undone and will update everyone's balances.
-          </p>
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => setIsDeleteModalOpen(false)}
-              disabled={deleteExpenseMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              onClick={confirmDelete}
-              disabled={deleteExpenseMutation.isPending}
-              className="flex items-center gap-2"
-            >
-              {deleteExpenseMutation.isPending ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  <span>Deleting...</span>
-                </>
-              ) : (
-                <>
-                  <Trash2 size={18} />
-                  <span>Delete Expense</span>
-                </>
-              )}
-            </Button>
+      <Dialog open={isDeleteModalOpen} onOpenChange={(open) => { if (!open) setIsDeleteModalOpen(false); }}>
+        <DialogContent className="max-w-lg bg-background">
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-xl font-semibold text-foreground">Delete Expense</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-muted-foreground">
+              Are you sure you want to delete this expense? This will remove the expense for all group members and recalculate balances.
+              <span className="font-semibold text-foreground">
+                {expenseToDelete?.description}
+              </span>
+              "? This action cannot be undone and will update everyone's balances.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={deleteExpenseMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDelete}
+                disabled={deleteExpenseMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                {deleteExpenseMutation.isPending ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={18} />
+                    <span>Delete Expense</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

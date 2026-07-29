@@ -11,16 +11,16 @@ test.describe("Expense Management", () => {
 
     // 1. Register and Login
     await page.goto("/register");
-    await page.getByLabel(/first name/i).fill("Exp");
-    await page.getByLabel(/last name/i).fill("Tester");
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#firstName').fill("Exp");
+    await page.locator('#lastName').fill("Tester");
+    await page.locator('#username').fill(username);
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /register/i }).click();
 
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /login/i }).click();
     await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
 
@@ -30,20 +30,20 @@ test.describe("Expense Management", () => {
 
     const groupName = `Group Exp ${timestamp}`;
     const groupModal = page.getByRole("dialog");
-    await groupModal.getByLabel(/group name/i).fill(groupName);
+    await groupModal.locator('#group-name').fill(groupName);
     await groupModal.getByRole("button", { name: /create group/i }).click();
     await expect(groupModal).not.toBeVisible({ timeout: 10000 });
 
     // 3. Open Create Expense Modal from the new group card
-    const groupCard = page.locator(".bg-white", { hasText: groupName });
+    const groupCard = page.locator(".bg-card", { hasText: groupName });
     await groupCard.getByRole("button", { name: /add expense/i }).click();
 
     const expenseModal = page.getByRole("dialog", { name: /add new expense/i });
     await expect(expenseModal).toBeVisible();
 
     // 4. Fill expense form
-    await expenseModal.getByLabel(/description/i).fill("Team Lunch");
-    await expenseModal.getByLabel(/amount/i).fill("45.00");
+    await expenseModal.locator('#description').fill("Team Lunch");
+    await expenseModal.locator('#amount').fill("45.00");
 
     // Verify equal split display
     await expect(
@@ -67,16 +67,16 @@ test.describe("Expense Management", () => {
 
     // 1. Register and Login
     await page.goto("/register");
-    await page.getByLabel(/first name/i).fill("Exact");
-    await page.getByLabel(/last name/i).fill("Tester");
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#firstName').fill("Exact");
+    await page.locator('#lastName').fill("Tester");
+    await page.locator('#username').fill(username);
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /register/i }).click();
 
     await expect(page).toHaveURL(/\/login/);
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/password/i).fill(password);
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /login/i }).click();
     await expect(page).toHaveURL(/\/$/);
 
@@ -86,20 +86,20 @@ test.describe("Expense Management", () => {
 
     const groupName = `Group Exact ${timestamp}`;
     const groupModal = page.getByRole("dialog");
-    await groupModal.getByLabel(/group name/i).fill(groupName);
+    await groupModal.locator('#group-name').fill(groupName);
     await groupModal.getByRole("button", { name: /create group/i }).click();
     await expect(groupModal).not.toBeVisible({ timeout: 10000 });
 
     // 3. Open Create Expense Modal
-    const groupCard = page.locator(".bg-white", { hasText: groupName });
+    const groupCard = page.locator(".bg-card", { hasText: groupName });
     await groupCard.getByRole("button", { name: /add expense/i }).click();
 
     const expenseModal = page.getByRole("dialog", { name: /add new expense/i });
     await expect(expenseModal).toBeVisible();
 
     // 4. Fill basic info
-    await expenseModal.getByLabel(/description/i).fill("Exact Test");
-    await expenseModal.getByLabel(/amount/i).fill("100.00");
+    await expenseModal.locator('#description').fill("Exact Test");
+    await expenseModal.locator('#amount').fill("100.00");
 
     // Verify equal split is default
     await expect(
@@ -107,7 +107,7 @@ test.describe("Expense Management", () => {
     ).toBeVisible();
 
     // 5. Toggle to Exact
-    await expenseModal.getByLabel(/exact/i).click();
+    await expenseModal.getByLabel(/exact/i).first().click();
 
     // 6. Verify Exact Split UI changes
     // "Each person pays" should be hidden
@@ -116,7 +116,7 @@ test.describe("Expense Management", () => {
     // Share input for the current user should be visible
     // The current user's ID is not easily known here without checking the store,
     // but the component labels it "User X (You)". We can use a regex for "share".
-    await expect(expenseModal.getByLabel(/share/i)).toBeVisible();
+    await expect(expenseModal.getByLabel(/split value/i).first()).toBeVisible();
 
     // Verify "Remaining" balance is shown
     await expect(expenseModal.getByText(/remaining: \$100\.00/i)).toBeVisible();
@@ -184,29 +184,29 @@ test.describe("Expense Management", () => {
     try {
       // 1. Register and Login Alice
       await pageAlice.goto("/register");
-      await pageAlice.getByLabel(/first name/i).fill("Alice");
-      await pageAlice.getByLabel(/last name/i).fill("User");
-      await pageAlice.getByLabel(/username/i).fill(aliceName);
-      await pageAlice.getByLabel(/email/i).fill(`${aliceName}@example.com`);
-      await pageAlice.getByLabel(/password/i).fill(password);
+      await pageAlice.locator('#firstName').fill("Alice");
+      await pageAlice.locator('#lastName').fill("User");
+      await pageAlice.locator('#username').fill(aliceName);
+      await pageAlice.locator('#email').fill(`${aliceName}@example.com`);
+      await pageAlice.locator('#password').fill(password);
       await pageAlice.getByRole("button", { name: /register/i }).click();
       await expect(pageAlice).toHaveURL(/\/login/);
-      await pageAlice.getByLabel(/username/i).fill(aliceName);
-      await pageAlice.getByLabel(/password/i).fill(password);
+      await pageAlice.locator('#username').fill(aliceName);
+      await pageAlice.locator('#password').fill(password);
       await pageAlice.getByRole("button", { name: /login/i }).click();
       await expect(pageAlice).toHaveURL(/\/$/);
 
       // 2. Register and Login Bob
       await pageBob.goto("/register");
-      await pageBob.getByLabel(/first name/i).fill("Bob");
-      await pageBob.getByLabel(/last name/i).fill("User");
-      await pageBob.getByLabel(/username/i).fill(bobName);
-      await pageBob.getByLabel(/email/i).fill(`${bobName}@example.com`);
-      await pageBob.getByLabel(/password/i).fill(password);
+      await pageBob.locator('#firstName').fill("Bob");
+      await pageBob.locator('#lastName').fill("User");
+      await pageBob.locator('#username').fill(bobName);
+      await pageBob.locator('#email').fill(`${bobName}@example.com`);
+      await pageBob.locator('#password').fill(password);
       await pageBob.getByRole("button", { name: /register/i }).click();
       await expect(pageBob).toHaveURL(/\/login/);
-      await pageBob.getByLabel(/username/i).fill(bobName);
-      await pageBob.getByLabel(/password/i).fill(password);
+      await pageBob.locator('#username').fill(bobName);
+      await pageBob.locator('#password').fill(password);
       await pageBob.getByRole("button", { name: /login/i }).click();
       await expect(pageBob).toHaveURL(/\/$/);
 
@@ -224,7 +224,7 @@ test.describe("Expense Management", () => {
       await pageAlice.goto("/groups");
       await pageAlice.getByRole("button", { name: /create group/i }).first().click();
       const groupName = `Payer Group ${ts}`;
-      await pageAlice.getByLabel(/group name/i).fill(groupName);
+      await pageAlice.locator('#group-name').fill(groupName);
       await pageAlice.getByText("Bob User").click();
       await pageAlice.getByRole("button", { name: /create group/i }).last().click();
       await expect(pageAlice.getByText(groupName)).toBeVisible();
@@ -237,17 +237,15 @@ test.describe("Expense Management", () => {
       await expect(expenseModal).toBeVisible();
 
       // 7. Verify "Paid By" select defaults to "You"
-      const paidBySelect = expenseModal.getByLabel(/paid by/i);
-      await expect(paidBySelect).toHaveValue(/^[0-9]+$/);
-      
-      const selectedOptionText = await expenseModal.locator("#paidBy option:checked").textContent();
-      expect(selectedOptionText).toBe("You");
+      await expect(expenseModal.locator('#paidBy')).toBeVisible();
+      await expect(expenseModal.locator('#paidBy')).toHaveText(/You/);
 
       // 8. Alice records that Bob paid for it
-      await paidBySelect.selectOption({ label: "Bob User" });
+      await expenseModal.locator('#paidBy').click();
+      await pageAlice.getByRole('option', { name: /Bob User/i }).click();
 
-      await expenseModal.getByLabel(/description/i).fill("Dinner paid by Bob");
-      await expenseModal.getByLabel(/amount/i).fill("80.00");
+      await expenseModal.locator('#description').fill("Dinner paid by Bob");
+      await expenseModal.locator('#amount').fill("80.00");
 
       // Intercept POST request to verify paidBy in payload matches Bob's ID
       const createRequestPromise = pageAlice.waitForRequest(
@@ -267,21 +265,19 @@ test.describe("Expense Management", () => {
       await expect(pageAlice.getByText(/Dinner paid by Bob/i).first()).toBeVisible();
 
       // 9. Now test editing the expense to change the payer
-      await pageAlice.getByRole("button", { name: /expenses/i }).click();
-      await pageAlice.getByLabel(/Actions for Dinner paid by Bob/i).first().click();
+      await pageAlice.getByLabel(/Actions for/i).first().click();
       await pageAlice.getByRole("menuitem", { name: /Edit/i }).click();
 
       const editModal = pageAlice.getByRole("dialog", { name: /edit expense/i });
       await expect(editModal).toBeVisible();
 
       // Verify the payer dropdown defaults to Bob
-      const editPaidBySelect = editModal.getByLabel(/paid by/i);
-      const editSelectedOptionText = await editModal.locator("#paidBy option:checked").textContent();
-      expect(editSelectedOptionText).toBe("Bob User");
+      await expect(editModal.locator('#paidBy')).toHaveText(/Bob User/);
 
       // Change payer back to Alice ("You")
-      await editPaidBySelect.selectOption({ label: "You" });
-      await editModal.getByLabel(/description/i).fill("Dinner paid by Alice now");
+      await editModal.locator('#paidBy').click();
+      await pageAlice.getByRole('option', { name: /Alice|You/i }).click();
+      await editModal.locator('#description').fill("Dinner paid by Alice now");
 
       // Intercept PUT request to verify updated payer is sent
       const updateRequestPromise = pageAlice.waitForRequest(

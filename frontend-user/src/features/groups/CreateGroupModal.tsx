@@ -2,9 +2,15 @@ import React, { useState } from "react";
 import axios, { AxiosError } from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import Modal from "../../components/core/Modal/Modal";
-import Input from "../../components/core/Input/Input";
-import Button from "../../components/core/Button/Button";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { groupService } from "./groupService";
 import MemberPicker from "./MemberPicker";
 
@@ -84,73 +90,85 @@ const CreateGroupModal = ({ isOpen, onClose }: CreateGroupModalProps) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create New Group">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <Input
-            label="Group Name"
-            placeholder="e.g. Summer Trip 2025"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (e.target.value) setNameError("");
-            }}
-            error={nameError}
-          />
-          <Input
-            label="Description"
-            placeholder="What is this group for?"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg bg-background">
+        <DialogHeader className="border-b border-border pb-3">
+          <DialogTitle className="text-xl font-semibold text-foreground">Create New Group</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-6 pt-2">
+          <div className="space-y-4">
+            <Field>
+              <FieldLabel htmlFor="group-name">Group Name</FieldLabel>
+              <Input
+                id="group-name"
+                placeholder="e.g. Summer Trip 2025"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (e.target.value) setNameError("");
+                }}
+              />
+              {nameError && <FieldError>{nameError}</FieldError>}
+            </Field>
 
-        <div>
-          <label className="text-sm font-medium text-gray-700 mb-2 block">
-            Add Members
-          </label>
-          <MemberPicker
-            selectedIds={selectedFriends}
-            onToggle={toggleFriend}
-            placeholder="Search friends or system users..."
-          />
-        </div>
-
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-100 rounded-md">
-            <p className="text-sm text-red-600 font-medium">{error}</p>
+            <Field>
+              <FieldLabel htmlFor="group-description">Description</FieldLabel>
+              <Input
+                id="group-description"
+                placeholder="What is this group for?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </Field>
           </div>
-        )}
 
-        <div className="flex gap-3 pt-2">
-          <Button
-            type="button"
-            variant="ghost"
-            className="flex-1 border border-gray-300"
-            onClick={() => {
-              resetForm();
-              onClose();
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            className="flex-1"
-            disabled={createGroupMutation.isPending}
-          >
-            {createGroupMutation.isPending ? (
-              <>
-                <Loader2 size={18} className="animate-spin mr-2" />
-                Creating...
-              </>
-            ) : (
-              "Create Group"
-            )}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+          <div>
+            <label className="text-sm font-medium text-foreground mb-2 block">
+              Add Members
+            </label>
+            <MemberPicker
+              selectedIds={selectedFriends}
+              onToggle={toggleFriend}
+              placeholder="Search friends or system users..."
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 rounded-md">
+              <p className="text-sm text-red-600 dark:text-red-400 font-medium">{error}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                resetForm();
+                onClose();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={createGroupMutation.isPending}
+            >
+              {createGroupMutation.isPending ? (
+                <>
+                  <Loader2 size={18} className="animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                "Create Group"
+              )}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 

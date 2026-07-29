@@ -8,7 +8,7 @@ import GroupDetails from "./features/groups/GroupDetails";
 import FriendsPage from "./features/users/FriendsPage";
 import FriendDetailPage from "./features/users/FriendDetailPage";
 import ActivityPage from "./features/activity/ActivityPage";
-import ToastContainer from "./components/core/Toast/ToastContainer";
+import { Toaster } from "@/components/ui/sonner";
 
 function App() {
   return (
@@ -25,7 +25,7 @@ function App() {
           <Route path="/activity" element={<ActivityPage />} />
         </Route>
       </Routes>
-      <ToastContainer />
+      <Toaster />
     </>
   );
 }

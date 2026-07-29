@@ -9,19 +9,19 @@ async function registerUser(
   lastName: string,
 ) {
   await page.goto("/register");
-  await page.getByLabel(/first name/i).fill(firstName);
-  await page.getByLabel(/last name/i).fill(lastName);
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/email/i).fill(`${username}@example.com`);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#firstName').fill(firstName);
+  await page.locator('#lastName').fill(lastName);
+  await page.locator('#username').fill(username);
+  await page.locator('#email').fill(`${username}@example.com`);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/);
 }
 
 async function loginUser(page: Page, username: string) {
   await page.goto("/login");
-  await page.getByLabel(/username/i).fill(username);
-  await page.getByLabel(/password/i).fill(PASSWORD);
+  await page.locator('#username').fill(username);
+  await page.locator('#password').fill(PASSWORD);
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/);
 }
@@ -31,7 +31,7 @@ async function sendFriendRequest(pageA: Page, targetUsername: string) {
   await pageA.getByPlaceholder(/search by name or email/i).fill(targetUsername);
   await expect(pageA.getByText(`@${targetUsername}`)).toBeVisible();
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByText(/pending/i)).toBeVisible();
+  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible();
 }
 
 async function acceptFriendRequest(pageB: Page, fromUsername: string) {
@@ -53,7 +53,7 @@ async function createGroupWithMember(
     .click();
   const modal = pageOwner.getByRole("dialog");
   await expect(modal).toBeVisible();
-  await modal.getByLabel(/group name/i).fill(groupName);
+  await modal.locator('#group-name').fill(groupName);
 
   const friendPicker = modal.locator(".max-h-48");
   const friendEntry = friendPicker.getByText(
@@ -105,15 +105,15 @@ test.describe("[E2E] Temporary Friends List", () => {
       // 5. Alice adds an expense (Alice pays $10, shared with Bob)
       //    Bob will owe Alice $5
       await pageAlice.goto("/groups");
-      const groupCard = pageAlice.locator(".bg-white", { hasText: groupName });
+      const groupCard = pageAlice.locator(".bg-card", { hasText: groupName });
       await groupCard.getByRole("button", { name: /add expense/i }).click();
 
       const expenseModal = pageAlice.getByRole("dialog", {
         name: /add new expense/i,
       });
       await expect(expenseModal).toBeVisible();
-      await expenseModal.getByLabel(/description/i).fill("Lunch");
-      await expenseModal.getByLabel(/amount/i).fill("10.00");
+      await expenseModal.locator('#description').fill("Lunch");
+      await expenseModal.locator('#amount').fill("10.00");
       await expenseModal.getByRole("button", { name: /add expense/i }).click();
       await expect(expenseModal).not.toBeVisible();
 

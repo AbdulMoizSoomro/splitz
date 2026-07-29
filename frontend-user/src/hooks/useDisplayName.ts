@@ -31,15 +31,25 @@ function useNameMap(currentUserId: number): Record<number, string> {
     enabled: !!currentUserId,
   });
 
-  const groupIds = useMemo(() => groups.map((g) => g.id), [groups]);
+  const groupArray = useMemo(() => {
+    if (Array.isArray(groups)) return groups;
+    if ((groups as any)?.content && Array.isArray((groups as any).content)) return (groups as any).content;
+    return [];
+  }, [groups]);
+
+  const groupIdsKey = useMemo(
+    () => groupArray.map((g: any) => g.id).sort().join(","),
+    [groupArray],
+  );
+  const groupIds = useMemo(() => groupArray.map((g: any) => g.id), [groupIdsKey]);
 
   // Fetch balances for every group the user is in (gives us names for all members)
   const { data: groupBalancesMap = {} } = useQuery({
-    queryKey: ["display-name-group-balances", groupIds],
+    queryKey: ["display-name-group-balances", groupIdsKey],
     queryFn: async () => {
       const map: Record<number, string> = {};
       await Promise.all(
-        groupIds.map(async (id) => {
+        groupIds.map(async (id: number) => {
           try {
             const br = await groupService.getBalances(id);
             br.balances.forEach((b) => {
@@ -58,11 +68,17 @@ function useNameMap(currentUserId: number): Record<number, string> {
     enabled: groupIds.length > 0,
   });
 
+  const friendsArray = useMemo(() => {
+    if (Array.isArray(friends)) return friends;
+    if ((friends as any)?.content && Array.isArray((friends as any).content)) return (friends as any).content;
+    return [];
+  }, [friends]);
+
   return useMemo(() => {
     const map: Record<number, string> = {};
 
     // Friends
-    friends.forEach((f) => {
+    friendsArray.forEach((f: any) => {
       const fullName = `${f.firstName} ${f.lastName}`.trim();
       if (fullName) map[f.id] = fullName;
     });
@@ -74,7 +90,7 @@ function useNameMap(currentUserId: number): Record<number, string> {
     });
 
     return map;
-  }, [friends, groupBalancesMap]);
+  }, [friendsArray, groupBalancesMap]);
 }
 
 // ---------------------------------------------------------------------------

@@ -5,24 +5,25 @@ import {
   within,
   fireEvent,
 } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { cleanup } from "@testing-library/react";
 import GroupDetails from "./GroupDetails";
 import { groupService } from "./groupService";
 import { friendService } from "../users/friendService";
+import { settlementService } from "../balances/settlementService";
+import { expenseService } from "../expenses/expenseService";
+import { categoryService } from "../expenses/categoryService";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { Group } from "../../types/group";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-  },
-});
+let queryClient: QueryClient;
 
 vi.mock("./groupService");
 vi.mock("../users/friendService");
+vi.mock("../balances/settlementService");
+vi.mock("../expenses/expenseService");
+vi.mock("../expenses/categoryService");
 const mockUseAuthStore = vi.fn();
 vi.mock("../../store/authStore", () => ({
   useAuthStore: (selector?: (s: { user: { id: string; username: string; email: string } | null }) => unknown) => {
@@ -48,42 +49,36 @@ const mockGroup: Group = {
 
 describe("GroupDetails", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+          staleTime: 0,
+        },
+      },
+    });
     queryClient.clear();
+    vi.clearAllMocks();
     mockUseAuthStore.mockReturnValue({
       user: { id: "1", username: "testuser" },
     });
-    // Default mock for balances (zero balance)
+    vi.mocked(groupService.getGroup).mockResolvedValue(mockGroup);
+    vi.mocked(groupService.getGroups).mockResolvedValue([mockGroup]);
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 1,
-      balances: [
-        {
-          userId: 1,
-          username: "testuser",
-          email: "t@e.com",
-          firstName: "T",
-          lastName: "U",
-          balance: 0,
-        },
-      ],
+      balances: [],
       simplifiedDebts: [],
     });
     vi.mocked(friendService.getFriends).mockResolvedValue([]);
-    // Hook needs getGroups to discover which groups to load balances from
-    vi.mocked(groupService.getGroups).mockResolvedValue([{
-      id: 1,
-      name: "Test Group",
-      description: "Test Description",
-      createdBy: 1,
-      active: true,
-      allowMembersToManageMembers: true,
-      allowMembersToEditExpenses: true,
-      createdAt: "2025-01-01T10:00:00Z",
-      updatedAt: "2025-01-01T10:00:00Z",
-      members: [
-        { id: 1, userId: 1, role: "ADMIN", joinedAt: "2025-01-01T10:00:00Z" },
-      ],
-    }]);
+    vi.mocked(settlementService.getSettlementsByGroup).mockResolvedValue([]);
+    vi.mocked(expenseService.getGroupExpenses).mockResolvedValue([]);
+    vi.mocked(categoryService.getCategories).mockResolvedValue([]);
+    vi.mocked(groupService.getGroupActivity).mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders group details correctly", async () => {
@@ -100,7 +95,7 @@ describe("GroupDetails", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Test Group")).toBeInTheDocument();
+      expect(screen.getAllByText("Test Group")[0]).toBeInTheDocument();
       expect(screen.getByText("Test Description")).toBeInTheDocument();
     });
   });
@@ -261,8 +256,12 @@ describe("GroupDetails", () => {
       simplifiedDebts: [],
     });
 
+    const testQueryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
     render(
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={testQueryClient}>
         <MemoryRouter initialEntries={["/groups/1"]}>
           <Routes>
             <Route path="/groups/:id" element={<GroupDetails />} />
@@ -271,11 +270,9 @@ describe("GroupDetails", () => {
       </QueryClientProvider>,
     );
 
-    await screen.findByText("Test Group");
-    const membersTab = screen
-      .getAllByRole("button")
-      .find((b) => b.textContent?.includes("Members"));
-    if (membersTab) fireEvent.click(membersTab);
+    await waitFor(() => expect(screen.getAllByText("Test Group")[0]).toBeInTheDocument());
+    const membersTab = await screen.findByText("Members");
+    fireEvent.click(membersTab);
 
     await waitFor(() => {
       // Current user (userId=1, Owner) is shown as "You" by the hook
@@ -338,8 +335,12 @@ describe("GroupDetails", () => {
       },
     ]);
 
+    const testQueryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
     render(
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={testQueryClient}>
         <MemoryRouter initialEntries={["/groups/1"]}>
           <Routes>
             <Route path="/groups/:id" element={<GroupDetails />} />
@@ -348,11 +349,9 @@ describe("GroupDetails", () => {
       </QueryClientProvider>,
     );
 
-    await screen.findByText("Test Group");
-    const membersTab = screen
-      .getAllByRole("button")
-      .find((b) => b.textContent?.includes("Members"));
-    if (membersTab) fireEvent.click(membersTab);
+    await waitFor(() => expect(screen.getAllByText("Test Group")[0]).toBeInTheDocument());
+    const membersTab = await screen.findByText("Members");
+    fireEvent.click(membersTab);
 
     await waitFor(() => {
       expect(screen.getByText("Member User")).toBeInTheDocument();
@@ -397,8 +396,12 @@ describe("GroupDetails", () => {
       ...groupWithMembers,
     });
 
+    const testQueryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
     render(
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={testQueryClient}>
         <MemoryRouter initialEntries={["/groups/1"]}>
           <Routes>
             <Route path="/groups/:id" element={<GroupDetails />} />
@@ -407,11 +410,9 @@ describe("GroupDetails", () => {
       </QueryClientProvider>,
     );
 
-    await screen.findByText("Test Group");
-    const membersTab = screen
-      .getAllByRole("button")
-      .find((b) => b.textContent?.includes("Members"));
-    if (membersTab) fireEvent.click(membersTab);
+    await waitFor(() => expect(screen.getAllByText("Test Group")[0]).toBeInTheDocument());
+    const membersTab = await screen.findByText("Members");
+    fireEvent.click(membersTab);
 
     await screen.findByText("Member User");
     const dropdownTrigger = screen.getByLabelText("Manage role");
@@ -428,8 +429,12 @@ describe("GroupDetails", () => {
   it("shows Group Settings only to the Owner", async () => {
     vi.mocked(groupService.getGroup).mockResolvedValue(mockGroup);
 
+    const testQueryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
     render(
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={testQueryClient}>
         <MemoryRouter initialEntries={["/groups/1"]}>
           <Routes>
             <Route path="/groups/:id" element={<GroupDetails />} />
@@ -454,8 +459,12 @@ describe("GroupDetails", () => {
     const groupWithOwner1 = { ...mockGroup, createdBy: 1 };
     vi.mocked(groupService.getGroup).mockResolvedValue(groupWithOwner1);
 
+    const testQueryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
     render(
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={testQueryClient}>
         <MemoryRouter initialEntries={["/groups/1"]}>
           <Routes>
             <Route path="/groups/:id" element={<GroupDetails />} />

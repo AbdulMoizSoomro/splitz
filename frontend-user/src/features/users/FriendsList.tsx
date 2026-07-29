@@ -4,7 +4,9 @@ import { Link } from "react-router-dom";
 import api from "../../lib/axios";
 import type { User } from "../../types/user";
 import { useAuthStore } from "../../store/authStore";
-import Button from "../../components/core/Button/Button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const FriendsList = () => {
   const currentUser = useAuthStore((state) => state.user);
@@ -42,15 +44,18 @@ const FriendsList = () => {
 
   if (!friends || friends.length === 0) {
     return (
-      <div className="text-center py-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
-        <Users className="mx-auto text-gray-400 mb-2" size={32} />
-        <p className="text-sm text-gray-500">No friends added yet.</p>
-      </div>
+      <Card className="text-center py-6 bg-muted/50 border border-dashed border-border shadow-none">
+        <CardContent className="pt-6">
+          <Users className="mx-auto text-muted-foreground mb-2" size={32} />
+          <p className="text-sm text-muted-foreground">No friends added yet.</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+    <ScrollArea className="h-[300px] pr-4">
+      <div className="space-y-3">
       {friends.map((friend) => {
         const isRemoving =
           removeFriendMutation.isPending &&
@@ -59,28 +64,28 @@ const FriendsList = () => {
         return (
           <div
             key={friend.id}
-            className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+            className="flex items-center justify-between p-3 bg-card border border-border rounded-lg shadow-sm"
           >
             <Link
               to={`/friends/${friend.id}`}
-              className="flex items-center gap-3 hover:bg-gray-50 transition-colors flex-1"
+              className="flex items-center gap-3 hover:bg-muted/50 transition-colors flex-1"
             >
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
                 {friend.firstName[0]}
                 {friend.lastName ? friend.lastName[0] : ""}
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-foreground">
                   {friend.firstName} {friend.lastName}
                 </p>
-                <p className="text-xs text-gray-500">@{friend.username}</p>
+                <p className="text-xs text-muted-foreground">@{friend.username}</p>
               </div>
             </Link>
 
             <Button
               size="sm"
-              variant="secondary"
-              className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+              variant="outline"
+              className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
               onClick={() => {
                 if (
                   window.confirm(
@@ -102,7 +107,8 @@ const FriendsList = () => {
           </div>
         );
       })}
-    </div>
+      </div>
+    </ScrollArea>
   );
 };
 

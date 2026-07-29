@@ -18,17 +18,17 @@ test.describe("Global Activity Dashboard Page", () => {
     await page.goto("/register");
     await page.waitForLoadState("networkidle");
 
-    await page.getByLabel(/first name/i).fill("Global");
-    await page.getByLabel(/last name/i).fill("Tester");
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/^password$/i).fill("password123");
+    await page.locator('#firstName').fill("Global");
+    await page.locator('#lastName').fill("Tester");
+    await page.locator('#username').fill(username);
+    await page.locator('#email').fill(email);
+    await page.locator('#password').fill("password123");
     await page.getByRole("button", { name: /register/i }).click();
 
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
 
-    await page.getByLabel(/username/i).fill(username);
-    await page.getByLabel(/password/i).fill("password123");
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill("password123");
     await page.getByRole("button", { name: /login/i }).click();
 
     await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
@@ -37,7 +37,7 @@ test.describe("Global Activity Dashboard Page", () => {
     await page.goto("/groups");
     await page.getByRole("button", { name: /create group/i }).click();
     const modal = page.getByRole("dialog");
-    await modal.getByLabel(/group name/i).fill(groupName);
+    await modal.locator('#group-name').fill(groupName);
     await modal.getByRole("button", { name: /create/i }).click();
     await expect(modal).not.toBeVisible();
     await page.getByText(groupName).click();
@@ -47,8 +47,8 @@ test.describe("Global Activity Dashboard Page", () => {
     // 1. Add an expense
     await page.getByRole("button", { name: /add expense/i }).first().click();
     const expenseModal = page.getByRole("dialog");
-    await expenseModal.getByLabel(/description/i).fill("Dinner");
-    await expenseModal.getByLabel(/amount/i).fill("60.00");
+    await expenseModal.locator('#description').fill("Dinner");
+    await expenseModal.locator('#amount').fill("60.00");
     await expenseModal.getByRole("button", { name: /add expense/i }).click();
     await expect(expenseModal).not.toBeVisible();
 
@@ -57,7 +57,7 @@ test.describe("Global Activity Dashboard Page", () => {
     await page.goto("/activity");
 
     // 3. Verify that the Sidebar layout remains fully operational & visible
-    await expect(page.locator('aside[aria-label="Sidebar"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('div[data-sidebar="sidebar"]')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("Shared Activity")).toBeVisible();
 
     // 4. Verify that the activity entry shows amount, paid/owe details, and date & time
