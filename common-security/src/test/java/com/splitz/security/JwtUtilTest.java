@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.security.Key;
@@ -104,7 +103,7 @@ class JwtUtilTest {
             .subject("testuser")
             .issuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60 * 2)) // 2 hours ago
             .expiration(new Date(System.currentTimeMillis() - 1000 * 60 * 60)) // 1 hour ago
-            .signWith(key, SignatureAlgorithm.HS256)
+            .signWith(key)
             .compact();
 
     assertThrows(

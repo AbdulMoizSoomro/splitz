@@ -335,7 +335,8 @@ public class GroupControllerIntegrationTest {
     UserResponse tempFriend = new UserResponse(500L, "temp", "Bob", "Jones", "bob@example.com");
 
     when(userClient.getFriends(100L)).thenReturn(List.of(friend));
-    when(userClient.getUsersByIds(List.of(500L))).thenReturn(List.of(tempFriend));
+    when(userClient.getUsersByIds(org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(List.of(tempFriend));
 
     mockMvc
         .perform(

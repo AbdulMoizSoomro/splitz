@@ -123,10 +123,9 @@ public class GroupGovernanceImpl implements GroupGovernance {
     Group group = loadGroup(groupId);
 
     // Target protection: The target must be a member
-    GroupMember targetMember =
-        groupMemberRepository
-            .findByGroupIdAndUserId(groupId, targetUserId)
-            .orElseThrow(() -> new ResourceNotFoundException("Member not found in this group"));
+    groupMemberRepository
+        .findByGroupIdAndUserId(groupId, targetUserId)
+        .orElseThrow(() -> new ResourceNotFoundException("Member not found in this group"));
 
     // Owner protection
     if (targetUserId.equals(group.getCreatedBy())) {
@@ -169,7 +168,7 @@ public class GroupGovernanceImpl implements GroupGovernance {
       loadGroup(groupId);
       return;
     }
-    Group group = loadGroup(groupId);
+    loadGroup(groupId);
     GroupMember member =
         groupMemberRepository
             .findByGroupIdAndUserId(groupId, actorUserId)
