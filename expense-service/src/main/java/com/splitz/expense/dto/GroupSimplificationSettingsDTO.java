@@ -13,5 +13,6 @@ import lombok.NoArgsConstructor;
 public class GroupSimplificationSettingsDTO {
   private Long groupId;
   private boolean simplificationEnabled;
+  private String simplificationScope;
   private Set<Long> optOutUserIds;
 }

@@ -4,6 +4,8 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -39,6 +41,11 @@ public class GroupSimplificationSettings {
   @Builder.Default
   @Column(name = "simplification_enabled", nullable = false)
   private boolean simplificationEnabled = true;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "simplification_scope", nullable = false)
+  @Builder.Default
+  private SimplificationScope simplificationScope = SimplificationScope.INTRA_GROUP;
 
   @ElementCollection
   @CollectionTable(

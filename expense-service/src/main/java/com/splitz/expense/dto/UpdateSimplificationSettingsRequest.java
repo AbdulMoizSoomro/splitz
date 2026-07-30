@@ -9,4 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UpdateSimplificationSettingsRequest {
   private boolean simplificationEnabled;
+  private String simplificationScope;
 }
