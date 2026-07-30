@@ -4,6 +4,7 @@ import com.splitz.expense.dto.GroupSimplificationSettingsDTO;
 import com.splitz.expense.dto.UpdateSimplificationSettingsRequest;
 import com.splitz.expense.dto.UserOptOutRequest;
 import com.splitz.expense.model.GroupSimplificationSettings;
+import com.splitz.expense.model.SimplificationScope;
 import com.splitz.expense.repository.GroupSimplificationSettingsRepository;
 import java.util.HashSet;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,10 @@ public class GroupSimplificationSettingsService {
       Long groupId, UpdateSimplificationSettingsRequest request) {
     GroupSimplificationSettings settings = getOrCreateSettings(groupId);
     settings.setSimplificationEnabled(request.isSimplificationEnabled());
+    if (request.getSimplificationScope() != null && !request.getSimplificationScope().isBlank()) {
+      settings.setSimplificationScope(
+          SimplificationScope.valueOf(request.getSimplificationScope()));
+    }
     settings = settingsRepository.save(settings);
     return toDTO(settings);
   }
@@ -61,6 +66,7 @@ public class GroupSimplificationSettingsService {
     return GroupSimplificationSettingsDTO.builder()
         .groupId(settings.getGroupId())
         .simplificationEnabled(settings.isSimplificationEnabled())
+        .simplificationScope(settings.getSimplificationScope().name())
         .optOutUserIds(settings.getOptOutUserIds())
         .build();
   }
