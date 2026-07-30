@@ -19,7 +19,17 @@ public class GroupSimplificationSettingsService {
 
   @Transactional(readOnly = true)
   public GroupSimplificationSettingsDTO getSettings(Long groupId) {
-    GroupSimplificationSettings settings = getOrCreateSettings(groupId);
+    GroupSimplificationSettings settings =
+        settingsRepository
+            .findByGroupId(groupId)
+            .orElseGet(
+                () ->
+                    GroupSimplificationSettings.builder()
+                        .groupId(groupId)
+                        .simplificationEnabled(true)
+                        .simplificationScope(SimplificationScope.INTRA_GROUP)
+                        .optOutUserIds(new HashSet<>())
+                        .build());
     return toDTO(settings);
   }
 
