@@ -38,7 +38,7 @@ COPY --from=deps /root/.m2 /root/.m2
 COPY --from=deps /build /build
 WORKDIR /build/user-service
 # In dev, we typically run with: mvn spring-boot:run
-CMD ["sh", "-c", "(cd /build/common-security && mvn clean install -DskipTests -Dcheckstyle.skip -Dspotless.skip) && mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE:-dev} -DskipTests -Dcheckstyle.skip -Dspotless.skip"]
+CMD ["sh", "-c", "(cd /build/common-security && mvn clean install -DskipTests -Dcheckstyle.skip -Dspotless.skip) && mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE:-dev} -Dmaven.test.skip=true -Dcheckstyle.skip -Dspotless.skip"]
 
 # -----------------------------------------------------------------------------
 # Stage 3: Builder (For production JAR)

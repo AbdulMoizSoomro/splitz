@@ -31,6 +31,7 @@ const FriendsList = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["friends", currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ["temp-friends", currentUser?.id] });
     },
   });
 

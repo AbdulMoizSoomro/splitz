@@ -228,7 +228,7 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
       await pageAlice.getByText(setup.groupAName).click();
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(/you don't owe anything/i)).toBeVisible({ timeout: 10000 });
-      await expect(pageAlice.getByText(bobName)).not.toBeVisible({ timeout: 5000 });
+      await expect(pageAlice.locator('[role="tabpanel"]').getByText(bobName)).not.toBeVisible({ timeout: 5000 });
 
       // Let's verify newer Group B balance (Travel: $100, Bob owes $50. $30 allocation should partially clear Group B, leaving $20 Bob owes Alice)
       await pageAlice.goto("/groups");

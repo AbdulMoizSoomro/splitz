@@ -123,6 +123,12 @@ public class DebtSimplificationPlanService {
     return usernames;
   }
 
+  private static HashSet<Long> safeCopyOptOutIds(GroupSimplificationSettings settings) {
+    return settings.getOptOutUserIds() != null
+        ? new HashSet<>(settings.getOptOutUserIds())
+        : new HashSet<>();
+  }
+
   private DebtSimplificationPlanDTO emptyPlan(Long groupId, GroupSimplificationSettings settings) {
     return DebtSimplificationPlanDTO.builder()
         .groupId(groupId)
@@ -132,7 +138,7 @@ public class DebtSimplificationPlanService {
         .originalTransactionCount(0)
         .simplifiedTransactionCount(0)
         .totalDebtVolume(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
-        .optedOutUserIds(settings.getOptOutUserIds())
+        .optedOutUserIds(safeCopyOptOutIds(settings))
         .transactions(Collections.emptyList())
         .build();
   }
@@ -161,7 +167,7 @@ public class DebtSimplificationPlanService {
         .originalTransactionCount(plan.getOriginalTransactionCount())
         .simplifiedTransactionCount(plan.getSimplifiedTransactionCount())
         .totalDebtVolume(plan.getTotalDebtVolume())
-        .optedOutUserIds(settings.getOptOutUserIds())
+        .optedOutUserIds(safeCopyOptOutIds(settings))
         .transactions(transactionDTOs)
         .build();
   }
