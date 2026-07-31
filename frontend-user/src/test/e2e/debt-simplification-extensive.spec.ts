@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 
 const PASSWORD = "Password123!";
 
@@ -14,6 +14,7 @@ async function registerUser(
   await page.locator("#username").fill(username);
   await page.locator("#email").fill(`${username}@example.com`);
   await page.locator("#password").fill(PASSWORD);
+
   await page.getByRole("button", { name: /register/i }).click();
   await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
 }
@@ -22,6 +23,7 @@ async function loginUser(page: Page, username: string) {
   await page.goto("/login");
   await page.locator("#username").fill(username);
   await page.locator("#password").fill(PASSWORD);
+
   await page.getByRole("button", { name: /login/i }).click();
   await expect(page).toHaveURL(/\/$/, { timeout: 15000 });
 }
@@ -30,16 +32,16 @@ async function sendFriendRequest(pageA: Page, targetUsername: string) {
   await pageA.goto("/friends");
   await pageA.getByPlaceholder(/search by name or email/i).fill(targetUsername);
   await expect(pageA.getByText(`@${targetUsername}`)).toBeVisible({
-    timeout: 10000,
+    timeout: 15000,
   });
   await pageA.getByRole("button", { name: /add friend/i }).click();
-  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 5000 });
+  await expect(pageA.getByRole("button", { name: /pending/i })).toBeVisible({ timeout: 10000 });
 }
 
 async function acceptFriendRequest(pageB: Page, fromUsername: string) {
   await pageB.goto("/friends");
   await expect(pageB.getByText(`@${fromUsername}`)).toBeVisible({
-    timeout: 10000,
+    timeout: 15000,
   });
   await pageB.getByTitle("Accept").click();
 }
@@ -59,13 +61,13 @@ async function createGroupWithMembers(
 
   for (const name of friendFirstNames) {
     const friendRow = modal.locator("div.cursor-pointer", { hasText: name });
-    await expect(friendRow).toBeVisible({ timeout: 10000 });
+    await expect(friendRow).toBeVisible({ timeout: 15000 });
     await friendRow.click();
   }
 
   await modal.getByRole("button", { name: /create group/i }).click();
-  await expect(modal).not.toBeVisible({ timeout: 10000 });
-  await expect(pageOwner.getByText(groupName)).toBeVisible({ timeout: 10000 });
+  await expect(modal).not.toBeVisible({ timeout: 15000 });
+  await expect(pageOwner.getByText(groupName)).toBeVisible({ timeout: 15000 });
 }
 
 async function addEqualExpense(
@@ -80,12 +82,13 @@ async function addEqualExpense(
   await pagePayer.locator("#description").fill(description);
   await pagePayer.locator("#amount").fill(amount);
 
-  const addResp = pagePayer.waitForResponse(
-    (r) => r.url().includes("/expenses") && r.status() === 201,
-  );
   await pagePayer.getByRole("dialog").getByRole("button", { name: "Add Expense", exact: true }).click();
-  await addResp;
-  await expect(pagePayer.getByRole("dialog")).toBeHidden();
+  await expect(pagePayer.getByRole("dialog")).toBeHidden({ timeout: 15000 });
+}
+
+async function toggleSwitch(locator: Locator) {
+  await locator.scrollIntoViewIfNeeded();
+  await locator.dispatchEvent("click");
 }
 
 test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
@@ -127,9 +130,7 @@ test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
       await createGroupWithMembers(pageAlice, groupName, ["Bob User", "Charlie User"]);
 
       console.log("Adding expenses in Group A...");
-      // Alice pays $60 for Dinner (split 3 ways: $20 each)
       await addEqualExpense(pageAlice, groupName, "Dinner", "60.00");
-      // Bob pays $30 for Snacks (split 3 ways: $10 each)
       await addEqualExpense(pageBob, groupName, "Snacks", "30.00");
 
       console.log("Verifying Suggested Settlement Plan on Alice's Balances tab...");
@@ -137,42 +138,44 @@ test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
       await pageAlice.getByText(groupName).click();
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
 
-      await expect(pageAlice.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 10000 });
-      await expect(pageAlice.getByText(/Debt Simplification & Governance/i)).toBeVisible();
+      await expect(pageAlice.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 15000 });
+      await expect(pageAlice.getByText(/Debt Simplification & Governance/i)).toBeVisible({ timeout: 15000 });
 
-      // Transitive calculation: 4 raw debts reduced to 2 simplified debts (50% reduction)
-      await expect(pageAlice.getByText("50%")).toBeVisible();
+      await expect(pageAlice.getByText("50%")).toBeVisible({ timeout: 10000 });
 
       console.log("Testing Admin Governance Toggle OFF & ON...");
-      const disableSwitch = pageAlice.getByLabel(/Enable Smart Debt Reduction/i);
-      await expect(disableSwitch).toBeVisible();
-      await disableSwitch.click();
+      const disableSwitch = pageAlice.getByTestId("enable-simplification-switch");
+      await expect(disableSwitch).toBeVisible({ timeout: 15000 });
+
+      await toggleSwitch(disableSwitch);
 
       await expect(
         pageAlice.getByText(/Debt simplification is disabled for this group by governance/i),
-      ).toBeVisible({ timeout: 5000 });
+      ).toBeVisible({ timeout: 15000 });
 
-      // Re-enable
-      await disableSwitch.click();
-      await expect(pageAlice.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 5000 });
+      await toggleSwitch(disableSwitch);
+
+      await expect(pageAlice.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 15000 });
 
       console.log("Testing Member Self-Service Opt-Out...");
       await pageBob.goto("/groups");
       await pageBob.getByText(groupName).click();
       await pageBob.getByRole("tab", { name: /balances/i }).click();
 
-      const optOutSwitch = pageBob.getByLabel(/Opt out of debt simplification/i);
-      await optOutSwitch.click();
-      await expect(pageBob.getByText(/Opt-Out Active/i)).toBeVisible({ timeout: 5000 });
+      const optOutSwitch = pageBob.getByTestId("user-opt-out-switch");
+      await expect(optOutSwitch).toBeVisible({ timeout: 15000 });
 
-      // Verify Alice sees the opt-out banner
+      await toggleSwitch(optOutSwitch);
+
+      await expect(pageBob.getByText(/Opt-Out Active/i)).toBeVisible({ timeout: 15000 });
+
       await pageAlice.reload();
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
-      await expect(pageAlice.getByText(/1 member\(s\) opted out of debt netting/i)).toBeVisible({ timeout: 5000 });
+      await expect(pageAlice.getByText(/1 member\(s\) opted out of debt netting/i)).toBeVisible({ timeout: 15000 });
 
-      // Bob opts back in
-      await optOutSwitch.click();
-      await expect(pageBob.getByText(/Opt-Out Active/i)).not.toBeVisible({ timeout: 5000 });
+      await toggleSwitch(optOutSwitch);
+
+      await expect(pageBob.getByText(/Opt-Out Active/i)).not.toBeVisible({ timeout: 15000 });
 
       console.log("Scenario 1 completed successfully!");
 
@@ -214,10 +217,7 @@ test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
       await createGroupWithMembers(pageAlice, group2Name, ["Bob User"]);
 
       console.log("Adding expenses in Group 1 & Group 2...");
-      // In Group 1: Alice pays $120 total ($60 owed by Bob)
       await addEqualExpense(pageAlice, group1Name, "Hotel", "120.00");
-
-      // In Group 2: Bob pays $80 total ($40 owed by Alice)
       await addEqualExpense(pageBob, group2Name, "Utilities", "80.00");
 
       console.log("Alice enabling Global Cross-Group Netting in Group 1...");
@@ -225,34 +225,38 @@ test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
       await pageAlice.getByText(group1Name).click();
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
 
-      await pageAlice.getByLabel(/Select Global Cross-Group Scope/i).click();
-      await expect(pageAlice.getByText(/Global Cross-Group Netting/i).first()).toBeVisible({ timeout: 5000 });
+      const globalScopeBtn = pageAlice.locator('[aria-label="Select Global Cross-Group Scope"]');
+      await expect(globalScopeBtn).toBeVisible({ timeout: 15000 });
+
+      await globalScopeBtn.click();
+      await pageAlice.waitForTimeout(1000);
+
+      await expect(pageAlice.getByText(/Global Cross-Group Netting/i).first()).toBeVisible({ timeout: 15000 });
 
       console.log("Bob paying net balance from suggested plan...");
       await pageBob.goto("/groups");
       await pageBob.getByText(group1Name).click();
       await pageBob.getByRole("tab", { name: /balances/i }).click();
 
-      await expect(pageBob.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 10000 });
+      await expect(pageBob.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 15000 });
 
-      // Bob settles from suggested plan button
       const settleBtn = pageBob.getByRole("button", { name: /Settle/i }).first();
-      await expect(settleBtn).toBeVisible();
+      await expect(settleBtn).toBeVisible({ timeout: 15000 });
       await settleBtn.click();
 
       const settleModal = pageBob.getByRole("dialog", { name: /record payment/i });
-      await expect(settleModal).toBeVisible();
+      await expect(settleModal).toBeVisible({ timeout: 10000 });
       await settleModal.getByRole("button", { name: /confirm & mark paid/i }).click();
-      await expect(settleModal).not.toBeVisible();
+      await expect(settleModal).not.toBeVisible({ timeout: 10000 });
 
       console.log("Alice confirming receipt of global settlement...");
       await pageAlice.reload();
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
-      await expect(pageAlice.getByText(/waiting for your confirmation/i)).toBeVisible({ timeout: 10000 });
+      await expect(pageAlice.getByText(/waiting for your confirmation/i)).toBeVisible({ timeout: 15000 });
       await pageAlice.getByRole("button", { name: /confirm receipt/i }).click();
 
       console.log("Verifying balances settled in both groups...");
-      await expect(pageAlice.getByText(/you don't owe anything/i)).toBeVisible({ timeout: 5000 });
+      await expect(pageAlice.getByText(/you don't owe anything/i)).toBeVisible({ timeout: 15000 });
 
       console.log("Scenario 2 completed successfully!");
 

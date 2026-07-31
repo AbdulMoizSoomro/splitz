@@ -63,7 +63,7 @@ export const DebtSimplificationPlanCard = ({
           </div>
           <div className="flex items-center gap-2">
             <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-              {plan.scope === "GLOBAL_CROSS_GROUP" ? "Global Cross-Group Netting" : "Intra-Group Netting"}
+              {plan.scope === "CROSS_GROUP" ? "Global Cross-Group Netting" : "Intra-Group Netting"}
             </Badge>
           </div>
         </CardTitle>

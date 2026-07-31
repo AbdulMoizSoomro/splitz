@@ -81,7 +81,7 @@ export const SimplificationSettingsCard = ({
           </div>
           {settings.simplificationEnabled ? (
             <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-              Active ({settings.simplificationScope === "GLOBAL_CROSS_GROUP" ? "Global" : "Intra-Group"})
+              Active ({settings.simplificationScope === "CROSS_GROUP" ? "Global" : "Intra-Group"})
             </Badge>
           ) : (
             <Badge variant="outline" className="text-muted-foreground">
@@ -106,6 +106,7 @@ export const SimplificationSettingsCard = ({
               </div>
               <Switch
                 id="enable-simplification"
+                data-testid="enable-simplification-switch"
                 checked={settings.simplificationEnabled}
                 onCheckedChange={(checked) =>
                   updateSettingsMutation.mutate({
@@ -143,13 +144,13 @@ export const SimplificationSettingsCard = ({
                   </Button>
                   <Button
                     type="button"
-                    variant={settings.simplificationScope === "GLOBAL_CROSS_GROUP" ? "default" : "outline"}
+                    variant={settings.simplificationScope === "CROSS_GROUP" ? "default" : "outline"}
                     size="sm"
                     className="flex items-center justify-center gap-2 text-xs"
                     onClick={() =>
                       updateSettingsMutation.mutate({
                         simplificationEnabled: settings.simplificationEnabled,
-                        simplificationScope: "GLOBAL_CROSS_GROUP",
+                        simplificationScope: "CROSS_GROUP",
                       })
                     }
                     disabled={updateSettingsMutation.isPending}
@@ -177,6 +178,7 @@ export const SimplificationSettingsCard = ({
           </div>
           <Switch
             id="user-opt-out"
+            data-testid="user-opt-out-switch"
             checked={isOptedOut}
             onCheckedChange={(checked) => optOutMutation.mutate(checked)}
             disabled={optOutMutation.isPending}

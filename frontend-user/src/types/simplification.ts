@@ -9,7 +9,7 @@ export interface SimplifiedDebtTransaction {
 
 export interface DebtSimplificationPlan {
   groupId: number;
-  scope: 'INTRA_GROUP' | 'GLOBAL_CROSS_GROUP' | string;
+  scope: 'INTRA_GROUP' | 'CROSS_GROUP';
   status: string;
   simplificationEnabled: boolean;
   originalTransactionCount: number;
@@ -22,13 +22,13 @@ export interface DebtSimplificationPlan {
 export interface GroupSimplificationSettings {
   groupId: number;
   simplificationEnabled: boolean;
-  simplificationScope: 'INTRA_GROUP' | 'GLOBAL_CROSS_GROUP' | string;
+  simplificationScope: 'INTRA_GROUP' | 'CROSS_GROUP';
   optOutUserIds: number[];
 }
 
 export interface UpdateSimplificationSettingsRequest {
   simplificationEnabled: boolean;
-  simplificationScope: 'INTRA_GROUP' | 'GLOBAL_CROSS_GROUP' | string;
+  simplificationScope: 'INTRA_GROUP' | 'CROSS_GROUP';
 }
 
 export interface UserOptOutRequest {

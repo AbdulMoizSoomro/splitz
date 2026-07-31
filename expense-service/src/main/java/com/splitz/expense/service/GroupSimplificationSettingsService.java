@@ -77,7 +77,7 @@ public class GroupSimplificationSettingsService {
         .groupId(settings.getGroupId())
         .simplificationEnabled(settings.isSimplificationEnabled())
         .simplificationScope(settings.getSimplificationScope().name())
-        .optOutUserIds(settings.getOptOutUserIds())
+        .optOutUserIds(new HashSet<>(settings.getOptOutUserIds()))
         .build();
   }
 }
