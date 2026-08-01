@@ -2,6 +2,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SimplificationSettingsCard } from "./SimplificationSettingsCard";
 import { simplificationService } from "./simplificationService";
+import type { GroupSimplificationSettings } from "../../types/simplification";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("./simplificationService");
@@ -31,7 +32,7 @@ describe("SimplificationSettingsCard", () => {
   };
 
   it("renders settings card with admin governance controls for admin user", async () => {
-    const mockSettings = {
+    const mockSettings: GroupSimplificationSettings = {
       groupId: 1,
       simplificationEnabled: true,
       simplificationScope: "INTRA_GROUP",
@@ -49,7 +50,7 @@ describe("SimplificationSettingsCard", () => {
   });
 
   it("hides admin governance controls for regular member user", async () => {
-    const mockSettings = {
+    const mockSettings: GroupSimplificationSettings = {
       groupId: 1,
       simplificationEnabled: true,
       simplificationScope: "INTRA_GROUP",
@@ -66,7 +67,7 @@ describe("SimplificationSettingsCard", () => {
   });
 
   it("calls updateSimplificationSettings when admin toggles governance switch", async () => {
-    const mockSettings = {
+    const mockSettings: GroupSimplificationSettings = {
       groupId: 1,
       simplificationEnabled: true,
       simplificationScope: "INTRA_GROUP",
@@ -93,7 +94,7 @@ describe("SimplificationSettingsCard", () => {
   });
 
   it("calls toggleUserOptOut when user toggles opt-out switch", async () => {
-    const mockSettings = {
+    const mockSettings: GroupSimplificationSettings = {
       groupId: 1,
       simplificationEnabled: true,
       simplificationScope: "INTRA_GROUP",

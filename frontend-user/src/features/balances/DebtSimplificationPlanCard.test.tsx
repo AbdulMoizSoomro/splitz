@@ -2,6 +2,7 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { DebtSimplificationPlanCard } from "./DebtSimplificationPlanCard";
 import { simplificationService } from "./simplificationService";
+import type { DebtSimplificationPlan } from "../../types/simplification";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("./simplificationService");
@@ -31,7 +32,7 @@ describe("DebtSimplificationPlanCard", () => {
   };
 
   it("renders suggested settlement plan metrics and transactions", async () => {
-    const mockPlan = {
+    const mockPlan: DebtSimplificationPlan = {
       groupId: 1,
       scope: "INTRA_GROUP",
       status: "COMPLETED",
@@ -74,9 +75,9 @@ describe("DebtSimplificationPlanCard", () => {
   });
 
   it("calls onSettleDebt when current user clicks Settle on their suggested debt", async () => {
-    const mockPlan = {
+    const mockPlan: DebtSimplificationPlan = {
       groupId: 1,
-      scope: "GLOBAL_CROSS_GROUP",
+      scope: "CROSS_GROUP",
       status: "COMPLETED",
       simplificationEnabled: true,
       originalTransactionCount: 3,
@@ -115,7 +116,7 @@ describe("DebtSimplificationPlanCard", () => {
   });
 
   it("displays notice when debt simplification is disabled", async () => {
-    const mockPlan = {
+    const mockPlan: DebtSimplificationPlan = {
       groupId: 1,
       scope: "INTRA_GROUP",
       status: "DISABLED",
@@ -137,7 +138,7 @@ describe("DebtSimplificationPlanCard", () => {
   });
 
   it("displays opted out users banner if members opted out", async () => {
-    const mockPlan = {
+    const mockPlan: DebtSimplificationPlan = {
       groupId: 1,
       scope: "INTRA_GROUP",
       status: "COMPLETED",
