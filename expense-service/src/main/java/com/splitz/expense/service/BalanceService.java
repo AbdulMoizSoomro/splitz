@@ -82,14 +82,15 @@ public class BalanceService {
         BigDecimal groupNetBalance =
             debtBalanceEngine.calculateNetBalanceInGroup(userId, friendId, expenses, allocations);
 
-        if (groupNetBalance.compareTo(BigDecimal.ZERO) != 0) {
-          groupBalances.add(
-              FriendGroupBalanceDTO.builder()
-                  .groupId(groupId)
-                  .groupName(groupNames.get(groupId))
-                  .balance(groupNetBalance)
-                  .build());
-        }
+        // Include all shared groups (even with zero balance) so the friend detail
+        // page can display them. The settlement modal already filters by non-zero
+        // balance for allocation purposes.
+        groupBalances.add(
+            FriendGroupBalanceDTO.builder()
+                .groupId(groupId)
+                .groupName(groupNames.get(groupId))
+                .balance(groupNetBalance)
+                .build());
         netBalance = netBalance.add(groupNetBalance);
       }
     }

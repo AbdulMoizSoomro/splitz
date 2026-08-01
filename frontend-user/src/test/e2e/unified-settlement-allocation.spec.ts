@@ -192,7 +192,7 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
 
   test("1.2 Settlement: Bob owes $100, pays $80. Oldest Group A ($50) cleared, Group B ($50) has $20 remaining", async ({ browser }) => {
     const setup = await setupAliceAndBobWithDebts(browser);
-    const { pageAlice, pageBob, bobName, ctxAlice, ctxBob } = setup;
+    const { pageAlice, pageBob, ctxAlice, ctxBob } = setup;
 
     try {
       // Bob goes to Alice's detail page to settle
