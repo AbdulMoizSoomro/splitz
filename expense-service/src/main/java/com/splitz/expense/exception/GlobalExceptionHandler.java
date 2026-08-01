@@ -93,7 +93,8 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public ProblemDetail handleGlobalException(Exception ex, HttpServletRequest request) {
-    log.error("Unexpected error processing request {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+    log.error(
+        "Unexpected error processing request {}: {}", request.getRequestURI(), ex.getMessage(), ex);
     ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
     problem.setTitle("Internal Server Error");
     problem.setDetail(ex.getMessage());

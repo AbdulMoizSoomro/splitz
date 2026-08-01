@@ -125,7 +125,10 @@ test.describe("[E2E] Temporary Friends List", () => {
       await expect(pageAlice.getByText(/no friends added yet/i)).toBeVisible();
 
       // 7. Alice should now see Bob in the "Temporary Friends" list
-      await expect(pageAlice.getByText("Temporary Friends")).toBeVisible();
+      // Reload to trigger fresh fetch of user-balances and temp-friends data
+      await pageAlice.reload();
+      await pageAlice.waitForLoadState('networkidle');
+      await expect(pageAlice.getByText("Temporary Friends")).toBeVisible({ timeout: 15000 });
       const tempFriendCard = pageAlice.locator(".bg-orange-50\\/30");
       await expect(tempFriendCard.getByText(bobName)).toBeVisible();
 

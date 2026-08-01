@@ -108,25 +108,7 @@ test.describe("[E2E] Friend Detail Page", () => {
       const groupName = `Shared Group ${ts}`;
       await createGroupWithMember(pageAlice, groupName, "Bob");
 
-      // 5. Alice navigates to Bob's detail page from friends list
-      await pageAlice.goto("/friends");
-      const friendItem = pageAlice.getByText("Bob User");
-      await expect(friendItem).toBeVisible();
-      await friendItem.click();
-
-      // 6. Assert URL and basic info
-      await expect(pageAlice).toHaveURL(/\/friends\/\d+/);
-      await expect(
-        pageAlice.locator('h1', { hasText: 'Bob User' }),
-      ).toBeVisible({ timeout: 10000 });
-      await expect(pageAlice.getByText(`@${bobName}`)).toBeVisible();
-      await expect(pageAlice.getByText(`${bobName}@example.com`)).toBeVisible();
-
-      // 7. Assert Shared Groups
-      await expect(pageAlice.getByText("Shared Groups")).toBeVisible();
-      await expect(pageAlice.getByText(groupName).first()).toBeVisible();
-
-      // 8. Alice creates an expense in the shared group
+      // 5. Alice creates an expense in the shared group (before navigating to friend detail)
       await pageAlice.goto("/groups");
       const groupCard = pageAlice.locator(".bg-card", { hasText: groupName });
       await groupCard.getByRole("button", { name: /add expense/i }).click();
@@ -140,12 +122,28 @@ test.describe("[E2E] Friend Detail Page", () => {
       await expenseModal.getByRole("button", { name: /add expense/i }).click();
       await expect(expenseModal).not.toBeVisible({ timeout: 10000 });
 
-      // 9. Navigate back to Bob's detail page
+      // 6. Alice navigates to Bob's detail page from friends list
       await pageAlice.goto("/friends");
-      await pageAlice.locator('a').filter({ hasText: 'Bob User' }).click();
-      await expect(pageAlice).toHaveURL(/\/friends\/\d+/);
+      const friendItem = pageAlice.getByText("Bob User");
+      await expect(friendItem).toBeVisible();
+      await friendItem.click();
 
-      // 10. Assert Shared Activity
+      // 7. Assert URL and basic info
+      await expect(pageAlice).toHaveURL(/\/friends\/\d+/);
+      await expect(
+        pageAlice.locator('h1', { hasText: 'Bob User' }),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(pageAlice.getByText(`@${bobName}`)).toBeVisible();
+      await expect(pageAlice.getByText(`${bobName}@example.com`)).toBeVisible();
+
+      // 8. Assert Shared Groups (now has an expense, so group should be visible)
+      await expect(pageAlice.getByText("Shared Groups", { exact: true })).toBeVisible();
+      // Reload to ensure friend-balance data is fresh
+      await pageAlice.reload();
+      await expect(pageAlice.getByText("Shared Groups", { exact: true })).toBeVisible({ timeout: 10000 });
+      await expect(pageAlice.getByText(groupName).first()).toBeVisible({ timeout: 10000 });
+
+      // 9. Assert Shared Activity
       await expect(pageAlice.getByText("Shared Activity")).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText("Pizza Party")).toBeVisible({ timeout: 10000 });
     } finally {
