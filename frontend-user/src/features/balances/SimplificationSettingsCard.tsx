@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import type { UpdateSimplificationSettingsRequest } from "../../types/simplification";
 import { Settings, Shield, UserX, Globe, Users, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,7 +27,9 @@ export const SimplificationSettingsCard = ({
   });
 
   const updateSettingsMutation = useMutation({
-    mutationFn: (data: { simplificationEnabled: boolean; simplificationScope: string }) =>
+    mutationFn: (
+      data: UpdateSimplificationSettingsRequest,
+    ) =>
       simplificationService.updateSimplificationSettings(groupId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group-simplification-settings", groupId] });

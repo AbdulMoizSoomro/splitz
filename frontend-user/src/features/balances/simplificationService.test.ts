@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { simplificationService } from "./simplificationService";
+import type {
+  DebtSimplificationPlan,
+  GroupSimplificationSettings,
+  UpdateSimplificationSettingsRequest,
+} from "../../types/simplification";
 import { expenseApi } from "../../lib/axios";
 
 vi.mock("../../lib/axios", () => ({
@@ -25,7 +30,7 @@ describe("simplificationService", () => {
   });
 
   it("fetches debt simplification plan for a group", async () => {
-    const mockPlan = {
+    const mockPlan: DebtSimplificationPlan = {
       groupId: 1,
       scope: "INTRA_GROUP",
       status: "COMPLETED",
@@ -54,7 +59,7 @@ describe("simplificationService", () => {
   });
 
   it("fetches group simplification settings", async () => {
-    const mockSettings = {
+    const mockSettings: GroupSimplificationSettings = {
       groupId: 1,
       simplificationEnabled: true,
       simplificationScope: "INTRA_GROUP",
@@ -69,14 +74,14 @@ describe("simplificationService", () => {
   });
 
   it("updates group simplification settings", async () => {
-    const updateReq = {
+    const updateReq: UpdateSimplificationSettingsRequest = {
       simplificationEnabled: false,
-      simplificationScope: "GLOBAL_CROSS_GROUP",
+      simplificationScope: "CROSS_GROUP",
     };
-    const mockResponse = {
+    const mockResponse: GroupSimplificationSettings = {
       groupId: 1,
       simplificationEnabled: false,
-      simplificationScope: "GLOBAL_CROSS_GROUP",
+      simplificationScope: "CROSS_GROUP",
       optOutUserIds: [],
     };
     vi.mocked(expenseApi.put).mockResolvedValueOnce({ data: mockResponse });
@@ -92,7 +97,7 @@ describe("simplificationService", () => {
 
   it("toggles user opt-out status", async () => {
     const optOutReq = { optOut: true };
-    const mockResponse = {
+    const mockResponse: GroupSimplificationSettings = {
       groupId: 1,
       simplificationEnabled: true,
       simplificationScope: "INTRA_GROUP",
