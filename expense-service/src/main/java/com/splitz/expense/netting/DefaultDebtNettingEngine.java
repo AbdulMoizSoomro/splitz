@@ -1,4 +1,4 @@
-package com.splitz.expense.service;
+package com.splitz.expense.netting;
 
 import com.splitz.expense.model.DebtSimplificationPlan;
 import com.splitz.expense.model.PlanStatus;
@@ -13,19 +13,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
-public class GreedyDebtSimplifierImpl implements GreedyDebtSimplifier {
-
-  @Override
-  public DebtSimplificationPlan simplifyDebts(
-      Long groupId,
-      Map<Long, BigDecimal> netBalances,
-      Set<Long> optedOutUserIds,
-      Map<Long, String> usernames) {
-    return simplifyDebts(groupId, netBalances, optedOutUserIds, usernames, 0);
-  }
+/** Deep Debt-Netting Engine: deterministic greedy priority-queue netting producing a plan. */
+@Component
+public class DefaultDebtNettingEngine implements DebtNettingEngine {
 
   @Override
   public DebtSimplificationPlan simplifyDebts(
