@@ -19,18 +19,19 @@ public class GroupSimplificationSettingsService {
 
   @Transactional(readOnly = true)
   public GroupSimplificationSettingsDTO getSettings(Long groupId) {
-    GroupSimplificationSettings settings =
-        settingsRepository
-            .findByGroupId(groupId)
-            .orElseGet(
-                () ->
-                    GroupSimplificationSettings.builder()
-                        .groupId(groupId)
-                        .simplificationEnabled(true)
-                        .simplificationScope(SimplificationScope.INTRA_GROUP)
-                        .optOutUserIds(new HashSet<>())
-                        .build());
-    return toDTO(settings);
+    return toDTO(readSettings(groupId));
+  }
+
+  /**
+   * Reads a group's simplification settings, returning the canonical {@link
+   * GroupSimplificationSettings#defaults(Long)} when none are persisted. The single home for the
+   * read (persisted-or-default) that the plan flow delegates to.
+   */
+  @Transactional(readOnly = true)
+  public GroupSimplificationSettings readSettings(Long groupId) {
+    return settingsRepository
+        .findByGroupId(groupId)
+        .orElseGet(() -> GroupSimplificationSettings.defaults(groupId));
   }
 
   @Transactional
@@ -62,14 +63,7 @@ public class GroupSimplificationSettingsService {
   private GroupSimplificationSettings getOrCreateSettings(Long groupId) {
     return settingsRepository
         .findByGroupId(groupId)
-        .orElseGet(
-            () ->
-                settingsRepository.save(
-                    GroupSimplificationSettings.builder()
-                        .groupId(groupId)
-                        .simplificationEnabled(true)
-                        .optOutUserIds(new HashSet<>())
-                        .build()));
+        .orElseGet(() -> settingsRepository.save(GroupSimplificationSettings.defaults(groupId)));
   }
 
   private GroupSimplificationSettingsDTO toDTO(GroupSimplificationSettings settings) {
