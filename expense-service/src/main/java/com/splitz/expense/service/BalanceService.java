@@ -10,12 +10,14 @@ import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
+import com.splitz.expense.model.DebtSimplificationPlan;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SettlementStatus;
+import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
@@ -25,6 +27,7 @@ import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +49,8 @@ public class BalanceService {
   private final UserClient userClient;
   private final SharedSecurityAuthorizer splitzAuthorizer;
   private final DebtBalanceEngine debtBalanceEngine;
+  private final DebtNettingEngine debtNettingEngine;
+  private final DebtPlanDebtDTOAdapter debtPlanDebtDTOAdapter;
 
   @Transactional(readOnly = true)
   public FriendBalanceResponseDTO getNetBalanceWithFriend(Long userId, Long friendId) {
@@ -82,14 +87,15 @@ public class BalanceService {
         BigDecimal groupNetBalance =
             debtBalanceEngine.calculateNetBalanceInGroup(userId, friendId, expenses, allocations);
 
-        if (groupNetBalance.compareTo(BigDecimal.ZERO) != 0) {
-          groupBalances.add(
-              FriendGroupBalanceDTO.builder()
-                  .groupId(groupId)
-                  .groupName(groupNames.get(groupId))
-                  .balance(groupNetBalance)
-                  .build());
-        }
+        // Include all shared groups (even with zero balance) so the friend detail
+        // page can display them. The settlement modal already filters by non-zero
+        // balance for allocation purposes.
+        groupBalances.add(
+            FriendGroupBalanceDTO.builder()
+                .groupId(groupId)
+                .groupName(groupNames.get(groupId))
+                .balance(groupNetBalance)
+                .build());
         netBalance = netBalance.add(groupNetBalance);
       }
     }
@@ -166,7 +172,9 @@ public class BalanceService {
                 Collectors.toMap(
                     Map.Entry::getKey,
                     e -> e.getValue() != null ? e.getValue().getUsername() : null));
-    List<DebtDTO> simplifiedDebts = debtBalanceEngine.simplifyDebts(balances, usernames);
+    DebtSimplificationPlan plan =
+        debtNettingEngine.simplifyDebts(groupId, balances, Collections.emptySet(), usernames, 0);
+    List<DebtDTO> simplifiedDebts = debtPlanDebtDTOAdapter.toDebtDtos(plan);
 
     return GroupBalanceResponseDTO.builder()
         .groupId(groupId)

@@ -36,7 +36,11 @@ WORKDIR /app
 COPY --from=deps /root/.m2 /root/.m2
 COPY --from=deps /build /build
 WORKDIR /build/expense-service
-CMD ["sh", "-c", "(cd /build/common-security && mvn clean install -DskipTests -Dcheckstyle.skip -Dspotless.skip) && mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE:-dev} -DskipTests -Dcheckstyle.skip -Dspotless.skip"]
+# common-security is already installed into the local Maven cache (/root/.m2)
+# during the Docker "deps" build stage, so there is no need to rebuild it at
+# runtime. Rebuilding it here would race with user-service on the shared
+# bind-mounted /build/common-security/target directory. We simply run the app.
+CMD ["sh", "-c", "mvn spring-boot:run -Dspring-boot.run.profiles=${SPRING_PROFILES_ACTIVE:-dev} -Dmaven.test.skip=true -Dcheckstyle.skip -Dspotless.skip"]
 
 # -----------------------------------------------------------------------------
 # Stage 3: Builder (For production JAR)

@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { groupService } from "../groups/groupService";
 import { expenseService } from "../expenses/expenseService";
 import { friendService } from "./friendService";
+import { isGlobalPayment as isGlobalPaymentFor, confirmPayment as confirmPaymentFor } from "../balances/settlement";
 import { useAuthStore } from "../../store/authStore";
 import { toast } from "sonner";
 import type { User, FriendshipSettlementDTO } from "../../types/user";
@@ -199,7 +200,8 @@ const FriendDetailPage = () => {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: (settlementId: number) => friendService.confirmSettlement(settlementId),
+    mutationFn: (settlementId: number) =>
+      confirmPaymentFor(friendService, settlementId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["friend-balance"] });
       queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
@@ -542,9 +544,7 @@ const FriendDetailPage = () => {
                         badgeClassName = "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100/80";
                       }
 
-                      const isGlobalPayment = !settlement.allocations || 
-                                              settlement.allocations.length === 0 || 
-                                              settlement.allocations.some(a => !a.groupId);
+                      const isGlobalPayment = isGlobalPaymentFor(settlement);
 
                       return (
                         <Card key={`settlement-${settlement.id}-${index}`} className="shadow-sm hover:shadow-md transition-shadow border-border">

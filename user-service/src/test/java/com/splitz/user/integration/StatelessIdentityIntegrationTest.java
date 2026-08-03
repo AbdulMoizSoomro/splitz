@@ -37,7 +37,6 @@ public class StatelessIdentityIntegrationTest {
   @DisplayName("Should populate SecurityContext principal from JWT claims without DB hit")
   void testStatelessIdentityResolution() {
     // Arrange
-    String username = "testuser";
     Long userId = 123L;
     java.util.List<String> roles = Collections.singletonList("ROLE_USER");
 

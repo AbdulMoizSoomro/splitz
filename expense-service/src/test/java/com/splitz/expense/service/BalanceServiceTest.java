@@ -2,6 +2,7 @@ package com.splitz.expense.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -11,11 +12,13 @@ import com.splitz.expense.dto.DebtDTO;
 import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
+import com.splitz.expense.model.DebtSimplificationPlan;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SettlementStatus;
+import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
@@ -41,6 +44,8 @@ class BalanceServiceTest {
   @Mock private UserClient userClient;
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
   @Mock private DebtBalanceEngine debtBalanceEngine;
+  @Mock private DebtNettingEngine debtNettingEngine;
+  @Mock private DebtPlanDebtDTOAdapter debtPlanDebtDTOAdapter;
 
   private BalanceService balanceService;
 
@@ -56,7 +61,9 @@ class BalanceServiceTest {
             settlementAllocationRepository,
             userClient,
             splitzAuthorizer,
-            debtBalanceEngine);
+            debtBalanceEngine,
+            debtNettingEngine,
+            debtPlanDebtDTOAdapter);
   }
 
   @Test
@@ -105,7 +112,9 @@ class BalanceServiceTest {
                 .toUsername("user1")
                 .amount(new BigDecimal("5.00"))
                 .build());
-    when(debtBalanceEngine.simplifyDebts(any(), any())).thenReturn(simplifiedDebts);
+    DebtSimplificationPlan plan = DebtSimplificationPlan.builder().groupId(groupId).build();
+    when(debtNettingEngine.simplifyDebts(any(), any(), any(), any(), anyInt())).thenReturn(plan);
+    when(debtPlanDebtDTOAdapter.toDebtDtos(plan)).thenReturn(simplifiedDebts);
 
     GroupBalanceResponseDTO result = balanceService.getGroupBalances(groupId);
 
@@ -115,7 +124,8 @@ class BalanceServiceTest {
     assertThat(result.getBalances()).hasSize(2);
 
     verify(debtBalanceEngine).calculateGroupBalances(any(), any(), any());
-    verify(debtBalanceEngine).simplifyDebts(any(), any());
+    verify(debtNettingEngine).simplifyDebts(any(), any(), any(), any(), anyInt());
+    verify(debtPlanDebtDTOAdapter).toDebtDtos(plan);
   }
 
   @Test
