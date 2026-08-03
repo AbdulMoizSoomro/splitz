@@ -1,57 +1,83 @@
 import type { SplitType, SplitRequest } from "../../types/expense";
 
+/**
+ * The split state that travels together through every calculation.
+ * Bundling the form into one value object keeps the interface small: callers
+ * pass one cohesive input instead of a scattered (splitType, amount,
+ * splitValues, selectedMembers) tuple.
+ */
+export interface SplitFormValues {
+  splitType: SplitType;
+  /** Parsed numeric amount. */
+  amount: number;
+  /** Per-member split values, keyed by userId, still in string form. */
+  splitValues: Record<number, string>;
+  selectedMembers: number[];
+}
+
 export interface ValidationResult {
   isValid: boolean;
   message?: string;
   error?: string;
 }
 
-export function validateSplit(
-  splitType: SplitType,
-  totalSplitValue: number,
-  numAmount: number,
-): ValidationResult {
+/** Coerces a raw input string to a number, treating empty/non-numeric as 0. */
+export function parseAmount(amount: string): number {
+  return parseFloat(amount) || 0;
+}
+
+function totalSplitValue(splitValues: Record<number, string>): number {
+  return Object.values(splitValues).reduce(
+    (sum, val) => sum + parseAmount(val),
+    0,
+  );
+}
+
+export function validateSplit(form: SplitFormValues): ValidationResult {
+  const { splitType, amount } = form;
+  const total = totalSplitValue(form.splitValues);
+
   switch (splitType) {
     case "EQUAL":
       return { isValid: true };
     case "EXACT": {
-      const isExactValid = Math.abs(totalSplitValue - numAmount) < 0.01;
+      const isExactValid = Math.abs(total - amount) < 0.01;
       return {
         isValid: isExactValid,
         message: isExactValid
           ? "Fully allocated"
-          : `Remaining: $${(numAmount - totalSplitValue).toFixed(2)}`,
+          : `Remaining: $${(amount - total).toFixed(2)}`,
         error:
-          !isExactValid && numAmount > 0
-            ? `Total must equal $${numAmount}`
+          !isExactValid && amount > 0
+            ? `Total must equal $${amount}`
             : undefined,
       };
     }
     case "PERCENTAGE": {
-      const isPercentValid = Math.abs(totalSplitValue - 100) < 0.01;
+      const isPercentValid = Math.abs(total - 100) < 0.01;
       return {
         isValid: isPercentValid,
         message: isPercentValid
           ? "100% allocated"
-          : `Total: ${totalSplitValue.toFixed(1)}%`,
+          : `Total: ${total.toFixed(1)}%`,
         error: !isPercentValid ? "Total must equal 100%" : undefined,
       };
     }
     case "SHARES": {
-      const hasShares = totalSplitValue > 0;
+      const hasShares = total > 0;
       return {
         isValid: hasShares,
-        message: `Total shares: ${totalSplitValue}`,
+        message: `Total shares: ${total}`,
         error: !hasShares ? "Total shares must be greater than 0" : undefined,
       };
     }
     case "ADJUSTMENT": {
-      const isAdjValid = Math.abs(totalSplitValue) < 0.01;
+      const isAdjValid = Math.abs(total) < 0.01;
       return {
         isValid: isAdjValid,
         message: isAdjValid
           ? "Adjustments balanced"
-          : `Offset: ${totalSplitValue > 0 ? "+" : ""}$${totalSplitValue.toFixed(2)}`,
+          : `Offset: ${total > 0 ? "+" : ""}$${total.toFixed(2)}`,
         error: !isAdjValid ? "Adjustments must sum to $0.00" : undefined,
       };
     }
@@ -60,66 +86,27 @@ export function validateSplit(
   }
 }
 
-export function perShare(numAmount: number, memberCount: number): string {
-  return numAmount && memberCount > 0
-    ? (numAmount / memberCount).toFixed(2)
+export function perShare(form: SplitFormValues): string {
+  const { amount, selectedMembers } = form;
+  return amount && selectedMembers.length > 0
+    ? (amount / selectedMembers.length).toFixed(2)
     : "0.00";
 }
 
-export function parseAmount(amount: string): number {
-  return parseFloat(amount) || 0;
-}
-
-export function totalSplitValue(
-  splitValues: Record<number, string>,
-): number {
-  return Object.values(splitValues).reduce(
-    (sum, val) => sum + parseAmount(val),
-    0,
-  );
-}
-
-export function placeholder(splitType: SplitType): string {
-  switch (splitType) {
-    case "EXACT":
-      return "0.00";
-    case "PERCENTAGE":
-      return "0";
-    case "SHARES":
-      return "1";
-    case "ADJUSTMENT":
-      return "0.00";
-    default:
-      return "";
-  }
-}
-
-export function unitPrefix(splitType: SplitType): string {
-  return splitType === "EXACT" || splitType === "ADJUSTMENT" ? "$" : "";
-}
-
-export function unitSuffix(splitType: SplitType): string {
-  if (splitType === "PERCENTAGE") return "%";
-  if (splitType === "SHARES") return " shares";
-  return "";
-}
-
-export function splitTypeLabel(type: SplitType): string {
-  return type === "ADJUSTMENT" ? "Fixed Adjustment" : type.toLowerCase();
-}
-
-export function buildSplits(
-  selectedMembers: number[],
-  splitType: SplitType,
-  splitValues: Record<number, string>,
-): SplitRequest[] {
+export function buildSplits(form: SplitFormValues): SplitRequest[] {
+  const { selectedMembers, splitType, splitValues } = form;
   return selectedMembers.map((userId) => ({
     userId,
     splitType,
     splitValue:
-      splitType !== "EQUAL" ? parseAmount(splitValues[userId] || "0") : undefined,
+      splitType !== "EQUAL"
+        ? parseAmount(splitValues[userId] || "0")
+        : undefined,
     shareAmount:
-      splitType === "EXACT" ? parseAmount(splitValues[userId] || "0") : undefined,
+      splitType === "EXACT"
+        ? parseAmount(splitValues[userId] || "0")
+        : undefined,
   }));
 }
+
 
