@@ -57,6 +57,13 @@ describe("useDisplayName", () => {
     vi.clearAllMocks();
     vi.mocked(friendService.getFriends).mockResolvedValue([]);
     vi.mocked(groupService.getGroups).mockResolvedValue([]);
+    vi.mocked(groupService.getUserBalances).mockResolvedValue({
+      userId: 1,
+      username: "alice",
+      email: "alice@example.com",
+      totalBalance: 0,
+      groupBalances: [],
+    });
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 10,
       balances: [],
@@ -147,6 +154,13 @@ describe("useDisplayNames", () => {
     vi.clearAllMocks();
     vi.mocked(friendService.getFriends).mockResolvedValue([]);
     vi.mocked(groupService.getGroups).mockResolvedValue([]);
+    vi.mocked(groupService.getUserBalances).mockResolvedValue({
+      userId: 1,
+      username: "alice",
+      email: "alice@example.com",
+      totalBalance: 0,
+      groupBalances: [],
+    });
     vi.mocked(groupService.getBalances).mockResolvedValue({
       groupId: 10,
       balances: [],
@@ -193,6 +207,12 @@ describe("useDisplayNames", () => {
         [GROUP_BALANCE_MEMBER.userId]: "Charlie Jones",
         999: "User 999",
       });
+    });
+
+    // Flush the ledger's trailing group-balance fan-out so its state update
+    // lands inside act() and doesn't warn about an unwrapped update.
+    await vi.waitFor(() => {
+      expect(vi.mocked(groupService.getBalances)).toHaveBeenCalled();
     });
   });
 });
