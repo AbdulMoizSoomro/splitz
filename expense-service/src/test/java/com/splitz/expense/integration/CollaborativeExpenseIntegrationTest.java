@@ -2,6 +2,7 @@ package com.splitz.expense.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -173,13 +174,42 @@ public class CollaborativeExpenseIntegrationTest {
 
   @Test
   void getGroupActivity_Success() throws Exception {
-    createExpense(ownerId, "Expense 1", new BigDecimal("10.00"));
-    createExpense(memberId, "Expense 2", new BigDecimal("20.00"));
+    createExpenseViaApi(ownerId, "Expense 1", new BigDecimal("10.00"));
+    createExpenseViaApi(memberId, "Expense 2", new BigDecimal("20.00"));
 
     mockMvc
         .perform(get("/groups/" + group.getId() + "/activity").header("Authorization", ownerToken))
-        .andExpect(status().isOk());
-    // Detailed JSON assertions could be added here
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
+        .andExpect(
+            jsonPath(
+                "$[*].entityName",
+                org.hamcrest.Matchers.containsInAnyOrder("Expense 1", "Expense 2")))
+        .andExpect(
+            jsonPath(
+                "$[*].type",
+                org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("EXPENSE_CREATED"))));
+  }
+
+  private void createExpenseViaApi(Long paidBy, String description, BigDecimal amount)
+      throws Exception {
+    com.splitz.expense.dto.CreateExpenseRequest request =
+        com.splitz.expense.dto.CreateExpenseRequest.builder()
+            .description(description)
+            .amount(amount)
+            .paidBy(paidBy)
+            .currency("EUR")
+            .splitType(SplitType.EQUAL)
+            .splits(List.of(com.splitz.expense.dto.SplitRequest.builder().userId(paidBy).build()))
+            .build();
+
+    mockMvc
+        .perform(
+            post("/groups/" + group.getId() + "/expenses")
+                .header("Authorization", ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated());
   }
 
   private Expense createExpense(Long paidBy, String description, BigDecimal amount) {

@@ -1,9 +1,10 @@
 package com.splitz.expense.service;
 
-import com.splitz.expense.model.ActivityLog;
+import com.splitz.expense.dto.ActivityLogDTO;
 import com.splitz.expense.model.ActivityLogType;
 import java.util.List;
 
+/** Seam for reading and writing the group activity feed. */
 public interface ActivityLogService {
   void logActivity(
       Long groupId,
@@ -13,5 +14,5 @@ public interface ActivityLogService {
       String entityName,
       String details);
 
-  List<ActivityLog> getActivitiesByGroup(Long groupId);
+  List<ActivityLogDTO> getActivitiesByGroup(Long groupId);
 }
