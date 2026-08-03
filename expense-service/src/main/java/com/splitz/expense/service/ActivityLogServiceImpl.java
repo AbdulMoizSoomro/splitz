@@ -1,5 +1,7 @@
 package com.splitz.expense.service;
 
+import com.splitz.expense.dto.ActivityLogDTO;
+import com.splitz.expense.mapper.ActivityLogMapper;
 import com.splitz.expense.model.ActivityLog;
 import com.splitz.expense.model.ActivityLogType;
 import com.splitz.expense.repository.ActivityLogRepository;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ActivityLogServiceImpl implements ActivityLogService {
 
   private final ActivityLogRepository activityLogRepository;
+  private final ActivityLogMapper activityLogMapper;
 
   @Override
   @Transactional
@@ -37,7 +40,8 @@ public class ActivityLogServiceImpl implements ActivityLogService {
 
   @Override
   @Transactional(readOnly = true)
-  public List<ActivityLog> getActivitiesByGroup(Long groupId) {
-    return activityLogRepository.findByGroupIdOrderByTimestampDesc(groupId);
+  public List<ActivityLogDTO> getActivitiesByGroup(Long groupId) {
+    return activityLogMapper.toDTOList(
+        activityLogRepository.findByGroupIdOrderByTimestampDesc(groupId));
   }
 }

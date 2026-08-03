@@ -72,6 +72,10 @@ class ExpenseServiceTest {
 
   @Mock private ActivityLogService activityLogService;
 
+  @Spy
+  private com.splitz.expense.activity.ExpenseDiffCalculator expenseDiffCalculator =
+      new com.splitz.expense.activity.ExpenseDiffCalculator();
+
   @InjectMocks private ExpenseService expenseService;
 
   private Group group;
