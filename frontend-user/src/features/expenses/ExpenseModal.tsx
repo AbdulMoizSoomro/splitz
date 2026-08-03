@@ -24,13 +24,15 @@ import {
   validateSplit,
   perShare,
   parseAmount,
-  totalSplitValue as computeTotalSplitValue,
+  buildSplits,
+  type SplitFormValues,
+} from "./splitCalculator";
+import {
   placeholder as splitPlaceholder,
   unitPrefix as splitUnitPrefix,
   unitSuffix as splitUnitSuffix,
   splitTypeLabel,
-  buildSplits,
-} from "./splitCalculator";
+} from "./splitUi";
 import type { Group } from "../../types/group";
 import type {
   CreateExpenseRequest,
@@ -149,15 +151,20 @@ const ExpenseModal = ({
   };
 
   const numAmount = parseAmount(amount);
-  const total = computeTotalSplitValue(splitValues);
+  const form: SplitFormValues = {
+    splitType,
+    amount: numAmount,
+    splitValues,
+    selectedMembers,
+  };
 
-  const validation = validateSplit(splitType, total, numAmount);
+  const validation = validateSplit(form);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || selectedMembers.length === 0 || !validation.isValid) return;
 
-    const splitsPayload = buildSplits(selectedMembers, splitType, splitValues);
+    const splitsPayload = buildSplits(form);
 
     if (isEditing) {
       const expenseData: UpdateExpenseRequest = {
@@ -184,7 +191,7 @@ const ExpenseModal = ({
     }
   };
 
-  const sharePerPerson = perShare(numAmount, selectedMembers.length);
+  const sharePerPerson = perShare(form);
 
   const isPending = createMutation.isPending || updateMutation.isPending;
   const isError = createMutation.isError || updateMutation.isError;
