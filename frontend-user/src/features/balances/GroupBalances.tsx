@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { settlementService } from "./settlementService";
+import { recordPayment, confirmPayment, isGlobalPayment } from "./settlement";
 import { groupService } from "../groups/groupService";
 import { useAuthStore } from "../../store/authStore";
 import { toast } from "sonner";
@@ -55,19 +56,14 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
   });
 
   const createSettlementMutation = useMutation({
-    mutationFn: async (debt: { to: number; amount: number }) => {
-      const s = await settlementService.createSettlement({
+    mutationFn: (debt: { to: number; amount: number }) =>
+      recordPayment(settlementService, {
         payerId: currentUserId,
         payeeId: debt.to,
         amount: debt.amount,
         currency: "USD",
         groupId,
-      });
-      if (s.status === "PENDING") {
-        return settlementService.markAsPaid(s.id);
-      }
-      return s;
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group-balances", groupId] });
       queryClient.invalidateQueries({ queryKey: ["group-simplification-plan", groupId] });
@@ -83,7 +79,7 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
   });
 
   const confirmMutation = useMutation({
-    mutationFn: (id: number) => settlementService.confirmSettlement(id),
+    mutationFn: (id: number) => confirmPayment(settlementService, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group-balances", groupId] });
       queryClient.invalidateQueries({ queryKey: ["group-simplification-plan", groupId] });
@@ -118,18 +114,12 @@ const GroupBalances = ({ groupId }: GroupBalancesProps) => {
 
   const pendingIncoming =
     settlements?.filter((s) => {
-      const isGlobalPayment = !s.allocations || 
-                              s.allocations.length === 0 || 
-                              s.allocations.some(a => !a.groupId);
-      return s.payeeId === currentUserId && s.status === "MARKED_PAID" && !isGlobalPayment;
+      return s.payeeId === currentUserId && s.status === "MARKED_PAID" && !isGlobalPayment(s);
     }) || [];
 
   const pendingOutgoing =
     settlements?.filter((s) => {
-      const isGlobalPayment = !s.allocations || 
-                              s.allocations.length === 0 || 
-                              s.allocations.some(a => !a.groupId);
-      return s.payerId === currentUserId && s.status === "MARKED_PAID" && !isGlobalPayment;
+      return s.payerId === currentUserId && s.status === "MARKED_PAID" && !isGlobalPayment(s);
     }) || [];
 
   return (
