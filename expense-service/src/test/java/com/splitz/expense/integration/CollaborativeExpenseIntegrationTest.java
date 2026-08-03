@@ -46,10 +46,8 @@ public class CollaborativeExpenseIntegrationTest {
 
   private String ownerToken;
   private String memberToken;
-  private String otherToken;
   private Long ownerId = 1L;
   private Long memberId = 2L;
-  private Long otherId = 3L;
   private Group group;
 
   @BeforeEach
@@ -62,10 +60,6 @@ public class CollaborativeExpenseIntegrationTest {
         "Bearer "
             + jwtUtil.generateToken(
                 memberId.toString(), memberId, Collections.singletonList("ROLE_USER"));
-    otherToken =
-        "Bearer "
-            + jwtUtil.generateToken(
-                otherId.toString(), otherId, Collections.singletonList("ROLE_USER"));
 
     group =
         Group.builder()

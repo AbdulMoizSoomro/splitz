@@ -124,6 +124,8 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
     createMutation.mutate(payload);
   };
 
+
+
   const handleAllocationChange = (groupId: number, value: string) => {
     setAllocations((prev) => ({
       ...prev,

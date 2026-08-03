@@ -87,7 +87,7 @@ test.describe("[E2E] Settlement Lifecycle", () => {
       
       await expect(pageBob.getByText(/you owe/i).first()).toBeVisible();
       
-      await pageBob.getByRole("button", { name: /settle/i }).click();
+      await pageBob.getByRole("button", { name: /settle/i }).first().click();
       const settleModal = pageBob.getByRole("dialog", { name: /record payment/i });
       await expect(settleModal).toBeVisible();
       await settleModal.getByRole("button", { name: /confirm & mark paid/i }).click();

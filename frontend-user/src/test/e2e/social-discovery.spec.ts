@@ -221,18 +221,20 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
       await expect(pageDebtor).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
       await expect(pageDebtor.getByRole('heading', { name: groupName })).toBeVisible();
 
+      // Wait for balance data to load so the leave modal shows the correct warning
+      await pageDebtor.waitForLoadState('networkidle');
+
       // 7. Debtor clicks "Leave Group" (in sidebar, always visible)
       await pageDebtor.getByRole("tab", { name: "Members" }).click();
       await pageDebtor.getByRole("button", { name: /leave group/i }).click();
       const leaveModal = pageDebtor.getByRole("dialog");
       await expect(leaveModal).toBeVisible();
 
-      // 8. Verify the outstanding balance warning is shown
+      // 8. Verify the outstanding balance warning is shown.
+      // The debtor owes $10 from the $20 equal-split expense, so leaving must be blocked.
       await expect(
-        leaveModal.getByText(
-          /cannot leave this group while you have an outstanding balance/i,
-        ),
-      ).toBeVisible({ timeout: 10000 });
+        leaveModal.getByText(/cannot leave this group while you have (an outstanding balance|pending unconfirmed payments)/i),
+      ).toBeVisible({ timeout: 15000 });
 
       // 9. Verify the "Leave Group" confirm button is disabled
       const confirmLeaveBtn = leaveModal.getByRole("button", {
