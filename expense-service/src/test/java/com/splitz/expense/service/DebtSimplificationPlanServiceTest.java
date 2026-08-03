@@ -24,6 +24,7 @@ import com.splitz.expense.model.PlanStatus;
 import com.splitz.expense.model.SimplificationScope;
 import com.splitz.expense.model.SimplifiedDebtTransaction;
 import com.splitz.expense.model.TransactionStatus;
+import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
@@ -52,7 +53,7 @@ class DebtSimplificationPlanServiceTest {
   @Mock private GroupSimplificationSettingsRepository settingsRepository;
   @Mock private UserClient userClient;
   @Mock private DebtBalanceEngine debtBalanceEngine;
-  @Mock private GreedyDebtSimplifier greedyDebtSimplifier;
+  @Mock private DebtNettingEngine debtNettingEngine;
   @Mock private BalanceService balanceService;
 
   private DebtSimplificationPlanService planService;
@@ -71,7 +72,7 @@ class DebtSimplificationPlanServiceTest {
             settingsRepository,
             userClient,
             debtBalanceEngine,
-            greedyDebtSimplifier,
+            debtNettingEngine,
             balanceService);
     when(groupRepository.existsById(GROUP_ID)).thenReturn(true);
   }
@@ -147,7 +148,7 @@ class DebtSimplificationPlanServiceTest {
             .amount(new BigDecimal("50.00"))
             .status(TransactionStatus.PENDING)
             .build();
-    when(greedyDebtSimplifier.simplifyDebts(
+    when(debtNettingEngine.simplifyDebts(
             eq(GROUP_ID), eq(netBalances), eq(optOuts), any(), anyInt()))
         .thenReturn(aPlan(1, List.of(tx)));
 
@@ -163,7 +164,7 @@ class DebtSimplificationPlanServiceTest {
     assertThat(result.getTransactions().get(0).getFromUserId()).isEqualTo(1L);
     assertThat(result.getTransactions().get(0).getToUsername()).isEqualTo("charlie");
     verify(debtBalanceEngine).calculateGroupBalances(any(), any(), any());
-    verify(greedyDebtSimplifier).simplifyDebts(eq(GROUP_ID), any(), eq(optOuts), any(), anyInt());
+    verify(debtNettingEngine).simplifyDebts(eq(GROUP_ID), any(), eq(optOuts), any(), anyInt());
   }
 
   @Test
@@ -203,7 +204,7 @@ class DebtSimplificationPlanServiceTest {
     Map<Long, BigDecimal> expectedNet = new HashMap<>();
     expectedNet.put(1L, new BigDecimal("-50.00"));
     expectedNet.put(2L, new BigDecimal("50.00"));
-    when(greedyDebtSimplifier.simplifyDebts(
+    when(debtNettingEngine.simplifyDebts(
             eq(GROUP_ID), eq(expectedNet), eq(new HashSet<>()), any(), anyInt()))
         .thenReturn(
             aPlan(
@@ -248,7 +249,7 @@ class DebtSimplificationPlanServiceTest {
     assertThat(result.isSimplificationEnabled()).isFalse();
     assertThat(result.getSimplifiedTransactionCount()).isZero();
     assertThat(result.getTransactions()).isEmpty();
-    verify(greedyDebtSimplifier, never()).simplifyDebts(anyLong(), any(), any(), any(), anyInt());
+    verify(debtNettingEngine, never()).simplifyDebts(anyLong(), any(), any(), any(), anyInt());
   }
 
   @Test
@@ -265,7 +266,7 @@ class DebtSimplificationPlanServiceTest {
     zeroBalances.put(2L, BigDecimal.ZERO);
     when(debtBalanceEngine.calculateGroupBalances(any(), any(), any())).thenReturn(zeroBalances);
     when(userClient.getUsersByIds(any())).thenReturn(Collections.emptyList());
-    when(greedyDebtSimplifier.simplifyDebts(anyLong(), any(), any(), any(), anyInt()))
+    when(debtNettingEngine.simplifyDebts(anyLong(), any(), any(), any(), anyInt()))
         .thenReturn(aPlan(0, Collections.emptyList()));
 
     DebtSimplificationPlanDTO result = planService.computePlan(GROUP_ID);
@@ -283,6 +284,6 @@ class DebtSimplificationPlanServiceTest {
     assertThatThrownBy(() -> planService.computePlan(999L))
         .isInstanceOf(ResourceNotFoundException.class);
 
-    verify(greedyDebtSimplifier, never()).simplifyDebts(anyLong(), any(), any(), any(), anyInt());
+    verify(debtNettingEngine, never()).simplifyDebts(anyLong(), any(), any(), any(), anyInt());
   }
 }

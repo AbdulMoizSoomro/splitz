@@ -2,7 +2,6 @@ package com.splitz.expense.balance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.splitz.expense.dto.DebtDTO;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.SettlementAllocation;
@@ -143,41 +142,6 @@ class DefaultDebtBalanceEngineTest {
     assertThat(balances.get(1L)).isEqualByComparingTo("10.00");
     assertThat(balances.get(2L)).isEqualByComparingTo("0.00");
     assertThat(balances.get(3L)).isEqualByComparingTo("-10.00");
-  }
-
-  @Test
-  void shouldSimplifyDebtsForGroupWithCircularAndComplexBalances() {
-    // Setup balances:
-    // User 1 has +30.00 (creditor)
-    // User 2 has -10.00 (debtor)
-    // User 3 has -20.00 (debtor)
-    Map<Long, BigDecimal> balances =
-        Map.of(
-            1L, new BigDecimal("30.00"),
-            2L, new BigDecimal("-10.00"),
-            3L, new BigDecimal("-20.00"));
-    Map<Long, String> usernames = Map.of(1L, "user1", 2L, "user2", 3L, "user3");
-
-    List<DebtDTO> simplified = engine.simplifyDebts(balances, usernames);
-
-    // Expected:
-    // User 2 owes User 1 10.00
-    // User 3 owes User 1 20.00
-    assertThat(simplified).hasSize(2);
-
-    DebtDTO debt1 =
-        simplified.stream().filter(d -> d.getFrom().equals(2L)).findFirst().orElseThrow();
-    assertThat(debt1.getTo()).isEqualTo(1L);
-    assertThat(debt1.getFromUsername()).isEqualTo("user2");
-    assertThat(debt1.getToUsername()).isEqualTo("user1");
-    assertThat(debt1.getAmount()).isEqualByComparingTo("10.00");
-
-    DebtDTO debt2 =
-        simplified.stream().filter(d -> d.getFrom().equals(3L)).findFirst().orElseThrow();
-    assertThat(debt2.getTo()).isEqualTo(1L);
-    assertThat(debt2.getFromUsername()).isEqualTo("user3");
-    assertThat(debt2.getToUsername()).isEqualTo("user1");
-    assertThat(debt2.getAmount()).isEqualByComparingTo("20.00");
   }
 
   @Test

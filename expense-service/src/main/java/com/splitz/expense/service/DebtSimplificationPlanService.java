@@ -13,6 +13,7 @@ import com.splitz.expense.model.GroupSimplificationSettings;
 import com.splitz.expense.model.PlanStatus;
 import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SimplificationScope;
+import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
@@ -33,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Orchestrates the Smart Debt Reduction Engine (Wayfinder issue #63). Computes a read-only
  * Suggested Settlement Plan by gathering live net balances and governance opt-outs, then delegating
- * to the {@link GreedyDebtSimplifier}. Never mutates balances (decision #67).
+ * to the {@link DebtNettingEngine}. Never mutates balances (decision #67).
  */
 @Service
 @RequiredArgsConstructor
@@ -46,7 +47,7 @@ public class DebtSimplificationPlanService {
   private final GroupSimplificationSettingsRepository settingsRepository;
   private final UserClient userClient;
   private final DebtBalanceEngine debtBalanceEngine;
-  private final GreedyDebtSimplifier greedyDebtSimplifier;
+  private final DebtNettingEngine debtNettingEngine;
   private final BalanceService balanceService;
 
   @Transactional(readOnly = true)
@@ -81,7 +82,7 @@ public class DebtSimplificationPlanService {
     Map<Long, String> usernames = resolveUsernames(memberIds);
 
     DebtSimplificationPlan plan =
-        greedyDebtSimplifier.simplifyDebts(
+        debtNettingEngine.simplifyDebts(
             groupId, netBalances, settings.getOptOutUserIds(), usernames, originalTransactionCount);
 
     return toDTO(plan, settings);
