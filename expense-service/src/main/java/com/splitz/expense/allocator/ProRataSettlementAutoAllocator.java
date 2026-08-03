@@ -1,64 +1,40 @@
 package com.splitz.expense.allocator;
 
-import com.splitz.expense.dto.FriendBalanceResponseDTO;
-import com.splitz.expense.dto.FriendGroupBalanceDTO;
 import com.splitz.expense.model.SettlementAllocation;
-import com.splitz.expense.service.BalanceService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
- * Pro-Rata Settlement Allocator (Wayfinder Issue #71 — Slice 4). Distributes cross-group settlement
- * amounts proportionally across groups based on outstanding group balance magnitudes.
+ * Pro-Rata Settlement Allocator (Wayfinder Issue #71 — Slice 4). Distributes a Payment's amount
+ * proportionally across the groups in a {@link DebtPosition} based on outstanding debt magnitudes.
+ *
+ * <p>A pure distribution function: it holds no BalanceService dependency and consumes a resolved
+ * {@link DebtPosition}, so it is trivially testable through its interface. Eligible-debt discovery
+ * lives in {@link DebtPositionResolver}.
  */
 @Component
-@Primary
 public class ProRataSettlementAutoAllocator implements SettlementAutoAllocator {
 
-  private final BalanceService balanceService;
-
-  public ProRataSettlementAutoAllocator(BalanceService balanceService) {
-    this.balanceService = balanceService;
-  }
-
   @Override
-  public List<SettlementAllocation> allocate(Long payerId, Long payeeId, BigDecimal amount) {
+  public List<SettlementAllocation> allocate(DebtPosition position, BigDecimal amount) {
     List<SettlementAllocation> allocations = new ArrayList<>();
 
     if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
       return allocations;
     }
 
-    FriendBalanceResponseDTO balanceResponse =
-        balanceService.getNetBalanceWithFriend(payerId, payeeId);
+    List<GroupDebt> debts = position != null ? position.getDebts() : null;
 
-    if (balanceResponse == null || balanceResponse.getGroupBalances() == null) {
-      allocations.add(SettlementAllocation.builder().groupId(null).amount(amount).build());
-      return allocations;
-    }
-
-    // Filter to groups where payer owes payee (payer balance is negative)
-    List<FriendGroupBalanceDTO> debtsToSettle =
-        balanceResponse.getGroupBalances().stream()
-            .filter(gb -> gb.getBalance() != null && gb.getBalance().compareTo(BigDecimal.ZERO) < 0)
-            .sorted(Comparator.comparing(FriendGroupBalanceDTO::getGroupId))
-            .collect(Collectors.toList());
-
-    if (debtsToSettle.isEmpty()) {
+    if (debts == null || debts.isEmpty()) {
       allocations.add(SettlementAllocation.builder().groupId(null).amount(amount).build());
       return allocations;
     }
 
     BigDecimal totalOwed =
-        debtsToSettle.stream()
-            .map(gb -> gb.getBalance().abs())
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        debts.stream().map(GroupDebt::getOwedAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
     if (totalOwed.compareTo(BigDecimal.ZERO) == 0) {
       allocations.add(SettlementAllocation.builder().groupId(null).amount(amount).build());
@@ -67,8 +43,8 @@ public class ProRataSettlementAutoAllocator implements SettlementAutoAllocator {
 
     if (amount.compareTo(totalOwed) >= 0) {
       // Full settlement of all debts; excess goes to global unallocated (null groupId)
-      for (FriendGroupBalanceDTO debt : debtsToSettle) {
-        BigDecimal owedAmount = debt.getBalance().abs().setScale(2, RoundingMode.HALF_UP);
+      for (GroupDebt debt : debts) {
+        BigDecimal owedAmount = debt.getOwedAmount().setScale(2, RoundingMode.HALF_UP);
         allocations.add(
             SettlementAllocation.builder().groupId(debt.getGroupId()).amount(owedAmount).build());
       }
@@ -79,12 +55,12 @@ public class ProRataSettlementAutoAllocator implements SettlementAutoAllocator {
     } else {
       // Partial settlement: allocate pro-rata based on debt proportions
       BigDecimal accumulatedAllocated = BigDecimal.ZERO;
-      for (int i = 0; i < debtsToSettle.size(); i++) {
-        FriendGroupBalanceDTO debt = debtsToSettle.get(i);
-        BigDecimal groupDebt = debt.getBalance().abs();
+      for (int i = 0; i < debts.size(); i++) {
+        GroupDebt debt = debts.get(i);
+        BigDecimal groupDebt = debt.getOwedAmount();
 
         BigDecimal groupAllocation;
-        if (i == debtsToSettle.size() - 1) {
+        if (i == debts.size() - 1) {
           // Last group takes the remaining amount to prevent penny rounding mismatch
           groupAllocation = amount.subtract(accumulatedAllocated).setScale(2, RoundingMode.HALF_UP);
         } else {

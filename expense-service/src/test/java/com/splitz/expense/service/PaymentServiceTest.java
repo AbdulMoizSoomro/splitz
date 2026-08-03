@@ -5,6 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.splitz.expense.allocator.DebtPosition;
+import com.splitz.expense.allocator.DebtPositionResolver;
+import com.splitz.expense.allocator.GroupDebt;
 import com.splitz.expense.allocator.SettlementAutoAllocator;
 import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementAllocation;
@@ -26,6 +29,7 @@ class PaymentServiceTest {
   @Mock private SettlementAllocationRepository settlementAllocationRepository;
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
   @Mock private SettlementAutoAllocator settlementAutoAllocator;
+  @Mock private DebtPositionResolver debtPositionResolver;
 
   private PaymentService paymentService;
 
@@ -37,7 +41,8 @@ class PaymentServiceTest {
             paymentRepository,
             settlementAllocationRepository,
             splitzAuthorizer,
-            settlementAutoAllocator);
+            settlementAutoAllocator,
+            debtPositionResolver);
   }
 
   @Test
@@ -51,8 +56,14 @@ class PaymentServiceTest {
 
     List<SettlementAllocation> expectedAllocations =
         List.of(SettlementAllocation.builder().groupId(10L).amount(amount).build());
-    when(settlementAutoAllocator.allocate(payerId, payeeId, amount))
-        .thenReturn(expectedAllocations);
+    DebtPosition position =
+        DebtPosition.builder()
+            .payerId(payerId)
+            .payeeId(payeeId)
+            .debts(List.of(GroupDebt.builder().groupId(10L).owedAmount(amount).build()))
+            .build();
+    when(debtPositionResolver.resolve(payerId, payeeId)).thenReturn(position);
+    when(settlementAutoAllocator.allocate(position, amount)).thenReturn(expectedAllocations);
 
     Payment savedPayment =
         Payment.builder()
@@ -65,7 +76,8 @@ class PaymentServiceTest {
 
     Payment result = paymentService.createPayment(payerId, payeeId, amount, null, null);
 
-    verify(settlementAutoAllocator).allocate(payerId, payeeId, amount);
+    verify(debtPositionResolver).resolve(payerId, payeeId);
+    verify(settlementAutoAllocator).allocate(position, amount);
     assertThat(result).isNotNull();
   }
 
@@ -89,17 +101,25 @@ class PaymentServiceTest {
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(payerId);
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
 
+    DebtPosition position =
+        DebtPosition.builder()
+            .payerId(payerId)
+            .payeeId(payeeId)
+            .debts(List.of(GroupDebt.builder().groupId(10L).owedAmount(newAmount).build()))
+            .build();
+
     List<SettlementAllocation> expectedAllocations =
         List.of(SettlementAllocation.builder().groupId(10L).amount(newAmount).build());
-    when(settlementAutoAllocator.allocate(payerId, payeeId, newAmount))
-        .thenReturn(expectedAllocations);
+    when(debtPositionResolver.resolve(payerId, payeeId)).thenReturn(position);
+    when(settlementAutoAllocator.allocate(position, newAmount)).thenReturn(expectedAllocations);
 
     when(paymentRepository.save(any(Payment.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     Payment result = paymentService.updatePayment(paymentId, newAmount, null);
 
-    verify(settlementAutoAllocator).allocate(payerId, payeeId, newAmount);
+    verify(debtPositionResolver).resolve(payerId, payeeId);
+    verify(settlementAutoAllocator).allocate(position, newAmount);
     assertThat(result).isNotNull();
   }
 }
