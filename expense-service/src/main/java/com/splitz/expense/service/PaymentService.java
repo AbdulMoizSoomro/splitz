@@ -1,5 +1,7 @@
 package com.splitz.expense.service;
 
+import com.splitz.expense.allocator.DebtPosition;
+import com.splitz.expense.allocator.DebtPositionResolver;
 import com.splitz.expense.allocator.SettlementAutoAllocator;
 import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
@@ -27,6 +29,7 @@ public class PaymentService {
   private final SettlementAllocationRepository settlementAllocationRepository;
   private final SharedSecurityAuthorizer splitzAuthorizer;
   private final SettlementAutoAllocator settlementAutoAllocator;
+  private final DebtPositionResolver debtPositionResolver;
 
   @Transactional
   public Payment createPayment(
@@ -100,7 +103,7 @@ public class PaymentService {
                 .build());
       }
     } else {
-      allocations.addAll(settlementAutoAllocator.allocate(payerId, payeeId, amount));
+      allocations.addAll(resolveAndAllocate(payerId, payeeId, amount));
     }
 
     for (SettlementAllocation allocation : allocations) {
@@ -248,8 +251,7 @@ public class PaymentService {
                 .build());
       }
     } else {
-      allocations.addAll(
-          settlementAutoAllocator.allocate(payment.getPayerId(), payment.getPayeeId(), amount));
+      allocations.addAll(resolveAndAllocate(payment.getPayerId(), payment.getPayeeId(), amount));
     }
 
     for (SettlementAllocation allocation : allocations) {
@@ -257,6 +259,17 @@ public class PaymentService {
     }
 
     return paymentRepository.save(payment);
+  }
+
+  /**
+   * Resolves the payer's {@code DebtPosition} once, then lets the configured allocator decide the
+   * Settlement Allocations. Shared by create and update so the resolver→allocator choreography
+   * lives in one place.
+   */
+  private List<SettlementAllocation> resolveAndAllocate(
+      Long payerId, Long payeeId, BigDecimal amount) {
+    DebtPosition position = debtPositionResolver.resolve(payerId, payeeId);
+    return settlementAutoAllocator.allocate(position, amount);
   }
 
   public boolean isParticipant(Long paymentId) {
