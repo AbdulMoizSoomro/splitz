@@ -9,6 +9,8 @@ import com.splitz.expense.allocator.DebtPosition;
 import com.splitz.expense.allocator.DebtPositionResolver;
 import com.splitz.expense.allocator.GroupDebt;
 import com.splitz.expense.allocator.SettlementAutoAllocator;
+import com.splitz.expense.lifecycle.PaymentLifecycle;
+import com.splitz.expense.lifecycle.PaymentLifecycle.InitialState;
 import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SettlementStatus;
@@ -16,6 +18,7 @@ import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +33,7 @@ class PaymentServiceTest {
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
   @Mock private SettlementAutoAllocator settlementAutoAllocator;
   @Mock private DebtPositionResolver debtPositionResolver;
+  @Mock private PaymentLifecycle paymentLifecycle;
 
   private PaymentService paymentService;
 
@@ -42,7 +46,8 @@ class PaymentServiceTest {
             settlementAllocationRepository,
             splitzAuthorizer,
             settlementAutoAllocator,
-            debtPositionResolver);
+            debtPositionResolver,
+            paymentLifecycle);
   }
 
   @Test
@@ -53,6 +58,9 @@ class PaymentServiceTest {
 
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(payerId);
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(paymentLifecycle.canCreate(payerId, payerId, payeeId, false)).thenReturn(true);
+    when(paymentLifecycle.initialState(any(), any(), any(), any(LocalDateTime.class)))
+        .thenReturn(InitialState.builder().status(SettlementStatus.MARKED_PAID).build());
 
     List<SettlementAllocation> expectedAllocations =
         List.of(SettlementAllocation.builder().groupId(10L).amount(amount).build());
