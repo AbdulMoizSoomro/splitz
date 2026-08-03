@@ -32,6 +32,7 @@ import { groupService } from "../groups/groupService";
 import { expenseService } from "../expenses/expenseService";
 import { friendService } from "./friendService";
 import { isGlobalPayment as isGlobalPaymentFor, confirmPayment as confirmPaymentFor } from "../balances/settlement";
+import { decomposePosition } from "../balances/ledger";
 import { useAuthStore } from "../../store/authStore";
 import { toast } from "sonner";
 import type { User, FriendshipSettlementDTO } from "../../types/user";
@@ -161,15 +162,13 @@ const FriendDetailPage = () => {
     return map;
   }, [balanceData]);
 
-  // Compute the total sum of all group balances
-  const groupBalancesTotal = useMemo(() => {
-    return balanceData?.groupBalances?.reduce((sum, gb) => sum + gb.balance, 0) || 0;
-  }, [balanceData]);
-
-  // Direct (non-group) balance is the net total minus all group allocations
-  const directBalance = useMemo(() => {
-    return netBalance - groupBalancesTotal;
-  }, [netBalance, groupBalancesTotal]);
+  // Direct (non-group) balance is the net total minus all group allocations —
+  // the ledger's one decomposition rule.
+  const { position } = decomposePosition({
+    total: netBalance,
+    balances: balanceData?.groupBalances ?? [],
+  });
+  const directBalance = position.direct;
 
   const { data: sharedExpenses, isLoading: isLoadingExpenses } = useQuery({
     queryKey: ["shared-expenses", id, sharedGroups.map((g) => g.id)],

@@ -36,6 +36,7 @@ import ExpenseModal from "../expenses/ExpenseModal";
 import type { Expense } from "../../types/expense";
 import GroupBalances from "../balances/GroupBalances";
 import GroupActivity from "./GroupActivity";
+import { balanceInGroup } from "../balances/ledger";
 import { settlementService } from "../balances/settlementService";
 import { isGlobalPayment } from "../balances/settlement";
 import { expenseService } from "../expenses/expenseService";
@@ -246,9 +247,10 @@ const GroupDetails = () => {
     updateRoleMutation.mutate({ userId: Number(user?.id), role: "MEMBER" });
   };
 
-  const currentUserBalance =
-    balancesResponse?.balances.find((b) => b.userId === Number(user?.id))
-      ?.balance ?? 0;
+  const currentUserBalance = balanceInGroup(
+    balancesResponse?.balances ?? [],
+    Number(user?.id),
+  );
 
   const currentUserRole = group?.members.find(
     (m) => m.userId === Number(user?.id),

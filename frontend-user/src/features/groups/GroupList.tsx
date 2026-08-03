@@ -1,38 +1,22 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Folder, Users, ReceiptText } from "lucide-react";
-import { groupService } from "./groupService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ExpenseModal from "../expenses/ExpenseModal";
 import type { Group } from "../../types/group";
-import { useAuthStore } from "../../store/authStore";
+import { useLedger } from "../../hooks/useLedger";
 
 const GroupList = () => {
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const currentUserId = Number(user?.id);
 
-  const { data: groups, isLoading } = useQuery({
-    queryKey: ["groups"],
-    queryFn: groupService.getGroups,
-  });
+  const { groups, ledger, hasBalances, groupsLoading, balancesLoading } = useLedger();
 
-  const { data: userBalancesData, isLoading: isBalancesLoading } = useQuery({
-    queryKey: ["user-balances", currentUserId],
-    queryFn: () => groupService.getUserBalances(currentUserId),
-    enabled: !!currentUserId,
-  });
+  const totalGroupBalance = ledger?.position.groupTotal ?? 0;
 
-  const totalGroupBalance = userBalancesData?.groupBalances.reduce(
-    (sum, gb) => sum + gb.balance,
-    0,
-  ) ?? 0;
-
-  if (isLoading) {
+  if (groupsLoading) {
     return (
       <div className="flex justify-center py-8" data-testid="loader">
         <Loader2 className="animate-spin text-blue-600" size={32} />
@@ -63,7 +47,7 @@ const GroupList = () => {
   return (
     <>
       {/* Overall Group Balance Highlight Info */}
-      {!isBalancesLoading && userBalancesData && (
+      {!balancesLoading && hasBalances && ledger && (
         <Card className="mb-6 shadow-sm border-border bg-muted/50">
           <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -100,7 +84,7 @@ const GroupList = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {groups.map((group) => {
-          const groupBal = userBalancesData?.groupBalances.find((gb) => gb.groupId === group.id)?.balance ?? 0;
+          const groupBal = ledger?.groupPositions.find((p) => p.groupId === group.id)?.balance ?? 0;
           return (
             <Card
               key={group.id}
@@ -127,7 +111,7 @@ const GroupList = () => {
                 )}
                 <div className="mt-4 pt-4 border-t border-border flex justify-between items-center">
                   <div className="text-xs font-semibold">
-                    {isBalancesLoading ? (
+                    {balancesLoading ? (
                       <span className="text-muted-foreground animate-pulse">Loading balance...</span>
                     ) : groupBal > 0 ? (
                       <span className="text-emerald-600">You are owed ${groupBal.toFixed(2)}</span>
