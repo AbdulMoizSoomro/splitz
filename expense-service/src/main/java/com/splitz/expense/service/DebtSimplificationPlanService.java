@@ -1,24 +1,20 @@
 package com.splitz.expense.service;
 
-import com.splitz.expense.balance.DebtBalanceEngine;
+import com.splitz.expense.balancesource.NetBalanceResult;
+import com.splitz.expense.balancesource.NetBalanceSource;
+import com.splitz.expense.balancesource.NetBalanceSourceRegistry;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.DebtSimplificationPlanDTO;
 import com.splitz.expense.dto.SimplifiedDebtTransactionDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.model.DebtSimplificationPlan;
-import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupSimplificationSettings;
 import com.splitz.expense.model.PlanStatus;
-import com.splitz.expense.model.SettlementAllocation;
-import com.splitz.expense.model.SimplificationScope;
 import com.splitz.expense.netting.DebtNettingEngine;
-import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.GroupSimplificationSettingsRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collections;
@@ -33,8 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Orchestrates the Smart Debt Reduction Engine (Wayfinder issue #63). Computes a read-only
- * Suggested Settlement Plan by gathering live net balances and governance opt-outs, then delegating
- * to the {@link DebtNettingEngine}. Never mutates balances (decision #67).
+ * Suggested Settlement Plan by resolving the group's simplification settings, delegating balance
+ * sourcing to the {@link NetBalanceSource} adapter selected for the scope, and delegating netting
+ * to the deep {@link DebtNettingEngine}. Never mutates balances (decision #67). Each scope's
+ * balance-sourcing algorithm lives in its own adapter (see the {@code balancesource} package)
+ * rather than inside a branch of this class.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,13 +41,10 @@ public class DebtSimplificationPlanService {
 
   private final GroupRepository groupRepository;
   private final GroupMemberRepository groupMemberRepository;
-  private final ExpenseRepository expenseRepository;
-  private final SettlementAllocationRepository settlementAllocationRepository;
-  private final GroupSimplificationSettingsRepository settingsRepository;
+  private final GroupSimplificationSettingsService settingsService;
   private final UserClient userClient;
-  private final DebtBalanceEngine debtBalanceEngine;
   private final DebtNettingEngine debtNettingEngine;
-  private final BalanceService balanceService;
+  private final NetBalanceSourceRegistry netBalanceSourceRegistry;
 
   @Transactional(readOnly = true)
   public DebtSimplificationPlanDTO computePlan(Long groupId) {
@@ -56,7 +52,7 @@ public class DebtSimplificationPlanService {
       throw new ResourceNotFoundException("Group not found with id: " + groupId);
     }
 
-    GroupSimplificationSettings settings = resolveSettings(groupId);
+    GroupSimplificationSettings settings = settingsService.readSettings(groupId);
 
     if (!settings.isSimplificationEnabled()) {
       return emptyPlan(groupId, settings);
@@ -66,53 +62,20 @@ public class DebtSimplificationPlanService {
     List<Long> memberIds =
         members.stream().map(GroupMember::getUserId).collect(Collectors.toList());
 
-    Map<Long, BigDecimal> netBalances;
-    int originalTransactionCount;
-    if (settings.getSimplificationScope() == SimplificationScope.CROSS_GROUP) {
-      netBalances = computeCrossGroupBalances(memberIds);
-      originalTransactionCount = 0;
-    } else {
-      List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-      List<SettlementAllocation> allocations =
-          settlementAllocationRepository.findByGroupId(groupId);
-      netBalances = debtBalanceEngine.calculateGroupBalances(memberIds, expenses, allocations);
-      originalTransactionCount = expenses.size() + allocations.size();
-    }
+    NetBalanceSource source = netBalanceSourceRegistry.forScope(settings.getSimplificationScope());
+    NetBalanceResult balanceResult = source.resolve(groupId, memberIds);
 
     Map<Long, String> usernames = resolveUsernames(memberIds);
 
     DebtSimplificationPlan plan =
         debtNettingEngine.simplifyDebts(
-            groupId, netBalances, settings.getOptOutUserIds(), usernames, originalTransactionCount);
+            groupId,
+            balanceResult.getNetBalances(),
+            settings.getOptOutUserIds(),
+            usernames,
+            balanceResult.getOriginalTransactionCount());
 
     return toDTO(plan, settings);
-  }
-
-  private GroupSimplificationSettings resolveSettings(Long groupId) {
-    return settingsRepository
-        .findByGroupId(groupId)
-        .orElseGet(
-            () ->
-                GroupSimplificationSettings.builder()
-                    .groupId(groupId)
-                    .simplificationEnabled(true)
-                    .simplificationScope(SimplificationScope.INTRA_GROUP)
-                    .optOutUserIds(new HashSet<>())
-                    .build());
-  }
-
-  private Map<Long, BigDecimal> computeCrossGroupBalances(List<Long> memberIds) {
-    Map<Long, BigDecimal> netBalances = new HashMap<>();
-    for (Long memberId : memberIds) {
-      BigDecimal total = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-      List<GroupMember> memberships = groupMemberRepository.findByUserId(memberId);
-      for (GroupMember membership : memberships) {
-        Long gid = membership.getGroup().getId();
-        total = total.add(balanceService.calculateUserBalanceInGroup(memberId, gid));
-      }
-      netBalances.put(memberId, total);
-    }
-    return netBalances;
   }
 
   private Map<Long, String> resolveUsernames(List<Long> memberIds) {

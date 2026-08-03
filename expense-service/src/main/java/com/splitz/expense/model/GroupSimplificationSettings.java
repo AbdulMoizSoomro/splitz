@@ -62,4 +62,19 @@ public class GroupSimplificationSettings {
   @UpdateTimestamp
   @Column(name = "updated_at")
   private Instant updatedAt;
+
+  /**
+   * The canonical default settings for a group with no persisted row: simplification enabled,
+   * {@link SimplificationScope#INTRA_GROUP}, no opt-outs. The single home for default-settings
+   * knowledge so every reader (the plan flow and the settings service) sees the same source of
+   * truth.
+   */
+  public static GroupSimplificationSettings defaults(Long groupId) {
+    return GroupSimplificationSettings.builder()
+        .groupId(groupId)
+        .simplificationEnabled(true)
+        .simplificationScope(SimplificationScope.INTRA_GROUP)
+        .optOutUserIds(new HashSet<>())
+        .build();
+  }
 }
