@@ -20,6 +20,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { expenseService } from "./expenseService";
 import { categoryService } from "./categoryService";
+import {
+  validateSplit,
+  perShare,
+  parseAmount,
+  totalSplitValue as computeTotalSplitValue,
+  placeholder as splitPlaceholder,
+  unitPrefix as splitUnitPrefix,
+  unitSuffix as splitUnitSuffix,
+  splitTypeLabel,
+  buildSplits,
+} from "./splitCalculator";
 import type { Group } from "../../types/group";
 import type {
   CreateExpenseRequest,
@@ -137,81 +148,16 @@ const ExpenseModal = ({
     }));
   };
 
-  const totalSplitValue = Object.values(splitValues).reduce(
-    (sum, val) => sum + (parseFloat(val) || 0),
-    0,
-  );
+  const numAmount = parseAmount(amount);
+  const total = computeTotalSplitValue(splitValues);
 
-  const numAmount = parseFloat(amount) || 0;
-
-  const getValidationInfo = () => {
-    switch (splitType) {
-      case "EQUAL":
-        return { isValid: true };
-      case "EXACT": {
-        const isExactValid = Math.abs(totalSplitValue - numAmount) < 0.01;
-        return {
-          isValid: isExactValid,
-          message: isExactValid
-            ? "Fully allocated"
-            : `Remaining: $${(numAmount - totalSplitValue).toFixed(2)}`,
-          error:
-            !isExactValid && numAmount > 0
-              ? `Total must equal $${numAmount}`
-              : undefined,
-        };
-      }
-      case "PERCENTAGE": {
-        const isPercentValid = Math.abs(totalSplitValue - 100) < 0.01;
-        return {
-          isValid: isPercentValid,
-          message: isPercentValid
-            ? "100% allocated"
-            : `Total: ${totalSplitValue.toFixed(1)}%`,
-          error: !isPercentValid ? "Total must equal 100%" : undefined,
-        };
-      }
-      case "SHARES": {
-        const hasShares = totalSplitValue > 0;
-        return {
-          isValid: hasShares,
-          message: `Total shares: ${totalSplitValue}`,
-          error: !hasShares ? "Total shares must be greater than 0" : undefined,
-        };
-      }
-      case "ADJUSTMENT": {
-        const isAdjValid = Math.abs(totalSplitValue) < 0.01;
-        return {
-          isValid: isAdjValid,
-          message: isAdjValid
-            ? "Adjustments balanced"
-            : `Offset: ${totalSplitValue > 0 ? "+" : ""}$${totalSplitValue.toFixed(2)}`,
-          error: !isAdjValid ? "Adjustments must sum to $0.00" : undefined,
-        };
-      }
-      default:
-        return { isValid: true };
-    }
-  };
-
-  const validation = getValidationInfo();
+  const validation = validateSplit(splitType, total, numAmount);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || selectedMembers.length === 0 || !validation.isValid) return;
 
-    const splitsPayload = selectedMembers.map((userId) => ({
-      userId,
-      splitType,
-      splitValue:
-        splitType !== "EQUAL"
-          ? parseFloat(splitValues[userId] || "0")
-          : undefined,
-      shareAmount:
-        splitType === "EXACT"
-          ? parseFloat(splitValues[userId] || "0")
-          : undefined,
-    }));
+    const splitsPayload = buildSplits(selectedMembers, splitType, splitValues);
 
     if (isEditing) {
       const expenseData: UpdateExpenseRequest = {
@@ -238,39 +184,7 @@ const ExpenseModal = ({
     }
   };
 
-  const sharePerPerson =
-    amount && selectedMembers.length > 0
-      ? (numAmount / selectedMembers.length).toFixed(2)
-      : "0.00";
-
-  const getPlaceholder = () => {
-    switch (splitType) {
-      case "EXACT":
-        return "0.00";
-      case "PERCENTAGE":
-        return "0";
-      case "SHARES":
-        return "1";
-      case "ADJUSTMENT":
-        return "0.00";
-      default:
-        return "";
-    }
-  };
-
-  const getUnitPrefix = () =>
-    splitType === "EXACT" || splitType === "ADJUSTMENT" ? "$" : "";
-  const getUnitSuffix = () =>
-    splitType === "PERCENTAGE" ? "%" : splitType === "SHARES" ? " shares" : "";
-
-  const getSplitTypeLabel = (type: SplitType) => {
-    switch (type) {
-      case "ADJUSTMENT":
-        return "Fixed Adjustment";
-      default:
-        return type.toLowerCase();
-    }
-  };
+  const sharePerPerson = perShare(numAmount, selectedMembers.length);
 
   const isPending = createMutation.isPending || updateMutation.isPending;
   const isError = createMutation.isError || updateMutation.isError;
@@ -384,7 +298,7 @@ const ExpenseModal = ({
                     htmlFor={`split-type-${type}`}
                     className="text-sm text-muted-foreground hover:text-foreground capitalize cursor-pointer"
                   >
-                    {getSplitTypeLabel(type)}
+                    {splitTypeLabel(type)}
                   </label>
                 </div>
               ))}
@@ -419,7 +333,7 @@ const ExpenseModal = ({
                       selectedMembers.includes(member.userId) && (
                         <div className="flex items-center gap-1 w-32">
                           <span className="text-sm text-muted-foreground">
-                            {getUnitPrefix()}
+                            {splitUnitPrefix(splitType)}
                           </span>
                           <Input
                             id={`split-value-${member.userId}`}
@@ -432,11 +346,11 @@ const ExpenseModal = ({
                                 e.target.value,
                               )
                             }
-                            placeholder={getPlaceholder()}
+                            placeholder={splitPlaceholder(splitType)}
                             aria-label={`${memberNames[member.userId] ?? `User ${member.userId}`} split value`}
                           />
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {getUnitSuffix()}
+                            {splitUnitSuffix(splitType)}
                           </span>
                         </div>
                       )}
