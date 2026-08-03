@@ -37,6 +37,7 @@ import type { Expense } from "../../types/expense";
 import GroupBalances from "../balances/GroupBalances";
 import GroupActivity from "./GroupActivity";
 import { settlementService } from "../balances/settlementService";
+import { isGlobalPayment } from "../balances/settlement";
 import { expenseService } from "../expenses/expenseService";
 import { categoryService } from "../expenses/categoryService";
 import {
@@ -256,13 +257,10 @@ const GroupDetails = () => {
   const isAdmin = currentUserRole === "ADMIN";
 
   const hasPendingSettlements = settlements?.some((s) => {
-    const isGlobalPayment = !s.allocations || 
-                            s.allocations.length === 0 || 
-                            s.allocations.some(a => !a.groupId);
     return (
       (s.payerId === Number(user?.id) || s.payeeId === Number(user?.id)) &&
       s.status === "MARKED_PAID" &&
-      !isGlobalPayment
+      !isGlobalPayment(s)
     );
   }) ?? false;
 
