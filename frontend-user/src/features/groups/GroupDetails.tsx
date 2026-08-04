@@ -37,8 +37,14 @@ import type { Expense } from "../../types/expense";
 import GroupBalances from "../balances/GroupBalances";
 import GroupActivity from "./GroupActivity";
 import { balanceInGroup } from "../balances/ledger";
+import { queryKeys, invalidations, bindInvalidations } from "../../lib/queryKeys";
+import {
+  selfRole,
+  canLeaveGroup,
+  hasPendingSettlements,
+  canManageMembers,
+} from "./membershipGating";
 import { settlementService } from "../balances/settlementService";
-import { isGlobalPayment } from "../balances/settlement";
 import { expenseService } from "../expenses/expenseService";
 import { categoryService } from "../expenses/categoryService";
 import {
@@ -62,6 +68,9 @@ const GroupDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // The minimal `invalidateQueries` surface the queryKeys invalidations expect.
+  const invalidate = bindInvalidations(queryClient);
   const { user } = useAuthStore();
 
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
@@ -78,37 +87,37 @@ const GroupDetails = () => {
   >("expenses");
 
   const { data: group, isLoading } = useQuery({
-    queryKey: ["group", Number(id)],
+    queryKey: queryKeys.group(Number(id)),
     queryFn: () => groupService.getGroup(Number(id)),
     enabled: !!id,
   });
 
   const { data: balancesResponse, isLoading: isBalancesLoading } = useQuery({
-    queryKey: ["group-balances", Number(id)],
+    queryKey: queryKeys.groupBalances(Number(id)),
     queryFn: () => groupService.getBalances(Number(id)),
     enabled: !!id,
   });
 
   const { data: friends, isLoading: isFriendsLoading } = useQuery({
-    queryKey: ["friends", Number(user?.id)],
+    queryKey: queryKeys.friends(Number(user?.id)),
     queryFn: () => friendService.getFriends(Number(user?.id)),
     enabled: !!user?.id,
   });
 
   const { data: settlements, isLoading: isSettlementsLoading } = useQuery({
-    queryKey: ["group-settlements", Number(id)],
+    queryKey: queryKeys.groupSettlements(Number(id)),
     queryFn: () => settlementService.getSettlementsByGroup(Number(id)),
     enabled: !!id,
   });
 
   const { data: expenses, isLoading: isExpensesLoading } = useQuery({
-    queryKey: ["expenses", Number(id)],
+    queryKey: queryKeys.expenses(Number(id)),
     queryFn: () => expenseService.getGroupExpenses(Number(id)),
     enabled: !!id,
   });
 
   const { data: categories } = useQuery({
-    queryKey: ["categories"],
+    queryKey: queryKeys.categories(),
     queryFn: categoryService.getCategories,
   });
 
@@ -156,9 +165,7 @@ const GroupDetails = () => {
     mutationFn: (expenseId: number) =>
       expenseService.deleteExpense(Number(id), expenseId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["group-activity", Number(id)] });
-      queryClient.invalidateQueries({ queryKey: ["expenses", Number(id)] });
-      queryClient.invalidateQueries({ queryKey: ["group-balances", Number(id)] });
+      invalidations.expenseMutated(invalidate, Number(id));
       toast.success("Expense deleted successfully");
       setIsDeleteModalOpen(false);
       setExpenseToDelete(null);
@@ -182,7 +189,7 @@ const GroupDetails = () => {
   const leaveMutation = useMutation({
     mutationFn: () => groupService.removeMember(Number(id), Number(user?.id)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      invalidate(queryKeys.groups());
       toast.success("Left group successfully");
       navigate("/groups");
     },
@@ -200,7 +207,7 @@ const GroupDetails = () => {
       role: "ADMIN" | "MEMBER";
     }) => groupService.updateMemberRole(Number(id), userId, role),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["group", Number(id)] });
+      invalidate(queryKeys.group(Number(id)));
       toast.success("Role updated successfully");
       if (
         variables.userId === Number(user?.id) &&
@@ -223,7 +230,7 @@ const GroupDetails = () => {
     mutationFn: (data: Partial<import("../../types/group").Group>) =>
       groupService.updateGroup(Number(id), data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["group", Number(id)] });
+      invalidate(queryKeys.group(Number(id)));
       toast.success("Group settings updated");
     },
     onError: () => {
@@ -252,21 +259,15 @@ const GroupDetails = () => {
     Number(user?.id),
   );
 
-  const currentUserRole = group?.members.find(
-    (m) => m.userId === Number(user?.id),
-  )?.role;
-  const isOwner = group?.createdBy === Number(user?.id);
-  const isAdmin = currentUserRole === "ADMIN";
-
-  const hasPendingSettlements = settlements?.some((s) => {
-    return (
-      (s.payerId === Number(user?.id) || s.payeeId === Number(user?.id)) &&
-      s.status === "MARKED_PAID" &&
-      !isGlobalPayment(s)
-    );
-  }) ?? false;
-
-  const canLeave = currentUserBalance === 0 && !hasPendingSettlements;
+  // Role + the Settled Membership Invariant (CONTEXT.md), from one module
+  // instead of being re-derived inline in the view.
+  const currentUserRole = selfRole(group, Number(user?.id));
+  const hasPending = hasPendingSettlements(settlements, Number(user?.id));
+  const canLeave = canLeaveGroup({
+    balance: currentUserBalance,
+    settlements,
+    currentUserId: Number(user?.id),
+  });
 
   if (isLoading || isFriendsLoading) {
     return (
@@ -540,9 +541,10 @@ const GroupDetails = () => {
                       <span className="text-sm text-muted-foreground">
                         {group.members.length} members
                       </span>
-                      {(isOwner ||
-                        isAdmin ||
-                        group.allowMembersToManageMembers) && (
+                      {canManageMembers(
+                        currentUserRole,
+                        group.allowMembersToManageMembers,
+                      ) && (
                         <button
                           aria-label="Add member"
                           onClick={() => setIsAddMemberModalOpen(true)}
@@ -643,7 +645,8 @@ const GroupDetails = () => {
                               <Badge className={badgeClassName}>{roleLabel}</Badge>
 
                               {/* Role Management Dropdown */}
-                              {(isAdmin || isOwner) &&
+                              {(currentUserRole === "ADMIN" ||
+                                currentUserRole === "OWNER") &&
                                 member.userId !== group.createdBy && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger
@@ -680,7 +683,7 @@ const GroupDetails = () => {
                 </Card>
 
                 {/* Relocated Group Settings */}
-                {isOwner && (
+                {currentUserRole === "OWNER" && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -792,7 +795,7 @@ const GroupDetails = () => {
               </div>
             ) : !canLeave ? (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {hasPendingSettlements ? (
+                {hasPending ? (
                   "You cannot leave this group while you have pending unconfirmed payments."
                 ) : (
                   `You cannot leave this group while you have an outstanding balance (${currentUserBalance}).`
