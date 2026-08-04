@@ -235,31 +235,4 @@ public class PaymentService {
     DebtPosition position = debtPositionResolver.resolve(payerId, payeeId);
     return settlementAutoAllocator.allocate(position, amount);
   }
-
-  public boolean isParticipant(Long paymentId) {
-    Payment payment = paymentRepository.findById(paymentId).orElse(null);
-    if (payment == null) {
-      return false;
-    }
-    Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    return paymentLifecycle.isParticipant(payment, currentUserId, splitzAuthorizer.isAdmin());
-  }
-
-  public boolean isPayer(Long paymentId) {
-    Payment payment = paymentRepository.findById(paymentId).orElse(null);
-    if (payment == null) {
-      return false;
-    }
-    Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    return paymentLifecycle.isPayer(payment, currentUserId, splitzAuthorizer.isAdmin());
-  }
-
-  public boolean isPayee(Long paymentId) {
-    Payment payment = paymentRepository.findById(paymentId).orElse(null);
-    if (payment == null) {
-      return false;
-    }
-    Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    return paymentLifecycle.isPayee(payment, currentUserId, splitzAuthorizer.isAdmin());
-  }
 }
