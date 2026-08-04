@@ -11,6 +11,7 @@ import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.DebtDTO;
 import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
+import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.model.DebtSimplificationPlan;
 import com.splitz.expense.model.Expense;
@@ -24,7 +25,6 @@ import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
-import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
@@ -42,7 +42,6 @@ class BalanceServiceTest {
   @Mock private PaymentRepository paymentRepository;
   @Mock private SettlementAllocationRepository settlementAllocationRepository;
   @Mock private UserClient userClient;
-  @Mock private SharedSecurityAuthorizer splitzAuthorizer;
   @Mock private DebtBalanceEngine debtBalanceEngine;
   @Mock private DebtNettingEngine debtNettingEngine;
   @Mock private DebtPlanDebtDTOAdapter debtPlanDebtDTOAdapter;
@@ -60,7 +59,6 @@ class BalanceServiceTest {
             paymentRepository,
             settlementAllocationRepository,
             userClient,
-            splitzAuthorizer,
             debtBalanceEngine,
             debtNettingEngine,
             debtPlanDebtDTOAdapter);
@@ -69,11 +67,7 @@ class BalanceServiceTest {
   @Test
   void shouldDelegateGroupBalancesAndDebtSimplificationToEngine() {
     Long groupId = 10L;
-    Long currentUserId = 1L;
 
-    when(splitzAuthorizer.getCurrentUserId()).thenReturn(currentUserId);
-    when(splitzAuthorizer.isAdmin()).thenReturn(false);
-    when(groupMemberRepository.existsByGroupIdAndUserId(groupId, currentUserId)).thenReturn(true);
     when(groupRepository.existsById(groupId)).thenReturn(true);
 
     Group group = Group.builder().id(groupId).name("Group 1").build();
@@ -133,9 +127,6 @@ class BalanceServiceTest {
     Long userId = 1L;
     Long friendId = 2L;
 
-    when(splitzAuthorizer.getCurrentUserId()).thenReturn(userId);
-    when(splitzAuthorizer.isAdmin()).thenReturn(false);
-
     Group group = Group.builder().id(10L).name("Shared Group").build();
     GroupMember memberUser = GroupMember.builder().userId(userId).group(group).build();
     GroupMember memberFriend = GroupMember.builder().userId(friendId).group(group).build();
@@ -176,5 +167,23 @@ class BalanceServiceTest {
     assertThat(result.getGroupBalances().get(0).getBalance()).isEqualByComparingTo("10.00");
 
     verify(debtBalanceEngine).calculateNetBalanceInGroup(userId, friendId, expenses, allocations);
+  }
+
+  @Test
+  void shouldComputeUserBalancesWithoutInlineAuthCheck() {
+    Long userId = 1L;
+
+    when(groupMemberRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
+    when(paymentRepository.findByPayerIdOrPayeeId(userId, userId))
+        .thenReturn(Collections.emptyList());
+    when(userClient.getUserById(userId))
+        .thenReturn(
+            java.util.Optional.of(new UserResponse(userId, "user1", "u@e.com", "First", "Last")));
+
+    UserBalanceResponseDTO result = balanceService.getUserBalances(userId);
+
+    assertThat(result).isNotNull();
+    assertThat(result.getUserId()).isEqualTo(userId);
+    assertThat(result.getTotalBalance()).isEqualByComparingTo("0.00");
   }
 }

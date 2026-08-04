@@ -25,6 +25,7 @@ import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.security.JwtUtil;
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -60,6 +61,10 @@ public class BalanceIntegrationTest {
     var user =
         User.withUsername(String.valueOf(userId)).password("").authorities(List.of()).build();
     return "Bearer " + jwtUtil.generateToken(user);
+  }
+
+  private String adminTokenFor(long userId) {
+    return "Bearer " + jwtUtil.generateToken(String.valueOf(userId), userId, List.of("ROLE_ADMIN"));
   }
 
   @BeforeEach
@@ -203,5 +208,33 @@ public class BalanceIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.balances[?(@.userId==100)].balance").value(0.0))
         .andExpect(jsonPath("$.balances[?(@.userId==101)].balance").value(0.0));
+  }
+
+  @Test
+  void nonMemberCannotViewGroupBalances() throws Exception {
+    mockMvc
+        .perform(
+            get("/groups/" + group.getId() + "/balances").header("Authorization", tokenFor(999L)))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void memberCannotViewAnotherUsersBalances() throws Exception {
+    // User 101 is a group member, but is NOT user 100; /users/100/balances is self-or-admin only
+    mockMvc
+        .perform(get("/users/100/balances").header("Authorization", tokenFor(101L)))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void globalAdminWhoIsNotMemberCanViewGroupBalances() throws Exception {
+    when(userClient.getUsersByIds(anyList())).thenReturn(Collections.emptyList());
+
+    // 999 is NOT a group member, but the @security.isGroupMember check lets a global admin through
+    mockMvc
+        .perform(
+            get("/groups/" + group.getId() + "/balances")
+                .header("Authorization", adminTokenFor(999L)))
+        .andExpect(status().isOk());
   }
 }
