@@ -33,10 +33,11 @@ import { expenseService } from "../expenses/expenseService";
 import { friendService } from "./friendService";
 import { isGlobalPayment as isGlobalPaymentFor, confirmPayment as confirmPaymentFor } from "../balances/settlement";
 import { decomposePosition } from "../balances/ledger";
+import { mergeActivity } from "./unifiedActivity";
+import { queryKeys, invalidations, bindInvalidations } from "../../lib/queryKeys";
 import { useAuthStore } from "../../store/authStore";
 import { toast } from "sonner";
 import type { User, FriendshipSettlementDTO } from "../../types/user";
-import type { Expense } from "../../types/expense";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import {
   Card,
@@ -47,11 +48,6 @@ import {
 import FriendshipSettlementModal from "./FriendshipSettlementModal";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-
-// Helper type for unified activity feed
-type ActivityItem = 
-  | { type: 'expense'; data: Expense; date: Date }
-  | { type: 'settlement'; data: FriendshipSettlementDTO; date: Date };
 
 const FriendDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -65,14 +61,17 @@ const FriendDetailPage = () => {
   const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
+  // The minimal `invalidateQueries` surface the queryKeys invalidations expect.
+  const invalidate = bindInvalidations(queryClient);
+
   const { data: friendsList } = useQuery({
-    queryKey: ["friends", currentUser?.id],
+    queryKey: queryKeys.friends(currentUser!.id),
     queryFn: () => friendService.getFriends(currentUser!.id),
     enabled: !!currentUser?.id,
   });
 
   const { data: outgoingRequests } = useQuery({
-    queryKey: ["friend-requests", currentUser?.id, "OUTGOING"],
+    queryKey: queryKeys.friendRequests(currentUser!.id, "OUTGOING"),
     queryFn: () => friendService.getFriendRequests(currentUser!.id, "OUTGOING"),
     enabled: !!currentUser?.id,
   });
@@ -95,7 +94,9 @@ const FriendDetailPage = () => {
   const addFriendMutation = useMutation({
     mutationFn: () => friendService.sendFriendRequest(currentUser!.id, friendId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
+      // A request edge only touches the request lists, so invalidate those
+      // precisely instead of the broader friendship bundle.
+      invalidate(queryKeys.friendRequests(currentUser!.id));
       setIsAddFriendModalOpen(false);
       toast.success("Friend request sent");
     },
@@ -104,7 +105,7 @@ const FriendDetailPage = () => {
   const cancelRequestMutation = useMutation({
     mutationFn: () => friendService.removeFriend(currentUser!.id, friendId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friend-requests"] });
+      invalidate(queryKeys.friendRequests(currentUser!.id));
       setIsCancelRequestModalOpen(false);
       toast.success("Friend request cancelled");
     },
@@ -112,7 +113,7 @@ const FriendDetailPage = () => {
 
 
   const { data: friend, isLoading: isLoadingFriend } = useQuery({
-    queryKey: ["users", id],
+    queryKey: queryKeys.user(id!),
     queryFn: async () => {
       const response = await api.get<User>(`/users/${id}`);
       return response.data;
@@ -121,7 +122,7 @@ const FriendDetailPage = () => {
   });
 
   const { data: balanceData, isLoading: isLoadingBalance } = useQuery({
-    queryKey: ["friend-balance", currentUser?.id, friendId],
+    queryKey: queryKeys.friendBalance(currentUser!.id, friendId),
     queryFn: () =>
       friendService.getNetBalance(Number(currentUser!.id), friendId),
     enabled: !!currentUser && !!friendId,
@@ -130,7 +131,7 @@ const FriendDetailPage = () => {
   const netBalance = balanceData?.netBalance || 0;
 
   const { data: groups, isLoading: isLoadingGroups } = useQuery({
-    queryKey: ["groups"],
+    queryKey: queryKeys.groups(),
     queryFn: () => groupService.getGroups(),
   });
 
@@ -171,7 +172,7 @@ const FriendDetailPage = () => {
   const directBalance = position.direct;
 
   const { data: sharedExpenses, isLoading: isLoadingExpenses } = useQuery({
-    queryKey: ["shared-expenses", id, sharedGroups.map((g) => g.id)],
+    queryKey: queryKeys.sharedExpenses(id!, sharedGroups.map((g) => g.id)),
     queryFn: async () => {
       if (sharedGroups.length === 0) return [];
 
@@ -192,7 +193,7 @@ const FriendDetailPage = () => {
   });
 
   const { data: settlements, isLoading: isLoadingSettlements } = useQuery({
-    queryKey: ["friend-settlements", currentUser?.id, friendId],
+    queryKey: queryKeys.friendSettlements(currentUser!.id, friendId),
     queryFn: () =>
       friendService.getSettlementsWithFriend(Number(currentUser!.id), friendId),
     enabled: !!currentUser && !!friendId,
@@ -202,8 +203,7 @@ const FriendDetailPage = () => {
     mutationFn: (settlementId: number) =>
       confirmPaymentFor(friendService, settlementId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friend-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
+      invalidations.settlementMutated(invalidate, currentUser!.id, friendId);
       toast.success("Payment confirmed");
     },
     onError: () => {
@@ -215,8 +215,7 @@ const FriendDetailPage = () => {
     mutationFn: ({ settlementId, amount }: { settlementId: number; amount: number }) =>
       friendService.updateSettlement(settlementId, { amount }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friend-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
+      invalidations.settlementMutated(invalidate, currentUser!.id, friendId);
       setEditingSettlementId(null);
       setEditAmount("");
       toast.success("Payment updated");
@@ -226,31 +225,10 @@ const FriendDetailPage = () => {
     },
   });
 
-  const unifiedActivity = useMemo(() => {
-    const activities: ActivityItem[] = [];
-
-    if (sharedExpenses) {
-      activities.push(
-        ...sharedExpenses.map((expense) => ({
-          type: 'expense' as const,
-          data: expense,
-          date: new Date(expense.expenseDate),
-        }))
-      );
-    }
-
-    if (settlements) {
-      activities.push(
-        ...settlements.map((settlement) => ({
-          type: 'settlement' as const,
-          data: settlement,
-          date: new Date(settlement.createdAt),
-        }))
-      );
-    }
-
-    return activities.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [sharedExpenses, settlements]);
+  const unifiedActivity = useMemo(
+    () => mergeActivity(sharedExpenses, settlements),
+    [sharedExpenses, settlements],
+  );
 
 
   const isLoading =
@@ -497,7 +475,7 @@ const FriendDetailPage = () => {
                 <div className="space-y-3">
                   {unifiedActivity.map((activity, index) => {
                     if (activity.type === 'expense') {
-                      const expense = activity.data as Expense;
+                      const expense = activity.data;
                       return (
                         <Card key={`expense-${expense.id}-${index}`} className="border-border shadow-sm">
                           <CardContent className="flex items-center justify-between p-3">
@@ -531,7 +509,7 @@ const FriendDetailPage = () => {
                         </Card>
                       );
                     } else {
-                      const settlement = activity.data as FriendshipSettlementDTO;
+                      const settlement = activity.data;
                       const isPayer = settlement.payerId === Number(currentUser?.id);
                       const isEditing = editingSettlementId === settlement.id;
                       const canEdit = settlement.status !== 'COMPLETED';
