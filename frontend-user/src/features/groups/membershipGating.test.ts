@@ -22,9 +22,9 @@ const pending: PendingSettlementLike = {
 };
 
 describe("hasPendingSettlements", () => {
-  it("is true for a MARKED_PAID group settlement involving the user", () => {
+  it("is true for MARKED_PAID and PENDING group settlements involving the user", () => {
     expect(hasPendingSettlements([pending], 10)).toBe(true);
-    expect(hasPendingSettlements([pending], 20)).toBe(true);
+    expect(hasPendingSettlements([{ ...pending, status: "PENDING" }], 10)).toBe(true);
   });
 
   it("ignores global (direct) settlements", () => {
@@ -32,9 +32,9 @@ describe("hasPendingSettlements", () => {
     expect(hasPendingSettlements([globalLike], 10)).toBe(false);
   });
 
-  it("ignores settlements not involving the user, not pending, or absent", () => {
+  it("ignores settlements not involving the user, completed/declined settlements, or absent", () => {
     expect(hasPendingSettlements([pending], 99)).toBe(false);
-    expect(hasPendingSettlements([{ ...pending, status: "PENDING" }], 10)).toBe(false);
+    expect(hasPendingSettlements([{ ...pending, status: "DECLINED" }], 10)).toBe(false);
     expect(hasPendingSettlements([{ ...pending, status: "COMPLETED" }], 10)).toBe(false);
     expect(hasPendingSettlements(undefined, 10)).toBe(false);
   });
