@@ -18,7 +18,6 @@ import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.SettlementAllocation;
-import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
@@ -146,17 +145,7 @@ class BalanceServiceTest {
         .thenReturn(new BigDecimal("10.00"));
 
     // Global friendship settlements
-    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-            userId, friendId, null, SettlementStatus.COMPLETED))
-        .thenReturn(BigDecimal.ZERO);
-    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-            userId, friendId, null, SettlementStatus.MARKED_PAID))
-        .thenReturn(BigDecimal.ZERO);
-    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-            friendId, userId, null, SettlementStatus.COMPLETED))
-        .thenReturn(BigDecimal.ZERO);
-    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-            friendId, userId, null, SettlementStatus.MARKED_PAID))
+    when(debtBalanceEngine.calculateGlobalSettlementBalance(userId, friendId))
         .thenReturn(BigDecimal.ZERO);
 
     FriendBalanceResponseDTO result = balanceService.getNetBalanceWithFriend(userId, friendId);

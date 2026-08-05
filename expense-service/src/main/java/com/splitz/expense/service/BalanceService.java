@@ -92,21 +92,8 @@ public class BalanceService {
     }
 
     // 3. Global Friendship Settlements (no group)
-    BigDecimal userGlobalSettled =
-        settlementAllocationRepository
-            .calculateTotalSettledBetweenUsersInGroup(
-                userId, friendId, null, SettlementStatus.COMPLETED)
-            .add(
-                settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-                    userId, friendId, null, SettlementStatus.MARKED_PAID));
-    BigDecimal friendGlobalSettled =
-        settlementAllocationRepository
-            .calculateTotalSettledBetweenUsersInGroup(
-                friendId, userId, null, SettlementStatus.COMPLETED)
-            .add(
-                settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-                    friendId, userId, null, SettlementStatus.MARKED_PAID));
-    netBalance = netBalance.add(userGlobalSettled).subtract(friendGlobalSettled);
+    BigDecimal globalSettled = debtBalanceEngine.calculateGlobalSettlementBalance(userId, friendId);
+    netBalance = netBalance.add(globalSettled);
 
     return FriendBalanceResponseDTO.builder()
         .userId(userId)
@@ -219,26 +206,6 @@ public class BalanceService {
   }
 
   public BigDecimal calculateUserBalanceInGroup(Long userId, Long groupId) {
-    BigDecimal totalPaid = expenseRepository.calculateTotalPaidByUserInGroup(userId, groupId);
-    BigDecimal totalShare = expenseRepository.calculateTotalShareForUserInGroup(userId, groupId);
-    BigDecimal settlementsPaid =
-        settlementAllocationRepository
-            .calculateTotalSettlementsPaidByUserInGroup(userId, groupId, SettlementStatus.COMPLETED)
-            .add(
-                settlementAllocationRepository.calculateTotalSettlementsPaidByUserInGroup(
-                    userId, groupId, SettlementStatus.MARKED_PAID));
-    BigDecimal settlementsReceived =
-        settlementAllocationRepository
-            .calculateTotalSettlementsReceivedByUserInGroup(
-                userId, groupId, SettlementStatus.COMPLETED)
-            .add(
-                settlementAllocationRepository.calculateTotalSettlementsReceivedByUserInGroup(
-                    userId, groupId, SettlementStatus.MARKED_PAID));
-
-    return (totalPaid != null ? totalPaid : BigDecimal.ZERO)
-        .subtract(totalShare != null ? totalShare : BigDecimal.ZERO)
-        .add(settlementsPaid != null ? settlementsPaid : BigDecimal.ZERO)
-        .subtract(settlementsReceived != null ? settlementsReceived : BigDecimal.ZERO)
-        .setScale(2, RoundingMode.HALF_UP);
+    return debtBalanceEngine.calculateUserBalanceInGroup(userId, groupId);
   }
 }

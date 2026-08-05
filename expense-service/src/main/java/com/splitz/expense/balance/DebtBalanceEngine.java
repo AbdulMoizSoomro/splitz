@@ -14,4 +14,10 @@ public interface DebtBalanceEngine {
   /** Calculates the net balance between two users in a group. */
   BigDecimal calculateNetBalanceInGroup(
       Long userId, Long friendId, List<Expense> expenses, List<SettlementAllocation> allocations);
+
+  /** Calculates a user's net balance within a specific group using financial aggregates. */
+  BigDecimal calculateUserBalanceInGroup(Long userId, Long groupId);
+
+  /** Calculates the net global (non-group) friendship settlement balance between two users. */
+  BigDecimal calculateGlobalSettlementBalance(Long userId, Long friendId);
 }
