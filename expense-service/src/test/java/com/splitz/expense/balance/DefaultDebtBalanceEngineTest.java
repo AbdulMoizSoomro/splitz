@@ -1,11 +1,16 @@
 package com.splitz.expense.balance;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.SettlementAllocation;
+import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.model.SplitType;
+import com.splitz.expense.repository.ExpenseRepository;
+import com.splitz.expense.repository.SettlementAllocationRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,11 +20,15 @@ import org.junit.jupiter.api.Test;
 
 class DefaultDebtBalanceEngineTest {
 
+  private ExpenseRepository expenseRepository;
+  private SettlementAllocationRepository settlementAllocationRepository;
   private DefaultDebtBalanceEngine engine;
 
   @BeforeEach
   void setUp() {
-    engine = new DefaultDebtBalanceEngine();
+    expenseRepository = mock(ExpenseRepository.class);
+    settlementAllocationRepository = mock(SettlementAllocationRepository.class);
+    engine = new DefaultDebtBalanceEngine(expenseRepository, settlementAllocationRepository);
   }
 
   @Test
@@ -214,5 +223,55 @@ class DefaultDebtBalanceEngineTest {
     BigDecimal netBalance21 =
         engine.calculateNetBalanceInGroup(2L, 1L, List.of(expense), List.of(allocation));
     assertThat(netBalance21).isEqualByComparingTo("-6.00");
+  }
+
+  @Test
+  void shouldCalculateUserBalanceInGroupFromAggregates() {
+    Long userId = 1L;
+    Long groupId = 10L;
+
+    when(expenseRepository.calculateTotalPaidByUserInGroup(userId, groupId))
+        .thenReturn(new BigDecimal("50.00"));
+    when(expenseRepository.calculateTotalShareForUserInGroup(userId, groupId))
+        .thenReturn(new BigDecimal("20.00"));
+    when(settlementAllocationRepository.calculateTotalSettlementsPaidByUserInGroup(
+            userId, groupId, SettlementStatus.COMPLETED))
+        .thenReturn(new BigDecimal("10.00"));
+    when(settlementAllocationRepository.calculateTotalSettlementsPaidByUserInGroup(
+            userId, groupId, SettlementStatus.MARKED_PAID))
+        .thenReturn(BigDecimal.ZERO);
+    when(settlementAllocationRepository.calculateTotalSettlementsReceivedByUserInGroup(
+            userId, groupId, SettlementStatus.COMPLETED))
+        .thenReturn(new BigDecimal("5.00"));
+    when(settlementAllocationRepository.calculateTotalSettlementsReceivedByUserInGroup(
+            userId, groupId, SettlementStatus.MARKED_PAID))
+        .thenReturn(BigDecimal.ZERO);
+
+    // Paid (50) - Share (20) + SettledPaid (10) - SettledReceived (5) = +35.00
+    BigDecimal balance = engine.calculateUserBalanceInGroup(userId, groupId);
+    assertThat(balance).isEqualByComparingTo("35.00");
+  }
+
+  @Test
+  void shouldCalculateGlobalSettlementBalanceBetweenUsers() {
+    Long userId = 1L;
+    Long friendId = 2L;
+
+    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+            userId, friendId, null, SettlementStatus.COMPLETED))
+        .thenReturn(new BigDecimal("15.00"));
+    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+            userId, friendId, null, SettlementStatus.MARKED_PAID))
+        .thenReturn(BigDecimal.ZERO);
+    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+            friendId, userId, null, SettlementStatus.COMPLETED))
+        .thenReturn(new BigDecimal("5.00"));
+    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+            friendId, userId, null, SettlementStatus.MARKED_PAID))
+        .thenReturn(BigDecimal.ZERO);
+
+    // User paid 15 to friend, friend paid 5 to user => Net +10.00
+    BigDecimal balance = engine.calculateGlobalSettlementBalance(userId, friendId);
+    assertThat(balance).isEqualByComparingTo("10.00");
   }
 }
