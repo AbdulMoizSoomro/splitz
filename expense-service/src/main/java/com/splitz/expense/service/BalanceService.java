@@ -44,7 +44,6 @@ public class BalanceService {
   private final UserClient userClient;
   private final DebtBalanceEngine debtBalanceEngine;
   private final DebtNettingEngine debtNettingEngine;
-  private final DebtPlanDebtDTOAdapter debtPlanDebtDTOAdapter;
 
   @Transactional(readOnly = true)
   public FriendBalanceResponseDTO getNetBalanceWithFriend(Long userId, Long friendId) {
@@ -142,7 +141,7 @@ public class BalanceService {
                     e -> e.getValue() != null ? e.getValue().getUsername() : null));
     DebtSimplificationPlan plan =
         debtNettingEngine.simplifyDebts(groupId, balances, Collections.emptySet(), usernames, 0);
-    List<DebtDTO> simplifiedDebts = debtPlanDebtDTOAdapter.toDebtDtos(plan);
+    List<DebtDTO> simplifiedDebts = plan.toDebtDTOs();
 
     return GroupBalanceResponseDTO.builder()
         .groupId(groupId)

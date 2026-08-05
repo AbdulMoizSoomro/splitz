@@ -14,10 +14,7 @@ import java.util.List;
  */
 public interface NetBalanceSource {
 
-  /**
-   * The {@link SimplificationScope} this adapter sources balances for. Used by the {@link
-   * NetBalanceSourceRegistry} to route a scope to its adapter.
-   */
+  /** The {@link SimplificationScope} this adapter sources balances for. */
   SimplificationScope getSupportedScope();
 
   /**
