@@ -14,14 +14,11 @@ import com.splitz.expense.model.DebtSimplificationPlan;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
-import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementAllocation;
-import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -43,7 +40,6 @@ public class BalanceService {
   private final ExpenseRepository expenseRepository;
   private final GroupMemberRepository groupMemberRepository;
   private final GroupRepository groupRepository;
-  private final PaymentRepository paymentRepository;
   private final SettlementAllocationRepository settlementAllocationRepository;
   private final UserClient userClient;
   private final DebtBalanceEngine debtBalanceEngine;
@@ -178,21 +174,8 @@ public class BalanceService {
       totalBalance = totalBalance.add(userBalance);
     }
 
-    List<Payment> globalPayments = paymentRepository.findByPayerIdOrPayeeId(userId, userId);
-    for (Payment payment : globalPayments) {
-      if (payment.getStatus() == SettlementStatus.COMPLETED
-          || payment.getStatus() == SettlementStatus.MARKED_PAID) {
-        for (SettlementAllocation allocation : payment.getAllocations()) {
-          if (allocation.getGroupId() == null) {
-            if (payment.getPayerId().equals(userId)) {
-              totalBalance = totalBalance.add(allocation.getAmount());
-            } else {
-              totalBalance = totalBalance.subtract(allocation.getAmount());
-            }
-          }
-        }
-      }
-    }
+    BigDecimal globalBalance = debtBalanceEngine.calculateUserGlobalSettlementBalance(userId);
+    totalBalance = totalBalance.add(globalBalance);
 
     UserResponse user = userClient.getUserById(userId).orElse(null);
 

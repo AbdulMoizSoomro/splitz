@@ -6,6 +6,7 @@ import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.ExpenseRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -20,6 +21,7 @@ public class DefaultDebtBalanceEngine implements DebtBalanceEngine {
 
   private final ExpenseRepository expenseRepository;
   private final SettlementAllocationRepository settlementAllocationRepository;
+  private final PaymentRepository paymentRepository;
 
   @Override
   public Map<Long, BigDecimal> calculateGroupBalances(
@@ -121,46 +123,73 @@ public class DefaultDebtBalanceEngine implements DebtBalanceEngine {
 
   @Override
   public BigDecimal calculateUserBalanceInGroup(Long userId, Long groupId) {
-    BigDecimal totalPaid = expenseRepository.calculateTotalPaidByUserInGroup(userId, groupId);
-    BigDecimal totalShare = expenseRepository.calculateTotalShareForUserInGroup(userId, groupId);
+    BigDecimal totalPaid = safe(expenseRepository.calculateTotalPaidByUserInGroup(userId, groupId));
+    BigDecimal totalShare =
+        safe(expenseRepository.calculateTotalShareForUserInGroup(userId, groupId));
     BigDecimal settlementsPaid =
-        settlementAllocationRepository
-            .calculateTotalSettlementsPaidByUserInGroup(userId, groupId, SettlementStatus.COMPLETED)
+        safe(settlementAllocationRepository.calculateTotalSettlementsPaidByUserInGroup(
+                userId, groupId, SettlementStatus.COMPLETED))
             .add(
-                settlementAllocationRepository.calculateTotalSettlementsPaidByUserInGroup(
-                    userId, groupId, SettlementStatus.MARKED_PAID));
+                safe(
+                    settlementAllocationRepository.calculateTotalSettlementsPaidByUserInGroup(
+                        userId, groupId, SettlementStatus.MARKED_PAID)));
     BigDecimal settlementsReceived =
-        settlementAllocationRepository
-            .calculateTotalSettlementsReceivedByUserInGroup(
-                userId, groupId, SettlementStatus.COMPLETED)
+        safe(settlementAllocationRepository.calculateTotalSettlementsReceivedByUserInGroup(
+                userId, groupId, SettlementStatus.COMPLETED))
             .add(
-                settlementAllocationRepository.calculateTotalSettlementsReceivedByUserInGroup(
-                    userId, groupId, SettlementStatus.MARKED_PAID));
+                safe(
+                    settlementAllocationRepository.calculateTotalSettlementsReceivedByUserInGroup(
+                        userId, groupId, SettlementStatus.MARKED_PAID)));
 
-    return (totalPaid != null ? totalPaid : BigDecimal.ZERO)
-        .subtract(totalShare != null ? totalShare : BigDecimal.ZERO)
-        .add(settlementsPaid != null ? settlementsPaid : BigDecimal.ZERO)
-        .subtract(settlementsReceived != null ? settlementsReceived : BigDecimal.ZERO)
+    return totalPaid
+        .subtract(totalShare)
+        .add(settlementsPaid)
+        .subtract(settlementsReceived)
         .setScale(2, RoundingMode.HALF_UP);
   }
 
   @Override
   public BigDecimal calculateGlobalSettlementBalance(Long userId, Long friendId) {
     BigDecimal userGlobalSettled =
-        settlementAllocationRepository
-            .calculateTotalSettledBetweenUsersInGroup(
-                userId, friendId, null, SettlementStatus.COMPLETED)
+        safe(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+                userId, friendId, null, SettlementStatus.COMPLETED))
             .add(
-                settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-                    userId, friendId, null, SettlementStatus.MARKED_PAID));
+                safe(
+                    settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+                        userId, friendId, null, SettlementStatus.MARKED_PAID)));
     BigDecimal friendGlobalSettled =
-        settlementAllocationRepository
-            .calculateTotalSettledBetweenUsersInGroup(
-                friendId, userId, null, SettlementStatus.COMPLETED)
+        safe(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+                friendId, userId, null, SettlementStatus.COMPLETED))
             .add(
-                settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-                    friendId, userId, null, SettlementStatus.MARKED_PAID));
+                safe(
+                    settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+                        friendId, userId, null, SettlementStatus.MARKED_PAID)));
 
     return userGlobalSettled.subtract(friendGlobalSettled).setScale(2, RoundingMode.HALF_UP);
+  }
+
+  @Override
+  public BigDecimal calculateUserGlobalSettlementBalance(Long userId) {
+    List<Payment> globalPayments = paymentRepository.findByPayerIdOrPayeeId(userId, userId);
+    BigDecimal totalBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    for (Payment payment : globalPayments) {
+      if (payment.getStatus() == SettlementStatus.COMPLETED
+          || payment.getStatus() == SettlementStatus.MARKED_PAID) {
+        for (SettlementAllocation allocation : payment.getAllocations()) {
+          if (allocation.getGroupId() == null) {
+            if (payment.getPayerId().equals(userId)) {
+              totalBalance = totalBalance.add(allocation.getAmount());
+            } else {
+              totalBalance = totalBalance.subtract(allocation.getAmount());
+            }
+          }
+        }
+      }
+    }
+    return totalBalance;
+  }
+
+  private BigDecimal safe(BigDecimal value) {
+    return value != null ? value : BigDecimal.ZERO;
   }
 }

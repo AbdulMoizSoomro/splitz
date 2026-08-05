@@ -20,4 +20,7 @@ public interface DebtBalanceEngine {
 
   /** Calculates the net global (non-group) friendship settlement balance between two users. */
   BigDecimal calculateGlobalSettlementBalance(Long userId, Long friendId);
+
+  /** Calculates a user's total global (non-group) friendship settlement balance. */
+  BigDecimal calculateUserGlobalSettlementBalance(Long userId);
 }
