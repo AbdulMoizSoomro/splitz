@@ -2,6 +2,7 @@ package com.splitz.expense.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -48,8 +49,10 @@ public class SettlementIntegrationTest {
   private Group group;
   private String payerToken;
   private String payeeToken;
+  private String strangerToken;
   private Long payerId = 101L;
   private Long payeeId = 102L;
+  private Long strangerId = 103L;
 
   @BeforeEach
   void setUp() {
@@ -63,6 +66,7 @@ public class SettlementIntegrationTest {
 
     payerToken = tokenFor(payerId);
     payeeToken = tokenFor(payeeId);
+    strangerToken = tokenFor(strangerId);
   }
 
   private String tokenFor(Long userId) {
@@ -119,6 +123,41 @@ public class SettlementIntegrationTest {
     Payment settlement = paymentRepository.findById(settlementId).orElseThrow();
     assertThat(settlement.getStatus()).isEqualTo(SettlementStatus.COMPLETED);
     assertThat(settlement.getSettledAt()).isNotNull();
+  }
+
+  @Test
+  void testGetSettlementByNonParticipantReturnsForbidden() throws Exception {
+    CreateSettlementRequest request =
+        CreateSettlementRequest.builder()
+            .groupId(group.getId())
+            .payerId(payerId)
+            .payeeId(payeeId)
+            .amount(new BigDecimal("50.00"))
+            .build();
+
+    String response =
+        mockMvc
+            .perform(
+                post("/settlements")
+                    .header("Authorization", payerToken)
+                    .contentType(APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    Long settlementId = objectMapper.readTree(response).get("id").asLong();
+
+    mockMvc
+        .perform(get("/settlements/" + settlementId).header("Authorization", strangerToken))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void testGetNonExistentSettlementReturnsNotFound() throws Exception {
+    mockMvc
+        .perform(get("/settlements/999999").header("Authorization", payerToken))
+        .andExpect(status().isNotFound());
   }
 
   @Test

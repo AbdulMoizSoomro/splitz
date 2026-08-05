@@ -14,16 +14,12 @@ import com.splitz.expense.model.DebtSimplificationPlan;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
-import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementAllocation;
-import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
-import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -44,23 +40,13 @@ public class BalanceService {
   private final ExpenseRepository expenseRepository;
   private final GroupMemberRepository groupMemberRepository;
   private final GroupRepository groupRepository;
-  private final PaymentRepository paymentRepository;
   private final SettlementAllocationRepository settlementAllocationRepository;
   private final UserClient userClient;
-  private final SharedSecurityAuthorizer splitzAuthorizer;
   private final DebtBalanceEngine debtBalanceEngine;
   private final DebtNettingEngine debtNettingEngine;
-  private final DebtPlanDebtDTOAdapter debtPlanDebtDTOAdapter;
 
   @Transactional(readOnly = true)
   public FriendBalanceResponseDTO getNetBalanceWithFriend(Long userId, Long friendId) {
-    Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    if (!currentUserId.equals(userId)
-        && !currentUserId.equals(friendId)
-        && !splitzAuthorizer.isAdmin()) {
-      throw new com.splitz.expense.exception.UnauthorizedException(
-          "You are not authorized to view this balance");
-    }
     Set<Long> userGroupIds =
         groupMemberRepository.findByUserId(userId).stream()
             .map(gm -> gm.getGroup().getId())
@@ -80,12 +66,23 @@ public class BalanceService {
       Map<Long, String> groupNames =
           sharedGroups.stream().collect(Collectors.toMap(Group::getId, Group::getName));
 
+      List<Expense> expenses = expenseRepository.findByGroupIdIn(userGroupIds);
+      List<SettlementAllocation> allocations =
+          settlementAllocationRepository.findByGroupIdIn(userGroupIds);
+
       for (Long groupId : userGroupIds) {
-        List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-        List<SettlementAllocation> allocations =
-            settlementAllocationRepository.findByGroupId(groupId);
+        List<Expense> groupExpenses =
+            expenses.stream()
+                .filter(expense -> expense.getGroup() != null)
+                .filter(expense -> groupId.equals(expense.getGroup().getId()))
+                .toList();
+        List<SettlementAllocation> groupAllocations =
+            allocations.stream()
+                .filter(allocation -> groupId.equals(allocation.getGroupId()))
+                .toList();
         BigDecimal groupNetBalance =
-            debtBalanceEngine.calculateNetBalanceInGroup(userId, friendId, expenses, allocations);
+            debtBalanceEngine.calculateNetBalanceInGroup(
+                userId, friendId, groupExpenses, groupAllocations);
 
         // Include all shared groups (even with zero balance) so the friend detail
         // page can display them. The settlement modal already filters by non-zero
@@ -101,21 +98,8 @@ public class BalanceService {
     }
 
     // 3. Global Friendship Settlements (no group)
-    BigDecimal userGlobalSettled =
-        settlementAllocationRepository
-            .calculateTotalSettledBetweenUsersInGroup(
-                userId, friendId, null, SettlementStatus.COMPLETED)
-            .add(
-                settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-                    userId, friendId, null, SettlementStatus.MARKED_PAID));
-    BigDecimal friendGlobalSettled =
-        settlementAllocationRepository
-            .calculateTotalSettledBetweenUsersInGroup(
-                friendId, userId, null, SettlementStatus.COMPLETED)
-            .add(
-                settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
-                    friendId, userId, null, SettlementStatus.MARKED_PAID));
-    netBalance = netBalance.add(userGlobalSettled).subtract(friendGlobalSettled);
+    BigDecimal globalSettled = debtBalanceEngine.calculateGlobalSettlementBalance(userId, friendId);
+    netBalance = netBalance.add(globalSettled);
 
     return FriendBalanceResponseDTO.builder()
         .userId(userId)
@@ -127,12 +111,6 @@ public class BalanceService {
 
   @Transactional(readOnly = true)
   public GroupBalanceResponseDTO getGroupBalances(Long groupId) {
-    if (!groupMemberRepository.existsByGroupIdAndUserId(
-            groupId, splitzAuthorizer.getCurrentUserId())
-        && !splitzAuthorizer.isAdmin()) {
-      throw new com.splitz.expense.exception.UnauthorizedException(
-          "Only group members can view group balances");
-    }
     if (!groupRepository.existsById(groupId)) {
       throw new ResourceNotFoundException("Group not found with id: " + groupId);
     }
@@ -174,7 +152,7 @@ public class BalanceService {
                     e -> e.getValue() != null ? e.getValue().getUsername() : null));
     DebtSimplificationPlan plan =
         debtNettingEngine.simplifyDebts(groupId, balances, Collections.emptySet(), usernames, 0);
-    List<DebtDTO> simplifiedDebts = debtPlanDebtDTOAdapter.toDebtDtos(plan);
+    List<DebtDTO> simplifiedDebts = plan.toDebtDTOs();
 
     return GroupBalanceResponseDTO.builder()
         .groupId(groupId)
@@ -185,22 +163,28 @@ public class BalanceService {
 
   @Transactional(readOnly = true)
   public UserBalanceResponseDTO getUserBalances(Long userId) {
-    if (!splitzAuthorizer.getCurrentUserId().equals(userId) && !splitzAuthorizer.isAdmin()) {
-      throw new com.splitz.expense.exception.UnauthorizedException(
-          "You are not authorized to view these balances");
-    }
     List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
-    List<UserBalanceResponseDTO.GroupBalanceDTO> groupBalances = new ArrayList<>();
+    List<Long> groupIds =
+        memberships.stream().map(membership -> membership.getGroup().getId()).toList();
 
-    BigDecimal totalBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    Map<Long, BigDecimal> groupBalances = Collections.emptyMap();
+    if (!groupIds.isEmpty()) {
+      Map<Long, BigDecimal> batch =
+          debtBalanceEngine.calculateBalancesInGroups(List.of(userId), groupIds).get(userId);
+      groupBalances = batch != null ? batch : Collections.emptyMap();
+    }
+
+    BigDecimal zero = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    List<UserBalanceResponseDTO.GroupBalanceDTO> groupBalanceDTOs = new ArrayList<>();
+    BigDecimal totalBalance = zero;
 
     for (GroupMember membership : memberships) {
       Long groupId = membership.getGroup().getId();
       String groupName = membership.getGroup().getName();
 
-      BigDecimal userBalance = calculateUserBalanceInGroup(userId, groupId);
+      BigDecimal userBalance = groupBalances.getOrDefault(groupId, zero);
 
-      groupBalances.add(
+      groupBalanceDTOs.add(
           UserBalanceResponseDTO.GroupBalanceDTO.builder()
               .groupId(groupId)
               .groupName(groupName)
@@ -210,21 +194,8 @@ public class BalanceService {
       totalBalance = totalBalance.add(userBalance);
     }
 
-    List<Payment> globalPayments = paymentRepository.findByPayerIdOrPayeeId(userId, userId);
-    for (Payment payment : globalPayments) {
-      if (payment.getStatus() == SettlementStatus.COMPLETED
-          || payment.getStatus() == SettlementStatus.MARKED_PAID) {
-        for (SettlementAllocation allocation : payment.getAllocations()) {
-          if (allocation.getGroupId() == null) {
-            if (payment.getPayerId().equals(userId)) {
-              totalBalance = totalBalance.add(allocation.getAmount());
-            } else {
-              totalBalance = totalBalance.subtract(allocation.getAmount());
-            }
-          }
-        }
-      }
-    }
+    BigDecimal globalBalance = debtBalanceEngine.calculateUserGlobalSettlementBalance(userId);
+    totalBalance = totalBalance.add(globalBalance);
 
     UserResponse user = userClient.getUserById(userId).orElse(null);
 
@@ -233,31 +204,11 @@ public class BalanceService {
         .username(user != null ? user.getUsername() : null)
         .email(user != null ? user.getEmail() : null)
         .totalBalance(totalBalance)
-        .groupBalances(groupBalances)
+        .groupBalances(groupBalanceDTOs)
         .build();
   }
 
   public BigDecimal calculateUserBalanceInGroup(Long userId, Long groupId) {
-    BigDecimal totalPaid = expenseRepository.calculateTotalPaidByUserInGroup(userId, groupId);
-    BigDecimal totalShare = expenseRepository.calculateTotalShareForUserInGroup(userId, groupId);
-    BigDecimal settlementsPaid =
-        settlementAllocationRepository
-            .calculateTotalSettlementsPaidByUserInGroup(userId, groupId, SettlementStatus.COMPLETED)
-            .add(
-                settlementAllocationRepository.calculateTotalSettlementsPaidByUserInGroup(
-                    userId, groupId, SettlementStatus.MARKED_PAID));
-    BigDecimal settlementsReceived =
-        settlementAllocationRepository
-            .calculateTotalSettlementsReceivedByUserInGroup(
-                userId, groupId, SettlementStatus.COMPLETED)
-            .add(
-                settlementAllocationRepository.calculateTotalSettlementsReceivedByUserInGroup(
-                    userId, groupId, SettlementStatus.MARKED_PAID));
-
-    return (totalPaid != null ? totalPaid : BigDecimal.ZERO)
-        .subtract(totalShare != null ? totalShare : BigDecimal.ZERO)
-        .add(settlementsPaid != null ? settlementsPaid : BigDecimal.ZERO)
-        .subtract(settlementsReceived != null ? settlementsReceived : BigDecimal.ZERO)
-        .setScale(2, RoundingMode.HALF_UP);
+    return debtBalanceEngine.calculateUserBalanceInGroup(userId, groupId);
   }
 }

@@ -1,10 +1,10 @@
 package com.splitz.expense.service;
 
-import com.splitz.expense.calculator.SplitCalculator;
-import com.splitz.expense.calculator.SplitResult;
+import com.splitz.expense.activity.ExpenseActivityLogEngine;
+import com.splitz.expense.activity.SplitChange;
+import com.splitz.expense.calculator.ExpenseSplitEngine;
 import com.splitz.expense.dto.CreateExpenseRequest;
 import com.splitz.expense.dto.ExpenseDTO;
-import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.dto.UpdateExpenseRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.governance.GroupGovernance;
@@ -13,13 +13,11 @@ import com.splitz.expense.model.Category;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
-import com.splitz.expense.model.SplitType;
 import com.splitz.expense.repository.CategoryRepository;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -35,10 +33,10 @@ public class ExpenseService {
   private final GroupMemberRepository groupMemberRepository;
   private final CategoryRepository categoryRepository;
   private final ExpenseMapper expenseMapper;
-  private final SplitCalculator splitCalculator;
+  private final ExpenseSplitEngine expenseSplitEngine;
   private final SharedSecurityAuthorizer splitzAuthorizer;
   private final GroupGovernance groupGovernance;
-  private final ActivityLogService activityLogService;
+  private final ExpenseActivityLogEngine expenseActivityLogEngine;
 
   @Transactional
   public ExpenseDTO createExpense(Long groupId, CreateExpenseRequest request, Long currentUserId) {
@@ -78,42 +76,13 @@ public class ExpenseService {
             .build();
 
     List<ExpenseSplit> splits =
-        calculateSplits(expense, request.getSplits(), request.getSplitType());
+        expenseSplitEngine.applyInitialSplits(expense, request.getSplits(), request.getSplitType());
     expense.setSplits(splits);
 
     Expense savedExpense = expenseRepository.save(expense);
-    activityLogService.logActivity(
-        groupId,
-        com.splitz.expense.model.ActivityLogType.EXPENSE_CREATED,
-        currentUserId,
-        savedExpense.getId(),
-        savedExpense.getDescription(),
-        null);
+    expenseActivityLogEngine.recordCreated(savedExpense, currentUserId);
 
     return expenseMapper.toDTO(savedExpense);
-  }
-
-  private List<ExpenseSplit> calculateSplits(
-      Expense expense, List<SplitRequest> splitRequests, SplitType splitType) {
-    if (splitRequests == null || splitRequests.isEmpty()) {
-      throw new IllegalArgumentException("At least one split is required");
-    }
-
-    BigDecimal totalAmount = expense.getAmount();
-
-    List<SplitResult> results =
-        splitCalculator.calculate(totalAmount, splitType, splitRequests, expense.getCurrency());
-    return results.stream()
-        .map(
-            r ->
-                ExpenseSplit.builder()
-                    .expense(expense)
-                    .userId(r.userId())
-                    .splitType(r.splitType())
-                    .splitValue(r.splitValue())
-                    .shareAmount(r.shareAmount())
-                    .build())
-        .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
@@ -171,115 +140,75 @@ public class ExpenseService {
 
     checkAuthorization(expense, currentUserId);
 
-    StringBuilder diff = new StringBuilder();
-    if (request.getDescription() != null
-        && !request.getDescription().equals(expense.getDescription())) {
-      diff.append("description: ")
-          .append(expense.getDescription())
-          .append(" -> ")
-          .append(request.getDescription())
-          .append("; ");
-      expense.setDescription(request.getDescription());
-    }
-    if (request.getAmount() != null && request.getAmount().compareTo(expense.getAmount()) != 0) {
-      diff.append("amount: ")
-          .append(String.format("%.2f", expense.getAmount()))
-          .append(" -> ")
-          .append(String.format("%.2f", request.getAmount()))
-          .append("; ");
-      expense.setAmount(request.getAmount());
-    }
-    if (request.getCurrency() != null && !request.getCurrency().equals(expense.getCurrency())) {
-      diff.append("currency: ")
-          .append(expense.getCurrency())
-          .append(" -> ")
-          .append(request.getCurrency())
-          .append("; ");
-      expense.setCurrency(request.getCurrency());
-    }
-    if (request.getPaidBy() != null && !request.getPaidBy().equals(expense.getPaidBy())) {
-      diff.append("paidBy changed; ");
-      if (!groupMemberRepository.existsByGroupIdAndUserId(
-          expense.getGroup().getId(), request.getPaidBy())) {
-        throw new IllegalArgumentException("Payer must be a member of the group");
-      }
-      expense.setPaidBy(request.getPaidBy());
-    }
+    SplitChange splitChange =
+        request.getSplits() != null && !request.getSplits().isEmpty()
+            ? SplitChange.MODIFIED
+            : request.getAmount() != null ? SplitChange.RECALCULATED : SplitChange.NONE;
+
+    Category resolvedCategory = null;
     if (request.getCategoryId() != null
         && (expense.getCategory() == null
             || !request.getCategoryId().equals(expense.getCategory().getId()))) {
-      Category category =
+      resolvedCategory =
           categoryRepository
               .findById(request.getCategoryId())
               .orElseThrow(
                   () ->
                       new ResourceNotFoundException(
                           "Category not found with id: " + request.getCategoryId()));
-      diff.append("category: ")
-          .append(expense.getCategory() != null ? expense.getCategory().getName() : "None")
-          .append(" -> ")
-          .append(category.getName())
-          .append("; ");
-      expense.setCategory(category);
     }
-    if (request.getExpenseDate() != null
-        && !request.getExpenseDate().equals(expense.getExpenseDate())) {
-      diff.append("date changed; ");
+
+    Expense oldExpenseCopy =
+        Expense.builder()
+            .id(expense.getId())
+            .group(expense.getGroup())
+            .description(expense.getDescription())
+            .amount(expense.getAmount())
+            .currency(expense.getCurrency())
+            .paidBy(expense.getPaidBy())
+            .category(expense.getCategory())
+            .expenseDate(expense.getExpenseDate())
+            .notes(expense.getNotes())
+            .receiptUrl(expense.getReceiptUrl())
+            .build();
+
+    if (request.getDescription() != null) {
+      expense.setDescription(request.getDescription());
+    }
+    if (request.getAmount() != null) {
+      expense.setAmount(request.getAmount());
+    }
+    if (request.getCurrency() != null) {
+      expense.setCurrency(request.getCurrency());
+    }
+    if (request.getPaidBy() != null && !request.getPaidBy().equals(expense.getPaidBy())) {
+      if (!groupMemberRepository.existsByGroupIdAndUserId(
+          expense.getGroup().getId(), request.getPaidBy())) {
+        throw new IllegalArgumentException("Payer must be a member of the group");
+      }
+      expense.setPaidBy(request.getPaidBy());
+    }
+    if (resolvedCategory != null) {
+      expense.setCategory(resolvedCategory);
+    }
+    if (request.getExpenseDate() != null) {
       expense.setExpenseDate(request.getExpenseDate());
     }
-    if (request.getNotes() != null && !request.getNotes().equals(expense.getNotes())) {
-      diff.append("notes updated; ");
+    if (request.getNotes() != null) {
       expense.setNotes(request.getNotes());
     }
-    if (request.getReceiptUrl() != null
-        && !request.getReceiptUrl().equals(expense.getReceiptUrl())) {
-      diff.append("receipt updated; ");
+    if (request.getReceiptUrl() != null) {
       expense.setReceiptUrl(request.getReceiptUrl());
     }
 
-    if (request.getSplits() != null && !request.getSplits().isEmpty()) {
-      SplitType splitType = request.getSplitType();
-      if (splitType == null) {
-        splitType =
-            expense.getSplits().isEmpty()
-                ? SplitType.EQUAL
-                : expense.getSplits().get(0).getSplitType();
-      }
-      List<ExpenseSplit> newSplits = calculateSplits(expense, request.getSplits(), splitType);
-      expense.getSplits().clear();
-      expense.getSplits().addAll(newSplits);
-      diff.append("splits: modified; ");
-    } else if (request.getAmount() != null) {
-      SplitType splitType =
-          expense.getSplits().isEmpty()
-              ? SplitType.EQUAL
-              : expense.getSplits().get(0).getSplitType();
-      List<SplitRequest> splitRequests =
-          expense.getSplits().stream()
-              .map(
-                  s ->
-                      SplitRequest.builder()
-                          .userId(s.getUserId())
-                          .splitValue(s.getSplitValue())
-                          .build())
-              .collect(Collectors.toList());
-      List<ExpenseSplit> updatedSplits = calculateSplits(expense, splitRequests, splitType);
-      expense.getSplits().clear();
-      expense.getSplits().addAll(updatedSplits);
-      diff.append("splits: recalculated; ");
-    }
+    expenseSplitEngine.reconcileSplits(
+        expense, splitChange, request.getSplits(), request.getSplitType());
 
     expense.setLastModifiedBy(currentUserId);
 
     Expense savedExpense = expenseRepository.save(expense);
-
-    activityLogService.logActivity(
-        savedExpense.getGroup().getId(),
-        com.splitz.expense.model.ActivityLogType.EXPENSE_UPDATED,
-        currentUserId,
-        id,
-        savedExpense.getDescription(),
-        diff.toString().trim());
+    expenseActivityLogEngine.recordUpdated(
+        oldExpenseCopy, savedExpense, splitChange, currentUserId);
 
     return expenseMapper.toDTO(savedExpense);
   }
@@ -293,14 +222,7 @@ public class ExpenseService {
 
     checkAuthorization(expense, currentUserId);
 
-    activityLogService.logActivity(
-        expense.getGroup().getId(),
-        com.splitz.expense.model.ActivityLogType.EXPENSE_DELETED,
-        currentUserId,
-        id,
-        expense.getDescription(),
-        null);
-
+    expenseActivityLogEngine.recordDeleted(expense, currentUserId);
     expenseRepository.delete(expense);
   }
 

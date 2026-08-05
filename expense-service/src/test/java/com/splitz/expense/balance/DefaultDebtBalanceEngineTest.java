@@ -1,13 +1,21 @@
 package com.splitz.expense.balance;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.SettlementAllocation;
+import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.model.SplitType;
+import com.splitz.expense.repository.ExpenseRepository;
+import com.splitz.expense.repository.PaymentRepository;
+import com.splitz.expense.repository.SettlementAllocationRepository;
+import com.splitz.expense.repository.UserGroupAggregate;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,11 +23,19 @@ import org.junit.jupiter.api.Test;
 
 class DefaultDebtBalanceEngineTest {
 
+  private ExpenseRepository expenseRepository;
+  private SettlementAllocationRepository settlementAllocationRepository;
+  private PaymentRepository paymentRepository;
   private DefaultDebtBalanceEngine engine;
 
   @BeforeEach
   void setUp() {
-    engine = new DefaultDebtBalanceEngine();
+    expenseRepository = mock(ExpenseRepository.class);
+    settlementAllocationRepository = mock(SettlementAllocationRepository.class);
+    paymentRepository = mock(PaymentRepository.class);
+    engine =
+        new DefaultDebtBalanceEngine(
+            expenseRepository, settlementAllocationRepository, paymentRepository);
   }
 
   @Test
@@ -214,5 +230,124 @@ class DefaultDebtBalanceEngineTest {
     BigDecimal netBalance21 =
         engine.calculateNetBalanceInGroup(2L, 1L, List.of(expense), List.of(allocation));
     assertThat(netBalance21).isEqualByComparingTo("-6.00");
+  }
+
+  @Test
+  void shouldCalculateUserBalanceInGroupFromAggregates() {
+    Long userId = 1L;
+    Long groupId = 10L;
+
+    when(expenseRepository.calculateTotalPaidByUsersInGroups(List.of(userId), List.of(groupId)))
+        .thenReturn(List.of(aggregate(userId, groupId, "50.00")));
+    when(expenseRepository.calculateTotalShareForUsersInGroups(List.of(userId), List.of(groupId)))
+        .thenReturn(List.of(aggregate(userId, groupId, "20.00")));
+    when(settlementAllocationRepository.calculateTotalSettlementsPaidByUsersInGroups(
+            List.of(userId), List.of(groupId), SETTLEMENT_STATUSES))
+        .thenReturn(List.of(aggregate(userId, groupId, "10.00")));
+    when(settlementAllocationRepository.calculateTotalSettlementsReceivedByUsersInGroups(
+            List.of(userId), List.of(groupId), SETTLEMENT_STATUSES))
+        .thenReturn(List.of(aggregate(userId, groupId, "5.00")));
+
+    // Paid (50) - Share (20) + SettledPaid (10) - SettledReceived (5) = +35.00
+    BigDecimal balance = engine.calculateUserBalanceInGroup(userId, groupId);
+    assertThat(balance).isEqualByComparingTo("35.00");
+  }
+
+  @Test
+  void shouldCalculateBalancesInGroupsFromBatchAggregates() {
+    Collection<Long> userIds = List.of(1L, 2L);
+    Collection<Long> groupIds = List.of(10L, 20L);
+
+    when(expenseRepository.calculateTotalPaidByUsersInGroups(userIds, groupIds))
+        .thenReturn(List.of(aggregate(1L, 10L, "50.00")));
+    when(expenseRepository.calculateTotalShareForUsersInGroups(userIds, groupIds))
+        .thenReturn(List.of(aggregate(1L, 10L, "20.00")));
+    when(settlementAllocationRepository.calculateTotalSettlementsPaidByUsersInGroups(
+            userIds, groupIds, SETTLEMENT_STATUSES))
+        .thenReturn(List.of(aggregate(1L, 10L, "10.00")));
+    when(settlementAllocationRepository.calculateTotalSettlementsReceivedByUsersInGroups(
+            userIds, groupIds, SETTLEMENT_STATUSES))
+        .thenReturn(List.of(aggregate(1L, 10L, "5.00")));
+
+    Map<Long, Map<Long, BigDecimal>> result = engine.calculateBalancesInGroups(userIds, groupIds);
+
+    // User 1 in group 10: paid(50) - share(20) + settledPaid(10) - settledReceived(5) = +35.00
+    assertThat(result.get(1L).get(10L)).isEqualByComparingTo("35.00");
+    // Every (userId, groupId) pair in the input is present, zero-filled when no data exists.
+    assertThat(result.get(1L).get(20L)).isEqualByComparingTo("0.00");
+    assertThat(result.get(2L).get(10L)).isEqualByComparingTo("0.00");
+    assertThat(result.get(2L).get(20L)).isEqualByComparingTo("0.00");
+  }
+
+  @Test
+  void shouldCalculateGlobalSettlementBalanceBetweenUsers() {
+    Long userId = 1L;
+    Long friendId = 2L;
+
+    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+            userId, friendId, null, SettlementStatus.COMPLETED))
+        .thenReturn(new BigDecimal("15.00"));
+    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+            userId, friendId, null, SettlementStatus.MARKED_PAID))
+        .thenReturn(BigDecimal.ZERO);
+    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+            friendId, userId, null, SettlementStatus.COMPLETED))
+        .thenReturn(new BigDecimal("5.00"));
+    when(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+            friendId, userId, null, SettlementStatus.MARKED_PAID))
+        .thenReturn(BigDecimal.ZERO);
+
+    // User paid 15 to friend, friend paid 5 to user => Net +10.00
+    BigDecimal balance = engine.calculateGlobalSettlementBalance(userId, friendId);
+    assertThat(balance).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  void shouldCalculateUserGlobalSettlementBalance() {
+    Long userId = 1L;
+
+    com.splitz.expense.model.Payment payment =
+        com.splitz.expense.model.Payment.builder()
+            .payerId(userId)
+            .payeeId(2L)
+            .amount(new BigDecimal("25.00"))
+            .status(SettlementStatus.COMPLETED)
+            .allocations(new ArrayList<>())
+            .build();
+    payment
+        .getAllocations()
+        .add(
+            SettlementAllocation.builder()
+                .groupId(null)
+                .amount(new BigDecimal("25.00"))
+                .payment(payment)
+                .build());
+
+    when(paymentRepository.findByPayerIdOrPayeeId(userId, userId)).thenReturn(List.of(payment));
+
+    BigDecimal balance = engine.calculateUserGlobalSettlementBalance(userId);
+    assertThat(balance).isEqualByComparingTo("25.00");
+  }
+
+  private static final List<SettlementStatus> SETTLEMENT_STATUSES =
+      List.of(SettlementStatus.COMPLETED, SettlementStatus.MARKED_PAID);
+
+  private static UserGroupAggregate aggregate(Long userId, Long groupId, String total) {
+    return new UserGroupAggregate() {
+      @Override
+      public Long getUserId() {
+        return userId;
+      }
+
+      @Override
+      public Long getGroupId() {
+        return groupId;
+      }
+
+      @Override
+      public BigDecimal getTotal() {
+        return new BigDecimal(total);
+      }
+    };
   }
 }

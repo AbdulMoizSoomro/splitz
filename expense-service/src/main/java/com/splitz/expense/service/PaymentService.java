@@ -1,18 +1,17 @@
 package com.splitz.expense.service;
 
-import com.splitz.expense.allocator.SettlementAutoAllocator;
+import com.splitz.expense.allocator.AllocationEngine;
 import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.exception.UnauthorizedException;
+import com.splitz.expense.lifecycle.PaymentLifecycle;
 import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementAllocation;
-import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +25,8 @@ public class PaymentService {
   private final PaymentRepository paymentRepository;
   private final SettlementAllocationRepository settlementAllocationRepository;
   private final SharedSecurityAuthorizer splitzAuthorizer;
-  private final SettlementAutoAllocator settlementAutoAllocator;
+  private final AllocationEngine allocationEngine;
+  private final PaymentLifecycle paymentLifecycle;
 
   @Transactional
   public Payment createPayment(
@@ -43,65 +43,26 @@ public class PaymentService {
     }
 
     Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    if (!currentUserId.equals(payerId)
-        && !currentUserId.equals(payeeId)
-        && !splitzAuthorizer.isAdmin()) {
+    boolean admin = splitzAuthorizer.isAdmin();
+    if (!paymentLifecycle.canCreate(currentUserId, payerId, payeeId, admin)) {
       throw new UnauthorizedException("You are not authorized to create this payment");
     }
 
-    SettlementStatus status = SettlementStatus.PENDING;
-    LocalDateTime markedPaidAt = null;
-    LocalDateTime settledAt = null;
-
-    if (currentUserId.equals(payeeId)) {
-      status = SettlementStatus.COMPLETED;
-      settledAt = LocalDateTime.now();
-    } else if (currentUserId.equals(payerId)) {
-      status = SettlementStatus.MARKED_PAID;
-      markedPaidAt = LocalDateTime.now();
-    }
+    PaymentLifecycle.InitialState initialState =
+        paymentLifecycle.initialState(currentUserId, payerId, payeeId, LocalDateTime.now());
 
     Payment payment =
         Payment.builder()
             .payerId(payerId)
             .payeeId(payeeId)
             .amount(amount)
-            .status(status)
-            .markedPaidAt(markedPaidAt)
-            .settledAt(settledAt)
+            .status(initialState.getStatus())
+            .markedPaidAt(initialState.getMarkedPaidAt())
+            .settledAt(initialState.getSettledAt())
             .build();
 
-    List<SettlementAllocation> allocations = new ArrayList<>();
-
-    if (groupId != null) {
-      // Group-bound payment
-      allocations.add(SettlementAllocation.builder().groupId(groupId).amount(amount).build());
-    } else if (explicitAllocations != null && !explicitAllocations.isEmpty()) {
-      // Explicit manual allocations
-      BigDecimal totalAllocated =
-          explicitAllocations.stream()
-              .map(CreateFriendshipSettlementRequest.Allocation::getAmount)
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-      if (totalAllocated.compareTo(amount) != 0) {
-        throw new IllegalArgumentException(
-            "Total allocated amount ("
-                + totalAllocated
-                + ") must match payment amount ("
-                + amount
-                + ")");
-      }
-
-      for (CreateFriendshipSettlementRequest.Allocation allocationReq : explicitAllocations) {
-        allocations.add(
-            SettlementAllocation.builder()
-                .groupId(allocationReq.getGroupId())
-                .amount(allocationReq.getAmount())
-                .build());
-      }
-    } else {
-      allocations.addAll(settlementAutoAllocator.allocate(payerId, payeeId, amount));
-    }
+    List<SettlementAllocation> allocations =
+        allocationEngine.resolveAllocations(payerId, payeeId, amount, groupId, explicitAllocations);
 
     for (SettlementAllocation allocation : allocations) {
       payment.addAllocation(allocation);
@@ -119,16 +80,8 @@ public class PaymentService {
                 () -> new ResourceNotFoundException("Payment not found with id: " + paymentId));
 
     Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    if (!currentUserId.equals(payment.getPayerId()) && !splitzAuthorizer.isAdmin()) {
-      throw new UnauthorizedException("You are not authorized to mark this payment as paid");
-    }
-
-    if (payment.getStatus() != SettlementStatus.PENDING) {
-      throw new IllegalStateException("Payment must be in PENDING status to be marked as paid");
-    }
-
-    payment.setStatus(SettlementStatus.MARKED_PAID);
-    payment.setMarkedPaidAt(LocalDateTime.now());
+    paymentLifecycle.markAsPaid(
+        payment, currentUserId, splitzAuthorizer.isAdmin(), LocalDateTime.now());
 
     return paymentRepository.save(payment);
   }
@@ -142,16 +95,8 @@ public class PaymentService {
                 () -> new ResourceNotFoundException("Payment not found with id: " + paymentId));
 
     Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    if (!currentUserId.equals(payment.getPayeeId()) && !splitzAuthorizer.isAdmin()) {
-      throw new UnauthorizedException("You are not authorized to confirm this payment");
-    }
-
-    if (payment.getStatus() != SettlementStatus.MARKED_PAID) {
-      throw new IllegalStateException("Payment must be in MARKED_PAID status to be confirmed");
-    }
-
-    payment.setStatus(SettlementStatus.COMPLETED);
-    payment.setSettledAt(LocalDateTime.now());
+    paymentLifecycle.confirm(
+        payment, currentUserId, splitzAuthorizer.isAdmin(), LocalDateTime.now());
 
     return paymentRepository.save(payment);
   }
@@ -164,9 +109,7 @@ public class PaymentService {
             .orElseThrow(() -> new ResourceNotFoundException("Payment not found with id: " + id));
 
     Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    if (!currentUserId.equals(payment.getPayerId())
-        && !currentUserId.equals(payment.getPayeeId())
-        && !splitzAuthorizer.isAdmin()) {
+    if (!paymentLifecycle.isParticipant(payment, currentUserId, splitzAuthorizer.isAdmin())) {
       throw new UnauthorizedException("You are not authorized to view this payment");
     }
 
@@ -176,9 +119,8 @@ public class PaymentService {
   @Transactional(readOnly = true)
   public List<Payment> getPaymentsBetweenUsers(Long userId1, Long userId2) {
     Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    if (!currentUserId.equals(userId1)
-        && !currentUserId.equals(userId2)
-        && !splitzAuthorizer.isAdmin()) {
+    if (!paymentLifecycle.canViewBetween(
+        currentUserId, userId1, userId2, splitzAuthorizer.isAdmin())) {
       throw new UnauthorizedException("You are not authorized to view these payments");
     }
     return paymentRepository.findBetweenUsers(userId1, userId2);
@@ -204,16 +146,8 @@ public class PaymentService {
             .orElseThrow(
                 () -> new ResourceNotFoundException("Payment not found with id: " + paymentId));
 
-    if (payment.getStatus() == SettlementStatus.COMPLETED) {
-      throw new IllegalStateException("Cannot update a completed payment");
-    }
-
     Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    if (!currentUserId.equals(payment.getPayerId())
-        && !currentUserId.equals(payment.getPayeeId())
-        && !splitzAuthorizer.isAdmin()) {
-      throw new UnauthorizedException("You are not authorized to update this payment");
-    }
+    paymentLifecycle.assertUpdateAllowed(payment, currentUserId, splitzAuthorizer.isAdmin());
 
     if (newAmount != null && newAmount.compareTo(BigDecimal.ZERO) > 0) {
       payment.setAmount(newAmount);
@@ -223,68 +157,14 @@ public class PaymentService {
     payment.getAllocations().clear();
 
     BigDecimal amount = payment.getAmount();
-    List<SettlementAllocation> allocations = new ArrayList<>();
-
-    if (newAllocations != null && !newAllocations.isEmpty()) {
-      BigDecimal totalAllocated =
-          newAllocations.stream()
-              .map(CreateFriendshipSettlementRequest.Allocation::getAmount)
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-      if (totalAllocated.compareTo(amount) != 0) {
-        throw new IllegalArgumentException(
-            "Total allocated amount ("
-                + totalAllocated
-                + ") must match payment amount ("
-                + amount
-                + ")");
-      }
-
-      for (CreateFriendshipSettlementRequest.Allocation allocationReq : newAllocations) {
-        allocations.add(
-            SettlementAllocation.builder()
-                .groupId(allocationReq.getGroupId())
-                .amount(allocationReq.getAmount())
-                .build());
-      }
-    } else {
-      allocations.addAll(
-          settlementAutoAllocator.allocate(payment.getPayerId(), payment.getPayeeId(), amount));
-    }
+    List<SettlementAllocation> allocations =
+        allocationEngine.resolveAllocations(
+            payment.getPayerId(), payment.getPayeeId(), amount, null, newAllocations);
 
     for (SettlementAllocation allocation : allocations) {
       payment.addAllocation(allocation);
     }
 
     return paymentRepository.save(payment);
-  }
-
-  public boolean isParticipant(Long paymentId) {
-    Payment payment = paymentRepository.findById(paymentId).orElse(null);
-    if (payment == null) {
-      return false;
-    }
-    Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    return currentUserId.equals(payment.getPayerId())
-        || currentUserId.equals(payment.getPayeeId())
-        || splitzAuthorizer.isAdmin();
-  }
-
-  public boolean isPayer(Long paymentId) {
-    Payment payment = paymentRepository.findById(paymentId).orElse(null);
-    if (payment == null) {
-      return false;
-    }
-    Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    return currentUserId.equals(payment.getPayerId()) || splitzAuthorizer.isAdmin();
-  }
-
-  public boolean isPayee(Long paymentId) {
-    Payment payment = paymentRepository.findById(paymentId).orElse(null);
-    if (payment == null) {
-      return false;
-    }
-    Long currentUserId = splitzAuthorizer.getCurrentUserId();
-    return currentUserId.equals(payment.getPayeeId()) || splitzAuthorizer.isAdmin();
   }
 }

@@ -5,14 +5,29 @@ import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SettlementStatus;
+import com.splitz.expense.repository.ExpenseRepository;
+import com.splitz.expense.repository.PaymentRepository;
+import com.splitz.expense.repository.SettlementAllocationRepository;
+import com.splitz.expense.repository.UserGroupAggregate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class DefaultDebtBalanceEngine implements DebtBalanceEngine {
+
+  private static final List<SettlementStatus> SETTLEMENT_STATUSES =
+      List.of(SettlementStatus.COMPLETED, SettlementStatus.MARKED_PAID);
+
+  private final ExpenseRepository expenseRepository;
+  private final SettlementAllocationRepository settlementAllocationRepository;
+  private final PaymentRepository paymentRepository;
 
   @Override
   public Map<Long, BigDecimal> calculateGroupBalances(
@@ -110,5 +125,105 @@ public class DefaultDebtBalanceEngine implements DebtBalanceEngine {
     }
 
     return netBalance;
+  }
+
+  @Override
+  public BigDecimal calculateUserBalanceInGroup(Long userId, Long groupId) {
+    return calculateBalancesInGroups(List.of(userId), List.of(groupId)).get(userId).get(groupId);
+  }
+
+  @Override
+  public Map<Long, Map<Long, BigDecimal>> calculateBalancesInGroups(
+      Collection<Long> userIds, Collection<Long> groupIds) {
+    Map<Long, Map<Long, BigDecimal>> paid =
+        aggregate(expenseRepository.calculateTotalPaidByUsersInGroups(userIds, groupIds));
+    Map<Long, Map<Long, BigDecimal>> share =
+        aggregate(expenseRepository.calculateTotalShareForUsersInGroups(userIds, groupIds));
+    Map<Long, Map<Long, BigDecimal>> settlementsPaid =
+        aggregate(
+            settlementAllocationRepository.calculateTotalSettlementsPaidByUsersInGroups(
+                userIds, groupIds, SETTLEMENT_STATUSES));
+    Map<Long, Map<Long, BigDecimal>> settlementsReceived =
+        aggregate(
+            settlementAllocationRepository.calculateTotalSettlementsReceivedByUsersInGroups(
+                userIds, groupIds, SETTLEMENT_STATUSES));
+
+    Map<Long, Map<Long, BigDecimal>> balances = new HashMap<>();
+    for (Long userId : userIds) {
+      Map<Long, BigDecimal> byGroup = new HashMap<>();
+      for (Long groupId : groupIds) {
+        byGroup.put(
+            groupId,
+            amountOrZero(paid, userId, groupId)
+                .subtract(amountOrZero(share, userId, groupId))
+                .add(amountOrZero(settlementsPaid, userId, groupId))
+                .subtract(amountOrZero(settlementsReceived, userId, groupId))
+                .setScale(2, RoundingMode.HALF_UP));
+      }
+      balances.put(userId, byGroup);
+    }
+    return balances;
+  }
+
+  @Override
+  public BigDecimal calculateGlobalSettlementBalance(Long userId, Long friendId) {
+    BigDecimal userGlobalSettled =
+        safe(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+                userId, friendId, null, SettlementStatus.COMPLETED))
+            .add(
+                safe(
+                    settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+                        userId, friendId, null, SettlementStatus.MARKED_PAID)));
+    BigDecimal friendGlobalSettled =
+        safe(settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+                friendId, userId, null, SettlementStatus.COMPLETED))
+            .add(
+                safe(
+                    settlementAllocationRepository.calculateTotalSettledBetweenUsersInGroup(
+                        friendId, userId, null, SettlementStatus.MARKED_PAID)));
+
+    return userGlobalSettled.subtract(friendGlobalSettled).setScale(2, RoundingMode.HALF_UP);
+  }
+
+  @Override
+  public BigDecimal calculateUserGlobalSettlementBalance(Long userId) {
+    List<Payment> globalPayments = paymentRepository.findByPayerIdOrPayeeId(userId, userId);
+    BigDecimal totalBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    for (Payment payment : globalPayments) {
+      if (payment.getStatus() == SettlementStatus.COMPLETED
+          || payment.getStatus() == SettlementStatus.MARKED_PAID) {
+        for (SettlementAllocation allocation : payment.getAllocations()) {
+          if (allocation.getGroupId() == null) {
+            if (payment.getPayerId().equals(userId)) {
+              totalBalance = totalBalance.add(allocation.getAmount());
+            } else {
+              totalBalance = totalBalance.subtract(allocation.getAmount());
+            }
+          }
+        }
+      }
+    }
+    return totalBalance;
+  }
+
+  private BigDecimal safe(BigDecimal value) {
+    return value != null ? value : BigDecimal.ZERO;
+  }
+
+  private static Map<Long, Map<Long, BigDecimal>> aggregate(List<UserGroupAggregate> rows) {
+    Map<Long, Map<Long, BigDecimal>> matrix = new HashMap<>();
+    for (UserGroupAggregate row : rows) {
+      matrix
+          .computeIfAbsent(row.getUserId(), key -> new HashMap<>())
+          .put(row.getGroupId(), row.getTotal());
+    }
+    return matrix;
+  }
+
+  private static BigDecimal amountOrZero(
+      Map<Long, Map<Long, BigDecimal>> matrix, Long userId, Long groupId) {
+    Map<Long, BigDecimal> byGroup = matrix.get(userId);
+    BigDecimal total = byGroup != null ? byGroup.get(groupId) : null;
+    return total != null ? total : BigDecimal.ZERO;
   }
 }

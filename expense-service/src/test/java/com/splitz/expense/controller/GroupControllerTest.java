@@ -11,12 +11,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.splitz.expense.activity.ExpenseActivityLogEngine;
+import com.splitz.expense.dto.ActivityLogDTO;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.GroupMemberDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
+import com.splitz.expense.exception.UnauthorizedException;
+import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.model.GroupRole;
-import com.splitz.expense.service.ActivityLogService;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.JwtUtil;
@@ -48,9 +51,9 @@ class GroupControllerTest {
 
   @MockBean private GroupService groupService;
 
-  @MockBean private ActivityLogService activityLogService;
+  @MockBean private ExpenseActivityLogEngine expenseActivityLogEngine;
 
-  @MockBean private com.splitz.expense.mapper.ActivityLogMapper activityLogMapper;
+  @MockBean private GroupGovernance groupGovernance;
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
@@ -148,29 +151,33 @@ class GroupControllerTest {
   @Test
   @WithMockUser(username = "1")
   void getGroupActivity_ShouldReturnActivityLogs() throws Exception {
-    com.splitz.expense.model.ActivityLog log =
-        com.splitz.expense.model.ActivityLog.builder()
+    ActivityLogDTO dto =
+        ActivityLogDTO.builder()
             .id(1L)
             .groupId(1L)
             .type(com.splitz.expense.model.ActivityLogType.EXPENSE_CREATED)
-            .actorId(1L)
-            .entityName("Dinner")
-            .timestamp(java.time.LocalDateTime.now())
-            .build();
-
-    com.splitz.expense.dto.ActivityLogDTO dto =
-        com.splitz.expense.dto.ActivityLogDTO.builder()
-            .id(1L)
-            .type(com.splitz.expense.model.ActivityLogType.EXPENSE_CREATED)
             .entityName("Dinner")
             .build();
 
-    when(activityLogService.getActivitiesByGroup(1L)).thenReturn(List.of(log));
-    when(activityLogMapper.toDTOList(any())).thenReturn(List.of(dto));
+    when(expenseActivityLogEngine.getGroupActivity(1L)).thenReturn(List.of(dto));
 
     mockMvc
         .perform(get("/groups/1/activity"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].entityName").value("Dinner"));
+
+    org.mockito.Mockito.verify(groupGovernance).assertIsMember(1L, 1L);
+  }
+
+  @Test
+  @WithMockUser(username = "7")
+  void getGroupActivity_NonMember_IsForbidden() throws Exception {
+    org.mockito.Mockito.doThrow(new UnauthorizedException("You are not a member of this group"))
+        .when(groupGovernance)
+        .assertIsMember(1L, 7L);
+
+    mockMvc.perform(get("/groups/1/activity")).andExpect(status().isForbidden());
+
+    org.mockito.Mockito.verifyNoInteractions(expenseActivityLogEngine);
   }
 }

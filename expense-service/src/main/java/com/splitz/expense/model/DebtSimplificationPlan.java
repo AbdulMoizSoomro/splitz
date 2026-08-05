@@ -73,4 +73,22 @@ public class DebtSimplificationPlan {
   @UpdateTimestamp
   @Column(name = "updated_at")
   private Instant updatedAt;
+
+  public List<com.splitz.expense.dto.DebtDTO> toDebtDTOs() {
+    if (transactions == null) {
+      return java.util.Collections.emptyList();
+    }
+    List<com.splitz.expense.dto.DebtDTO> dtos = new ArrayList<>();
+    for (SimplifiedDebtTransaction tx : transactions) {
+      dtos.add(
+          com.splitz.expense.dto.DebtDTO.builder()
+              .from(tx.getFromUserId())
+              .fromUsername(tx.getFromUsername())
+              .to(tx.getToUserId())
+              .toUsername(tx.getToUsername())
+              .amount(tx.getAmount())
+              .build());
+    }
+    return dtos;
+  }
 }

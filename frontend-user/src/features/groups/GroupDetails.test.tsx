@@ -60,6 +60,7 @@ describe("GroupDetails", () => {
     });
     queryClient.clear();
     vi.clearAllMocks();
+    mockUseAuthStore.mockReset();
     mockUseAuthStore.mockReturnValue({
       user: { id: "1", username: "testuser" },
     });
@@ -475,6 +476,87 @@ describe("GroupDetails", () => {
 
     await waitFor(() => {
       expect(screen.queryByText("Group Settings")).not.toBeInTheDocument();
+    });
+  });
+
+  it("blocks owner from leaving multi-member group without transferring ownership", async () => {
+    const multiMemberGroup: Group = {
+      ...mockGroup,
+      createdBy: 1,
+      members: [
+        { id: 1, userId: 1, role: "ADMIN", joinedAt: "2025-01-01T10:00:00Z" },
+        { id: 2, userId: 2, role: "MEMBER", joinedAt: "2025-01-01T10:00:00Z" },
+      ],
+    };
+    vi.mocked(groupService.getGroup).mockResolvedValue(multiMemberGroup);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/groups/1"]}>
+          <Routes>
+            <Route path="/groups/:id" element={<GroupDetails />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const membersTab = await screen.findByRole("button", { name: /members/i });
+    fireEvent.click(membersTab);
+
+    await screen.findByText("Leave Group");
+    fireEvent.click(screen.getByText("Leave Group"));
+
+    await waitFor(() => {
+      const modal = screen.getByRole("dialog");
+      expect(
+        within(modal).getByText(
+          /must transfer ownership to another member before leaving/i,
+        ),
+      ).toBeInTheDocument();
+      expect(
+        within(modal).getByRole("button", { name: /^leave group$/i }),
+      ).toBeDisabled();
+    });
+  });
+
+  it("shows self-demotion modal when admin updates their own role to member", async () => {
+    mockUseAuthStore.mockReturnValue({
+      user: { id: "2", username: "adminuser" },
+    });
+
+    const groupWithAdmin: Group = {
+      ...mockGroup,
+      createdBy: 1,
+      members: [
+        { id: 1, userId: 1, role: "ADMIN", joinedAt: "2025-01-01T10:00:00Z" },
+        { id: 2, userId: 2, role: "ADMIN", joinedAt: "2025-01-01T10:00:00Z" },
+      ],
+    };
+    vi.mocked(groupService.getGroup).mockResolvedValue(groupWithAdmin);
+    vi.mocked(groupService.updateMemberRole).mockResolvedValue(groupWithAdmin);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/groups/1"]}>
+          <Routes>
+            <Route path="/groups/:id" element={<GroupDetails />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const membersTab = await screen.findByRole("button", { name: /members/i });
+    fireEvent.click(membersTab);
+
+    // Current user is userId=2 ("You"), who is an ADMIN (not owner).
+    const dropdownTrigger = await screen.findByLabelText("Manage role");
+    fireEvent.click(dropdownTrigger);
+
+    const demoteButton = await screen.findByText("Demote to Member");
+    fireEvent.click(demoteButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Confirm Self-Demotion")).toBeInTheDocument();
     });
   });
 });
