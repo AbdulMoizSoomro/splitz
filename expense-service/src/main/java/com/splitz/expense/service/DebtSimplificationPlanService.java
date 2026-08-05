@@ -1,8 +1,9 @@
 package com.splitz.expense.service;
 
+import com.splitz.expense.balancesource.CrossGroupNetBalanceSource;
+import com.splitz.expense.balancesource.IntraGroupNetBalanceSource;
 import com.splitz.expense.balancesource.NetBalanceResult;
 import com.splitz.expense.balancesource.NetBalanceSource;
-import com.splitz.expense.balancesource.NetBalanceSourceRegistry;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.DebtSimplificationPlanDTO;
 import com.splitz.expense.dto.SimplifiedDebtTransactionDTO;
@@ -29,11 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Orchestrates the Smart Debt Reduction Engine (Wayfinder issue #63). Computes a read-only
- * Suggested Settlement Plan by resolving the group's simplification settings, delegating balance
- * sourcing to the {@link NetBalanceSource} adapter selected for the scope, and delegating netting
- * to the deep {@link DebtNettingEngine}. Never mutates balances (decision #67). Each scope's
- * balance-sourcing algorithm lives in its own adapter (see the {@code balancesource} package)
- * rather than inside a branch of this class.
+ * Suggested Settlement Plan by resolving the group's simplification settings, selecting the net
+ * balance source for the scope, and delegating netting to the deep {@link DebtNettingEngine}. Never
+ * mutates balances.
  */
 @Service
 @RequiredArgsConstructor
@@ -44,7 +43,8 @@ public class DebtSimplificationPlanService {
   private final GroupSimplificationSettingsService settingsService;
   private final UserClient userClient;
   private final DebtNettingEngine debtNettingEngine;
-  private final NetBalanceSourceRegistry netBalanceSourceRegistry;
+  private final IntraGroupNetBalanceSource intraGroupNetBalanceSource;
+  private final CrossGroupNetBalanceSource crossGroupNetBalanceSource;
 
   @Transactional(readOnly = true)
   public DebtSimplificationPlanDTO computePlan(Long groupId) {
@@ -62,7 +62,11 @@ public class DebtSimplificationPlanService {
     List<Long> memberIds =
         members.stream().map(GroupMember::getUserId).collect(Collectors.toList());
 
-    NetBalanceSource source = netBalanceSourceRegistry.forScope(settings.getSimplificationScope());
+    NetBalanceSource source =
+        switch (settings.getSimplificationScope()) {
+          case INTRA_GROUP -> intraGroupNetBalanceSource;
+          case CROSS_GROUP -> crossGroupNetBalanceSource;
+        };
     NetBalanceResult balanceResult = source.resolve(groupId, memberIds);
 
     Map<Long, String> usernames = resolveUsernames(memberIds);

@@ -10,9 +10,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.splitz.expense.balancesource.CrossGroupNetBalanceSource;
+import com.splitz.expense.balancesource.IntraGroupNetBalanceSource;
 import com.splitz.expense.balancesource.NetBalanceResult;
-import com.splitz.expense.balancesource.NetBalanceSource;
-import com.splitz.expense.balancesource.NetBalanceSourceRegistry;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.DebtSimplificationPlanDTO;
 import com.splitz.expense.dto.UserResponse;
@@ -50,7 +50,8 @@ class DebtSimplificationPlanServiceTest {
   @Mock private GroupSimplificationSettingsService settingsService;
   @Mock private UserClient userClient;
   @Mock private DebtNettingEngine debtNettingEngine;
-  @Mock private NetBalanceSourceRegistry netBalanceSourceRegistry;
+  @Mock private IntraGroupNetBalanceSource intraGroupNetBalanceSource;
+  @Mock private CrossGroupNetBalanceSource crossGroupNetBalanceSource;
 
   private DebtSimplificationPlanService planService;
 
@@ -66,29 +67,9 @@ class DebtSimplificationPlanServiceTest {
             settingsService,
             userClient,
             debtNettingEngine,
-            netBalanceSourceRegistry);
+            intraGroupNetBalanceSource,
+            crossGroupNetBalanceSource);
     when(groupRepository.existsById(GROUP_ID)).thenReturn(true);
-  }
-
-  /** Hand-rolled stub of the {@link NetBalanceSource} seam: returns a canned result per scope. */
-  private static class StubNetBalanceSource implements NetBalanceSource {
-    private final SimplificationScope scope;
-    private final NetBalanceResult result;
-
-    StubNetBalanceSource(SimplificationScope scope, NetBalanceResult result) {
-      this.scope = scope;
-      this.result = result;
-    }
-
-    @Override
-    public SimplificationScope getSupportedScope() {
-      return scope;
-    }
-
-    @Override
-    public NetBalanceResult resolve(Long groupId, List<Long> memberIds) {
-      return result;
-    }
   }
 
   private GroupMember member(Long userId) {
@@ -119,14 +100,12 @@ class DebtSimplificationPlanServiceTest {
     Map<Long, BigDecimal> netBalances = new HashMap<>();
     netBalances.put(1L, new BigDecimal("-50.00"));
     netBalances.put(2L, new BigDecimal("50.00"));
-    when(netBalanceSourceRegistry.forScope(SimplificationScope.INTRA_GROUP))
+    when(intraGroupNetBalanceSource.resolve(eq(GROUP_ID), any()))
         .thenReturn(
-            new StubNetBalanceSource(
-                SimplificationScope.INTRA_GROUP,
-                NetBalanceResult.builder()
-                    .netBalances(netBalances)
-                    .originalTransactionCount(7)
-                    .build()));
+            NetBalanceResult.builder()
+                .netBalances(netBalances)
+                .originalTransactionCount(7)
+                .build());
 
     when(userClient.getUsersByIds(any()))
         .thenReturn(
@@ -154,7 +133,7 @@ class DebtSimplificationPlanServiceTest {
     assertThat(result.getOptedOutUserIds()).contains(3L);
     assertThat(result.getTransactions()).hasSize(1);
     assertThat(result.getTransactions().get(0).getFromUserId()).isEqualTo(1L);
-    verify(netBalanceSourceRegistry).forScope(SimplificationScope.INTRA_GROUP);
+    verify(intraGroupNetBalanceSource).resolve(eq(GROUP_ID), any());
     verify(debtNettingEngine)
         .simplifyDebts(eq(GROUP_ID), eq(netBalances), eq(optOuts), any(), eq(7));
   }
@@ -170,14 +149,12 @@ class DebtSimplificationPlanServiceTest {
     Map<Long, BigDecimal> netBalances = new HashMap<>();
     netBalances.put(1L, new BigDecimal("-50.00"));
     netBalances.put(2L, new BigDecimal("50.00"));
-    when(netBalanceSourceRegistry.forScope(SimplificationScope.CROSS_GROUP))
+    when(crossGroupNetBalanceSource.resolve(eq(GROUP_ID), any()))
         .thenReturn(
-            new StubNetBalanceSource(
-                SimplificationScope.CROSS_GROUP,
-                NetBalanceResult.builder()
-                    .netBalances(netBalances)
-                    .originalTransactionCount(0)
-                    .build()));
+            NetBalanceResult.builder()
+                .netBalances(netBalances)
+                .originalTransactionCount(0)
+                .build());
 
     when(userClient.getUsersByIds(any())).thenReturn(Collections.emptyList());
     when(debtNettingEngine.simplifyDebts(anyLong(), any(), any(), any(), anyInt()))
@@ -186,7 +163,7 @@ class DebtSimplificationPlanServiceTest {
     DebtSimplificationPlanDTO result = planService.computePlan(GROUP_ID);
 
     assertThat(result.getScope()).isEqualTo("CROSS_GROUP");
-    verify(netBalanceSourceRegistry).forScope(SimplificationScope.CROSS_GROUP);
+    verify(crossGroupNetBalanceSource).resolve(eq(GROUP_ID), any());
   }
 
   @Test
@@ -207,7 +184,7 @@ class DebtSimplificationPlanServiceTest {
     assertThat(result.getSimplifiedTransactionCount()).isZero();
     assertThat(result.getTransactions()).isEmpty();
     verify(debtNettingEngine, never()).simplifyDebts(anyLong(), any(), any(), any(), anyInt());
-    verify(netBalanceSourceRegistry, never()).forScope(any());
+    verify(intraGroupNetBalanceSource, never()).resolve(any(), any());
   }
 
   @Test
@@ -220,11 +197,9 @@ class DebtSimplificationPlanServiceTest {
     Map<Long, BigDecimal> zero = new HashMap<>();
     zero.put(1L, BigDecimal.ZERO);
     zero.put(2L, BigDecimal.ZERO);
-    when(netBalanceSourceRegistry.forScope(SimplificationScope.INTRA_GROUP))
+    when(intraGroupNetBalanceSource.resolve(eq(GROUP_ID), any()))
         .thenReturn(
-            new StubNetBalanceSource(
-                SimplificationScope.INTRA_GROUP,
-                NetBalanceResult.builder().netBalances(zero).originalTransactionCount(0).build()));
+            NetBalanceResult.builder().netBalances(zero).originalTransactionCount(0).build());
     when(userClient.getUsersByIds(any())).thenReturn(Collections.emptyList());
     when(debtNettingEngine.simplifyDebts(anyLong(), any(), any(), any(), anyInt()))
         .thenReturn(plan(0, Collections.emptyList()));

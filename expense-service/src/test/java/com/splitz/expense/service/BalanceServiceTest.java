@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 
 import com.splitz.expense.balance.DebtBalanceEngine;
 import com.splitz.expense.client.UserClient;
-import com.splitz.expense.dto.DebtDTO;
 import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
@@ -18,6 +17,8 @@ import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.SettlementAllocation;
+import com.splitz.expense.model.SimplifiedDebtTransaction;
+import com.splitz.expense.model.TransactionStatus;
 import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
@@ -41,7 +42,6 @@ class BalanceServiceTest {
   @Mock private UserClient userClient;
   @Mock private DebtBalanceEngine debtBalanceEngine;
   @Mock private DebtNettingEngine debtNettingEngine;
-  @Mock private DebtPlanDebtDTOAdapter debtPlanDebtDTOAdapter;
 
   private BalanceService balanceService;
 
@@ -56,8 +56,7 @@ class BalanceServiceTest {
             settlementAllocationRepository,
             userClient,
             debtBalanceEngine,
-            debtNettingEngine,
-            debtPlanDebtDTOAdapter);
+            debtNettingEngine);
   }
 
   @Test
@@ -93,18 +92,18 @@ class BalanceServiceTest {
         UserResponse.builder().id(2L).username("user2").email("user2@example.com").build();
     when(userClient.getUsersByIds(any())).thenReturn(List.of(user1, user2));
 
-    List<DebtDTO> simplifiedDebts =
-        List.of(
-            DebtDTO.builder()
-                .from(2L)
-                .fromUsername("user2")
-                .to(1L)
-                .toUsername("user1")
-                .amount(new BigDecimal("5.00"))
-                .build());
-    DebtSimplificationPlan plan = DebtSimplificationPlan.builder().groupId(groupId).build();
+    SimplifiedDebtTransaction tx =
+        SimplifiedDebtTransaction.builder()
+            .fromUserId(2L)
+            .fromUsername("user2")
+            .toUserId(1L)
+            .toUsername("user1")
+            .amount(new BigDecimal("5.00"))
+            .status(TransactionStatus.PENDING)
+            .build();
+    DebtSimplificationPlan plan =
+        DebtSimplificationPlan.builder().groupId(groupId).transactions(List.of(tx)).build();
     when(debtNettingEngine.simplifyDebts(any(), any(), any(), any(), anyInt())).thenReturn(plan);
-    when(debtPlanDebtDTOAdapter.toDebtDtos(plan)).thenReturn(simplifiedDebts);
 
     GroupBalanceResponseDTO result = balanceService.getGroupBalances(groupId);
 
@@ -115,7 +114,6 @@ class BalanceServiceTest {
 
     verify(debtBalanceEngine).calculateGroupBalances(any(), any(), any());
     verify(debtNettingEngine).simplifyDebts(any(), any(), any(), any(), anyInt());
-    verify(debtPlanDebtDTOAdapter).toDebtDtos(plan);
   }
 
   @Test
