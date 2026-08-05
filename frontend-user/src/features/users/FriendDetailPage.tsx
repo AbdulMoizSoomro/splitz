@@ -114,31 +114,32 @@ const FriendDetailPage = () => {
     return map;
   }, [groupBalances]);
 
-  const confirmMutation = useMutation({
-    mutationFn: (settlementId: number) =>
-      confirmPaymentFor(friendService, settlementId),
-    onSuccess: () => {
-      invalidations.settlementMutated(invalidate, currentUser!.id, friendId);
-      toast.success("Payment confirmed");
+  const confirmMutation = {
+    mutate: (settlementId: number) => {
+      mutations.confirmSettlement.mutate(settlementId, {
+        onSuccess: () => toast.success("Payment confirmed"),
+        onError: () => toast.error("Failed to confirm payment"),
+      });
     },
-    onError: () => {
-      toast.error("Failed to confirm payment");
-    },
-  });
+    isPending: mutations.confirmSettlement.isPending,
+  };
 
-  const updateMutation = useMutation({
-    mutationFn: ({ settlementId, amount }: { settlementId: number; amount: number }) =>
-      friendService.updateSettlement(settlementId, { amount }),
-    onSuccess: () => {
-      invalidations.settlementMutated(invalidate, currentUser!.id, friendId);
-      setEditingSettlementId(null);
-      setEditAmount("");
-      toast.success("Payment updated");
+  const updateMutation = {
+    mutate: ({ settlementId, amount }: { settlementId: number; amount: number }) => {
+      mutations.updateSettlement.mutate(
+        { settlementId, amount },
+        {
+          onSuccess: () => {
+            setEditingSettlementId(null);
+            setEditAmount("");
+            toast.success("Payment updated");
+          },
+          onError: () => toast.error("Failed to update payment"),
+        },
+      );
     },
-    onError: () => {
-      toast.error("Failed to update payment");
-    },
-  });
+    isPending: mutations.updateSettlement.isPending,
+  };
 
   if (isLoading) {
     return (

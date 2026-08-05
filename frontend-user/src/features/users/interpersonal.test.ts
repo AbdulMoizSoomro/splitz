@@ -58,6 +58,17 @@ describe("interpersonal module", () => {
       expect(status).toBe("TEMP_FRIEND");
     });
 
+    it("returns TEMP_FRIEND over PENDING_OUTGOING when non-zero balance exists", () => {
+      const status = deriveRelationshipStatus({
+        targetUserId: 20,
+        friends: [],
+        outgoingRequests: [outgoingReq],
+        incomingRequests: [],
+        netBalance: 15.0,
+      });
+      expect(status).toBe("TEMP_FRIEND");
+    });
+
     it("returns NONE when not a friend, no requests, and zero balance", () => {
       const status = deriveRelationshipStatus({
         targetUserId: 40,
