@@ -1,8 +1,6 @@
 package com.splitz.expense.service;
 
-import com.splitz.expense.allocator.DebtPosition;
-import com.splitz.expense.allocator.DebtPositionResolver;
-import com.splitz.expense.allocator.SettlementAutoAllocator;
+import com.splitz.expense.allocator.AllocationEngine;
 import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.exception.UnauthorizedException;
@@ -14,7 +12,6 @@ import com.splitz.expense.repository.SettlementAllocationRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +25,7 @@ public class PaymentService {
   private final PaymentRepository paymentRepository;
   private final SettlementAllocationRepository settlementAllocationRepository;
   private final SharedSecurityAuthorizer splitzAuthorizer;
-  private final SettlementAutoAllocator settlementAutoAllocator;
-  private final DebtPositionResolver debtPositionResolver;
+  private final AllocationEngine allocationEngine;
   private final PaymentLifecycle paymentLifecycle;
 
   @Transactional
@@ -65,37 +61,8 @@ public class PaymentService {
             .settledAt(initialState.getSettledAt())
             .build();
 
-    List<SettlementAllocation> allocations = new ArrayList<>();
-
-    if (groupId != null) {
-      // Group-bound payment
-      allocations.add(SettlementAllocation.builder().groupId(groupId).amount(amount).build());
-    } else if (explicitAllocations != null && !explicitAllocations.isEmpty()) {
-      // Explicit manual allocations
-      BigDecimal totalAllocated =
-          explicitAllocations.stream()
-              .map(CreateFriendshipSettlementRequest.Allocation::getAmount)
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-      if (totalAllocated.compareTo(amount) != 0) {
-        throw new IllegalArgumentException(
-            "Total allocated amount ("
-                + totalAllocated
-                + ") must match payment amount ("
-                + amount
-                + ")");
-      }
-
-      for (CreateFriendshipSettlementRequest.Allocation allocationReq : explicitAllocations) {
-        allocations.add(
-            SettlementAllocation.builder()
-                .groupId(allocationReq.getGroupId())
-                .amount(allocationReq.getAmount())
-                .build());
-      }
-    } else {
-      allocations.addAll(resolveAndAllocate(payerId, payeeId, amount));
-    }
+    List<SettlementAllocation> allocations =
+        allocationEngine.resolveAllocations(payerId, payeeId, amount, groupId, explicitAllocations);
 
     for (SettlementAllocation allocation : allocations) {
       payment.addAllocation(allocation);
@@ -190,49 +157,14 @@ public class PaymentService {
     payment.getAllocations().clear();
 
     BigDecimal amount = payment.getAmount();
-    List<SettlementAllocation> allocations = new ArrayList<>();
-
-    if (newAllocations != null && !newAllocations.isEmpty()) {
-      BigDecimal totalAllocated =
-          newAllocations.stream()
-              .map(CreateFriendshipSettlementRequest.Allocation::getAmount)
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-      if (totalAllocated.compareTo(amount) != 0) {
-        throw new IllegalArgumentException(
-            "Total allocated amount ("
-                + totalAllocated
-                + ") must match payment amount ("
-                + amount
-                + ")");
-      }
-
-      for (CreateFriendshipSettlementRequest.Allocation allocationReq : newAllocations) {
-        allocations.add(
-            SettlementAllocation.builder()
-                .groupId(allocationReq.getGroupId())
-                .amount(allocationReq.getAmount())
-                .build());
-      }
-    } else {
-      allocations.addAll(resolveAndAllocate(payment.getPayerId(), payment.getPayeeId(), amount));
-    }
+    List<SettlementAllocation> allocations =
+        allocationEngine.resolveAllocations(
+            payment.getPayerId(), payment.getPayeeId(), amount, null, newAllocations);
 
     for (SettlementAllocation allocation : allocations) {
       payment.addAllocation(allocation);
     }
 
     return paymentRepository.save(payment);
-  }
-
-  /**
-   * Resolves the payer's {@code DebtPosition} once, then lets the configured allocator decide the
-   * Settlement Allocations. Shared by create and update so the resolver→allocator choreography
-   * lives in one place.
-   */
-  private List<SettlementAllocation> resolveAndAllocate(
-      Long payerId, Long payeeId, BigDecimal amount) {
-    DebtPosition position = debtPositionResolver.resolve(payerId, payeeId);
-    return settlementAutoAllocator.allocate(position, amount);
   }
 }
