@@ -13,6 +13,28 @@ public interface SettlementAllocationRepository extends JpaRepository<Settlement
 
   List<SettlementAllocation> findByGroupId(Long groupId);
 
+  List<SettlementAllocation> findByGroupIdIn(Collection<Long> groupIds);
+
+  @Query(
+      "SELECT p.payerId AS userId, sa.groupId AS groupId, SUM(sa.amount) AS total"
+          + " FROM SettlementAllocation sa JOIN sa.payment p WHERE sa.groupId IN :groupIds"
+          + " AND p.payerId IN :userIds AND p.status IN :statuses"
+          + " GROUP BY p.payerId, sa.groupId")
+  List<UserGroupAggregate> calculateTotalSettlementsPaidByUsersInGroups(
+      @Param("userIds") Collection<Long> userIds,
+      @Param("groupIds") Collection<Long> groupIds,
+      @Param("statuses") Collection<SettlementStatus> statuses);
+
+  @Query(
+      "SELECT p.payeeId AS userId, sa.groupId AS groupId, SUM(sa.amount) AS total"
+          + " FROM SettlementAllocation sa JOIN sa.payment p WHERE sa.groupId IN :groupIds"
+          + " AND p.payeeId IN :userIds AND p.status IN :statuses"
+          + " GROUP BY p.payeeId, sa.groupId")
+  List<UserGroupAggregate> calculateTotalSettlementsReceivedByUsersInGroups(
+      @Param("userIds") Collection<Long> userIds,
+      @Param("groupIds") Collection<Long> groupIds,
+      @Param("statuses") Collection<SettlementStatus> statuses);
+
   @Query(
       "SELECT COALESCE(SUM(sa.amount), 0) FROM SettlementAllocation sa JOIN sa.payment p WHERE sa.groupId IN :groupIds AND"
           + " p.payerId = :payerId AND p.payeeId = :payeeId AND p.status = :status")
@@ -29,22 +51,6 @@ public interface SettlementAllocationRepository extends JpaRepository<Settlement
   BigDecimal calculateTotalSettledBetweenUsersInGroup(
       @Param("payerId") Long payerId,
       @Param("payeeId") Long payeeId,
-      @Param("groupId") Long groupId,
-      @Param("status") SettlementStatus status);
-
-  @Query(
-      "SELECT COALESCE(SUM(sa.amount), 0) FROM SettlementAllocation sa JOIN sa.payment p WHERE "
-          + "sa.groupId = :groupId AND p.payerId = :userId AND p.status = :status")
-  BigDecimal calculateTotalSettlementsPaidByUserInGroup(
-      @Param("userId") Long userId,
-      @Param("groupId") Long groupId,
-      @Param("status") SettlementStatus status);
-
-  @Query(
-      "SELECT COALESCE(SUM(sa.amount), 0) FROM SettlementAllocation sa JOIN sa.payment p WHERE "
-          + "sa.groupId = :groupId AND p.payeeId = :userId AND p.status = :status")
-  BigDecimal calculateTotalSettlementsReceivedByUserInGroup(
-      @Param("userId") Long userId,
       @Param("groupId") Long groupId,
       @Param("status") SettlementStatus status);
 

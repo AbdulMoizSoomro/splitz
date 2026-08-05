@@ -1,8 +1,11 @@
 package com.splitz.expense.controller;
 
+import com.splitz.expense.activity.ExpenseActivityLogEngine;
+import com.splitz.expense.dto.ActivityLogDTO;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
+import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import jakarta.validation.Valid;
@@ -25,8 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class GroupController {
 
   private final GroupService groupService;
-  private final com.splitz.expense.service.ActivityLogService activityLogService;
-  private final com.splitz.expense.mapper.ActivityLogMapper activityLogMapper;
+  private final ExpenseActivityLogEngine expenseActivityLogEngine;
+  private final GroupGovernance groupGovernance;
   private final SharedSecurityAuthorizer splitzAuthorizer;
 
   @PostMapping
@@ -59,14 +62,9 @@ public class GroupController {
   }
 
   @GetMapping("/{groupId}/activity")
-  public ResponseEntity<List<com.splitz.expense.dto.ActivityLogDTO>> getGroupActivity(
+  public ResponseEntity<List<ActivityLogDTO>> getGroupActivity(
       @PathVariable("groupId") Long groupId) {
-    // Basic authorization check: must be a member or admin
-    // GroupService already handles this check in other methods,
-    // but here we can just verify the user is a member.
-    groupService.getGroup(groupId, splitzAuthorizer.getCurrentUserId());
-
-    return ResponseEntity.ok(
-        activityLogMapper.toDTOList(activityLogService.getActivitiesByGroup(groupId)));
+    groupGovernance.assertIsMember(groupId, splitzAuthorizer.getCurrentUserId());
+    return ResponseEntity.ok(expenseActivityLogEngine.getGroupActivity(groupId));
   }
 }

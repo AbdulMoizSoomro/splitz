@@ -23,6 +23,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Deep Membership Engine that owns the GroupMember state lifecycle and potential member resolution
+ * (ADR-0002).
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -33,6 +37,8 @@ public class MembershipService {
   private final GroupMapper groupMapper;
   private final UserClient userClient;
   private final GroupGovernance groupGovernance;
+
+  // --- Membership Lifecycle Operations ---
 
   public GroupDTO addMember(Long groupId, AddMemberRequest request, Long userId) {
     groupGovernance.assertCanManageMembers(groupId, userId);

@@ -13,7 +13,14 @@ import { Input } from "@/components/ui/input";
 import { friendService } from "./friendService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { invalidations, bindInvalidations } from "../../lib/queryKeys";
 import type { User } from "../../types/user";
+
+import {
+  autoAllocateSettlement,
+  validateSettlementAllocation,
+  buildSettlementPayload,
+} from "./interpersonal";
 
 interface FriendshipSettlementModalProps {
   isOpen: boolean;
@@ -38,7 +45,7 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
   const [allocations, setAllocations] = useState<Record<number, string>>({});
 
   const queryClient = useQueryClient();
-
+  const invalidate = bindInvalidations(queryClient);
 
   const { data: balanceData, isLoading: isLoadingBalance } = useQuery({
     queryKey: ["friend-balance", currentUser.id, friend.id],
@@ -49,29 +56,32 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
   const sharedGroups = balanceData?.groupBalances || [];
 
   useEffect(() => {
-    if (isAllocating && sharedGroups.length > 0 && Object.keys(allocations).length === 0) {
+    if (
+      isAllocating &&
+      sharedGroups.length > 0 &&
+      Object.keys(allocations).length === 0
+    ) {
+      const autoAlloc = autoAllocateSettlement({
+        amount: parseFloat(amount) || 0,
+        type,
+        groupBalances: sharedGroups,
+      });
+
       const initialAllocations: Record<number, string> = {};
-      let remaining = parseFloat(amount) || 0;
-      
-      for (const group of sharedGroups) {
-        const relevantBalance = Math.abs(group.balance);
-        const isOwed = (type === "PAY" && group.balance < 0) || 
-                      (type === "RECEIVE" && group.balance > 0);
-        
-        if (isOwed && relevantBalance > 0 && remaining > 0) {
-          const allocateAmount = Math.min(relevantBalance, remaining);
-          initialAllocations[group.groupId] = allocateAmount.toFixed(2);
-          remaining -= allocateAmount;
-        }
-      }
+      Object.entries(autoAlloc).forEach(([groupId, val]) => {
+        initialAllocations[parseInt(groupId)] = val.toFixed(2);
+      });
       setAllocations(initialAllocations);
     }
   }, [isAllocating, sharedGroups, type, amount, allocations]);
 
-  const totalAllocated = Object.values(allocations).reduce(
-    (sum, val) => sum + (parseFloat(val) || 0),
-    0,
-  );
+  const validation = validateSettlementAllocation({
+    amount: parseFloat(amount) || 0,
+    isAllocating,
+    allocations,
+  });
+  const totalAllocated = validation.totalAllocated;
+  const isAllocationValid = validation.isValid;
 
   const createMutation = useMutation({
     mutationFn: (data: {
@@ -81,8 +91,7 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
       allocations?: { groupId: number; amount: number }[];
     }) => friendService.createSettlement(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friend-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
+      invalidations.settlementMutated(invalidate, currentUser.id, friend.id);
       toast.success("Settlement recorded successfully");
       onClose();
     },
@@ -97,34 +106,16 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payerId = type === "PAY" ? currentUser.id : friend.id;
-    const payeeId = type === "PAY" ? friend.id : currentUser.id;
-    const finalAmount = parseFloat(amount);
-
-    const payload: {
-      payerId: number;
-      payeeId: number;
-      amount: number;
-      allocations?: { groupId: number; amount: number }[];
-    } = {
-      payerId,
-      payeeId,
-      amount: finalAmount,
-    };
-
-    if (isAllocating) {
-      payload.allocations = Object.entries(allocations)
-        .filter(([, val]) => parseFloat(val) > 0)
-        .map(([groupId, val]) => ({
-          groupId: parseInt(groupId),
-          amount: parseFloat(val),
-        }));
-    }
-
+    const payload = buildSettlementPayload({
+      currentUserId: currentUser.id,
+      friendId: friend.id,
+      type,
+      amount: parseFloat(amount),
+      isAllocating,
+      allocations,
+    });
     createMutation.mutate(payload);
   };
-
-
 
   const handleAllocationChange = (groupId: number, value: string) => {
     setAllocations((prev) => ({
@@ -132,8 +123,6 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
       [groupId]: value,
     }));
   };
-
-  const isAllocationValid = !isAllocating || Math.abs(totalAllocated - parseFloat(amount)) < 0.01;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>

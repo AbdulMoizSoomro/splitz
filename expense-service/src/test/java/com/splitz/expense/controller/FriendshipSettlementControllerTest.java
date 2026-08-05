@@ -2,6 +2,7 @@ package com.splitz.expense.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -145,5 +146,31 @@ class FriendshipSettlementControllerTest {
         .perform(put("/friendship-settlements/1/confirm"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("COMPLETED"));
+  }
+
+  @Test
+  @WithMockUser(username = "999")
+  void markAsPaid_ByNonPayer_ReturnsForbiddenFromServiceGuard() throws Exception {
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(999L);
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(paymentService.markAsPaid(1L))
+        .thenThrow(new com.splitz.expense.exception.UnauthorizedException("not authorized"));
+
+    mockMvc.perform(put("/friendship-settlements/1/mark-paid")).andExpect(status().isForbidden());
+
+    verify(paymentService).markAsPaid(1L);
+  }
+
+  @Test
+  @WithMockUser(username = "999")
+  void confirmSettlement_ByNonPayee_ReturnsForbiddenFromServiceGuard() throws Exception {
+    when(splitzAuthorizer.getCurrentUserId()).thenReturn(999L);
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(paymentService.confirmPayment(1L))
+        .thenThrow(new com.splitz.expense.exception.UnauthorizedException("not authorized"));
+
+    mockMvc.perform(put("/friendship-settlements/1/confirm")).andExpect(status().isForbidden());
+
+    verify(paymentService).confirmPayment(1L);
   }
 }

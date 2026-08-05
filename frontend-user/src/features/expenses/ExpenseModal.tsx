@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -20,29 +20,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { expenseService } from "./expenseService";
 import { categoryService } from "./categoryService";
-import {
-  validateSplit,
-  perShare,
-  parseAmount,
-  buildSplits,
-  type SplitFormValues,
-} from "./splitCalculator";
-import {
-  placeholder as splitPlaceholder,
-  unitPrefix as splitUnitPrefix,
-  unitSuffix as splitUnitSuffix,
-  splitTypeLabel,
-} from "./splitUi";
+import { useExpenseForm } from "./expenseFormEngine";
 import type { Group } from "../../types/group";
 import type {
   CreateExpenseRequest,
   UpdateExpenseRequest,
-  SplitType,
   Expense,
 } from "../../types/expense";
 import { useAuthStore } from "../../store/authStore";
 import { useDisplayNames } from "../../hooks/useDisplayName";
 import { Loader2, AlertCircle } from "lucide-react";
+import { useMemo } from "react";
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -61,37 +49,14 @@ const ExpenseModal = ({
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
-  const [description, setDescription] = useState(expense?.description || "");
-  const [amount, setAmount] = useState(expense?.amount?.toString() || "");
-  const [paidBy, setPaidBy] = useState<number>(
-    expense?.paidBy || parseInt(currentUser?.id || "0"),
-  );
-  const [categoryId, setCategoryId] = useState<number | undefined>(
-    expense?.categoryId,
-  );
-  const [expenseDate, setExpenseDate] = useState(
-    expense?.expenseDate?.split("T")[0] ||
-      new Date().toISOString().split("T")[0],
-  );
-  const [selectedMembers, setSelectedMembers] = useState<number[]>(
-    expense?.splits?.map((s) => s.userId) || group.members.map((m) => m.userId),
-  );
-  const [splitType, setSplitType] = useState<SplitType>("EQUAL");
-  const [splitValues, setSplitValues] = useState<Record<number, string>>({});
+  const form = useExpenseForm({
+    group,
+    currentUserId: parseInt(currentUser?.id || "0"),
+    expense,
+  });
 
   const memberIds = useMemo(() => group.members.map((m) => m.userId), [group.members]);
   const memberNames = useDisplayNames(memberIds);
-
-  const resetForm = useCallback(() => {
-    setDescription("");
-    setAmount("");
-    setCategoryId(undefined);
-    setExpenseDate(new Date().toISOString().split("T")[0]);
-    setSelectedMembers(group.members.map((m) => m.userId));
-    setSplitType("EQUAL");
-    setSplitValues({});
-    setPaidBy(parseInt(currentUser?.id || "0"));
-  }, [group.members, currentUser?.id]);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -109,7 +74,7 @@ const ExpenseModal = ({
         queryKey: ["group-balances", group.id],
       });
       onClose();
-      resetForm();
+      form.resetForm();
     },
   });
 
@@ -126,72 +91,16 @@ const ExpenseModal = ({
     },
   });
 
-  const handleMemberToggle = (userId: number) => {
-    setSelectedMembers((prev) => {
-      const isSelected = prev.includes(userId);
-      const next = isSelected
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId];
-
-      if (isSelected && splitType !== "EQUAL") {
-        const nextValues = { ...splitValues };
-        delete nextValues[userId];
-        setSplitValues(nextValues);
-      }
-
-      return next;
-    });
-  };
-
-  const handleSplitValueChange = (userId: number, value: string) => {
-    setSplitValues((prev) => ({
-      ...prev,
-      [userId]: value,
-    }));
-  };
-
-  const numAmount = parseAmount(amount);
-  const form: SplitFormValues = {
-    splitType,
-    amount: numAmount,
-    splitValues,
-    selectedMembers,
-  };
-
-  const validation = validateSplit(form);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || selectedMembers.length === 0 || !validation.isValid) return;
-
-    const splitsPayload = buildSplits(form);
+    if (!form.isReadyToSubmit) return;
 
     if (isEditing) {
-      const expenseData: UpdateExpenseRequest = {
-        description,
-        amount: numAmount,
-        paidBy,
-        categoryId,
-        expenseDate,
-        splitType,
-        splits: splitsPayload,
-      };
-      updateMutation.mutate(expenseData);
+      updateMutation.mutate(form.getUpdatePayload());
     } else {
-      const expenseData: CreateExpenseRequest = {
-        description,
-        amount: numAmount,
-        paidBy,
-        categoryId,
-        expenseDate,
-        splitType,
-        splits: splitsPayload,
-      };
-      createMutation.mutate(expenseData);
+      createMutation.mutate(form.getCreatePayload());
     }
   };
-
-  const sharePerPerson = perShare(form);
 
   const isPending = createMutation.isPending || updateMutation.isPending;
   const isError = createMutation.isError || updateMutation.isError;
@@ -209,8 +118,8 @@ const ExpenseModal = ({
             <FieldLabel htmlFor="description">Description</FieldLabel>
             <Input
               id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={form.state.description}
+              onChange={(e) => form.setDescription(e.target.value)}
               placeholder="e.g., Dinner, Groceries"
               required
             />
@@ -223,8 +132,8 @@ const ExpenseModal = ({
                 id="amount"
                 type="number"
                 step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                value={form.state.amount}
+                onChange={(e) => form.setAmount(e.target.value)}
                 placeholder="0.00"
                 required
               />
@@ -234,8 +143,8 @@ const ExpenseModal = ({
               <Input
                 id="date"
                 type="date"
-                value={expenseDate}
-                onChange={(e) => setExpenseDate(e.target.value)}
+                value={form.state.expenseDate}
+                onChange={(e) => form.setExpenseDate(e.target.value)}
                 required
               />
             </Field>
@@ -245,11 +154,11 @@ const ExpenseModal = ({
             <Field>
               <FieldLabel htmlFor="paidBy">Paid By</FieldLabel>
               <Select
-                value={paidBy.toString()}
-                onValueChange={(val) => setPaidBy(parseInt(val || "0"))}
+                value={form.state.paidBy.toString()}
+                onValueChange={(val) => form.setPaidBy(parseInt(val || "0"))}
               >
                 <SelectTrigger id="paidBy" className="w-full">
-                  <SelectValue placeholder="Select Payer">{paidBy === parseInt(currentUser?.id || "0") ? "You" : memberNames[paidBy] ?? `User ${paidBy}`}</SelectValue>
+                  <SelectValue placeholder="Select Payer">{form.state.paidBy === parseInt(currentUser?.id || "0") ? "You" : memberNames[form.state.paidBy] ?? `User ${form.state.paidBy}`}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {group.members.map((member) => (
@@ -266,8 +175,8 @@ const ExpenseModal = ({
             <Field>
               <FieldLabel htmlFor="category">Category</FieldLabel>
               <Select
-                value={categoryId?.toString() || ""}
-                onValueChange={(val) => setCategoryId(val ? parseInt(val) : undefined)}
+                value={form.state.categoryId?.toString() || ""}
+                onValueChange={(val) => form.setCategoryId(val ? parseInt(val) : undefined)}
               >
                 <SelectTrigger id="category" className="w-full">
                   <SelectValue placeholder="Select a category" />
@@ -286,11 +195,8 @@ const ExpenseModal = ({
           <div className="space-y-2 py-2 border-y border-border">
             <span className="text-sm font-medium text-foreground">Split Type:</span>
             <RadioGroup
-              value={splitType}
-              onValueChange={(val) => {
-                setSplitType(val as SplitType);
-                setSplitValues({});
-              }}
+              value={form.state.splitType}
+              onValueChange={(val) => form.setSplitType(val as CreateExpenseRequest["splitType"])}
               className="flex flex-wrap gap-x-4 gap-y-2"
             >
               {(
@@ -305,7 +211,7 @@ const ExpenseModal = ({
                     htmlFor={`split-type-${type}`}
                     className="text-sm text-muted-foreground hover:text-foreground capitalize cursor-pointer"
                   >
-                    {splitTypeLabel(type)}
+                    {form.formatters.splitTypeLabel(type)}
                   </label>
                 </div>
               ))}
@@ -326,8 +232,8 @@ const ExpenseModal = ({
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id={`member-${member.userId}`}
-                        checked={selectedMembers.includes(member.userId)}
-                        onCheckedChange={() => handleMemberToggle(member.userId)}
+                        checked={form.state.selectedMembers.includes(member.userId)}
+                        onCheckedChange={() => form.toggleMember(member.userId)}
                       />
                       <label
                         htmlFor={`member-${member.userId}`}
@@ -336,28 +242,28 @@ const ExpenseModal = ({
                         {memberNames[member.userId] ?? `User ${member.userId}`}
                       </label>
                     </div>
-                    {splitType !== "EQUAL" &&
-                      selectedMembers.includes(member.userId) && (
+                    {form.state.splitType !== "EQUAL" &&
+                      form.state.selectedMembers.includes(member.userId) && (
                         <div className="flex items-center gap-1 w-32">
                           <span className="text-sm text-muted-foreground">
-                            {splitUnitPrefix(splitType)}
+                            {form.formatters.unitPrefix(form.state.splitType)}
                           </span>
                           <Input
                             id={`split-value-${member.userId}`}
                             type="number"
-                            step={splitType === "SHARES" ? "1" : "0.01"}
-                            value={splitValues[member.userId] || ""}
+                            step={form.state.splitType === "SHARES" ? "1" : "0.01"}
+                            value={form.state.splitValues[member.userId] || ""}
                             onChange={(e) =>
-                              handleSplitValueChange(
+                              form.setSplitValue(
                                 member.userId,
                                 e.target.value,
                               )
                             }
-                            placeholder={splitPlaceholder(splitType)}
+                            placeholder={form.formatters.placeholder(form.state.splitType)}
                             aria-label={`${memberNames[member.userId] ?? `User ${member.userId}`} split value`}
                           />
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {splitUnitSuffix(splitType)}
+                            {form.formatters.unitSuffix(form.state.splitType)}
                           </span>
                         </div>
                       )}
@@ -365,7 +271,7 @@ const ExpenseModal = ({
                 </div>
               ))}
             </div>
-            {selectedMembers.length === 0 && (
+            {form.state.selectedMembers.length === 0 && (
               <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
                 <AlertCircle size={12} />
                 Select at least one member to split with.
@@ -373,28 +279,28 @@ const ExpenseModal = ({
             )}
           </div>
 
-          {amount && selectedMembers.length > 0 && (
+          {form.state.amount && form.state.selectedMembers.length > 0 && (
             <div
-              className={`p-3 rounded-md ${validation.isValid ? "bg-blue-50 dark:bg-blue-900/20" : "bg-orange-50 dark:bg-orange-900/20"}`}
+              className={`p-3 rounded-md ${form.validation.isValid ? "bg-blue-50 dark:bg-blue-900/20" : "bg-orange-50 dark:bg-orange-900/20"}`}
             >
-              {splitType === "EQUAL" ? (
+              {form.state.splitType === "EQUAL" ? (
                 <p className="text-sm text-blue-700 dark:text-blue-400">
                   Each person pays:{" "}
-                  <span className="font-bold">${sharePerPerson}</span>
+                  <span className="font-bold">${form.sharePerPerson}</span>
                 </p>
               ) : (
                 <div className="flex justify-between items-center text-sm">
                   <p
                     className={
-                      validation.isValid ? "text-blue-700 dark:text-blue-400" : "text-orange-700 dark:text-orange-400"
+                      form.validation.isValid ? "text-blue-700 dark:text-blue-400" : "text-orange-700 dark:text-orange-400"
                     }
                   >
-                    {validation.message}
+                    {form.validation.message}
                   </p>
-                  {splitType === "PERCENTAGE" && validation.isValid && (
+                  {form.state.splitType === "PERCENTAGE" && form.validation.isValid && (
                     <p className="text-blue-700 dark:text-blue-400">
                       Total:{" "}
-                      <span className="font-bold">${numAmount.toFixed(2)}</span>
+                      <span className="font-bold">${form.numAmount.toFixed(2)}</span>
                     </p>
                   )}
                 </div>
@@ -402,10 +308,10 @@ const ExpenseModal = ({
             </div>
           )}
 
-          {!validation.isValid && validation.error && (
+          {!form.validation.isValid && form.validation.error && (
             <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
               <AlertCircle size={12} />
-              {validation.error}
+              {form.validation.error}
             </p>
           )}
 
@@ -429,12 +335,7 @@ const ExpenseModal = ({
             </Button>
             <Button
               type="submit"
-              disabled={
-                isPending ||
-                !amount ||
-                selectedMembers.length === 0 ||
-                !validation.isValid
-              }
+              disabled={isPending || !form.isReadyToSubmit}
               className="flex items-center gap-2"
             >
               {isPending && <Loader2 size={16} className="animate-spin" />}

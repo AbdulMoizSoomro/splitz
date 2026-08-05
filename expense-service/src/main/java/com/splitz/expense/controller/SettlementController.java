@@ -40,7 +40,6 @@ public class SettlementController {
   }
 
   @GetMapping("/settlements/{id}")
-  @PreAuthorize("@paymentService.isParticipant(#id)")
   public ResponseEntity<SettlementDTO> getSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.getPaymentById(id)));
   }
@@ -54,13 +53,11 @@ public class SettlementController {
   }
 
   @PutMapping("/settlements/{id}/mark-paid")
-  @PreAuthorize("@splitzAuthorizer.isAdmin() || @paymentService.isPayer(#id)")
   public ResponseEntity<SettlementDTO> markAsPaid(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.markAsPaid(id)));
   }
 
   @PutMapping("/settlements/{id}/confirm")
-  @PreAuthorize("@splitzAuthorizer.isAdmin() || @paymentService.isPayee(#id)")
   public ResponseEntity<SettlementDTO> confirmSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.confirmPayment(id)));
   }

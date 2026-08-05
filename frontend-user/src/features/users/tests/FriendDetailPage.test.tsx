@@ -23,20 +23,28 @@ const queryClient = new QueryClient({
 describe("FriendDetailPage - Unified Activity Feed", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { id: "1", username: "testuser" },
     });
   });
 
   it("should display Shared Activity instead of Shared Expenses", async () => {
-    // Mock responses
-    (api.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      data: { id: 2, firstName: "Alice", lastName: "Smith", email: "alice@test.com", username: "alice" }
-    }); // Friend
-    
-    (api.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: [] }); // Groups
-    
-    (api.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: { netBalance: 0 } }); // Balance
+    (api.get as unknown as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes("/users/2")) {
+        return Promise.resolve({
+          data: { id: 2, firstName: "Alice", lastName: "Smith", email: "alice@test.com", username: "alice" },
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    (expenseApi.get as unknown as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes("/balances")) {
+        return Promise.resolve({ data: { netBalance: 0 } });
+      }
+      return Promise.resolve({ data: [] });
+    });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -59,10 +67,7 @@ describe("FriendDetailPage - Unified Activity Feed", () => {
       if (url.includes("/users/2")) {
         return Promise.resolve({ data: { id: 2, firstName: "Alice", lastName: "Smith", email: "alice@test.com", username: "alice" } });
       }
-      if (url.includes("/groups")) {
-        return Promise.resolve({ data: [] });
-      }
-      return Promise.resolve({ data: {} });
+      return Promise.resolve({ data: [] });
     });
 
     (expenseApi.get as unknown as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {

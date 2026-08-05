@@ -45,7 +45,6 @@ public class FriendshipSettlementController {
   }
 
   @GetMapping("/friendship-settlements/{id}")
-  @PreAuthorize("@paymentService.isParticipant(#id)")
   public ResponseEntity<FriendshipSettlementDTO> getSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(
         paymentMapper.toFriendshipSettlementDTO(paymentService.getPaymentById(id)));
@@ -61,7 +60,6 @@ public class FriendshipSettlementController {
   }
 
   @PutMapping("/friendship-settlements/{id}")
-  @PreAuthorize("@paymentService.isParticipant(#id)")
   public ResponseEntity<FriendshipSettlementDTO> updateSettlement(
       @PathVariable("id") Long id, @Valid @RequestBody UpdateFriendshipSettlementRequest request) {
     Payment updated =
@@ -70,14 +68,12 @@ public class FriendshipSettlementController {
   }
 
   @PutMapping("/friendship-settlements/{id}/mark-paid")
-  @PreAuthorize("@splitzAuthorizer.isAdmin() || @paymentService.isPayer(#id)")
   public ResponseEntity<FriendshipSettlementDTO> markAsPaid(@PathVariable("id") Long id) {
     return ResponseEntity.ok(
         paymentMapper.toFriendshipSettlementDTO(paymentService.markAsPaid(id)));
   }
 
   @PutMapping("/friendship-settlements/{id}/confirm")
-  @PreAuthorize("@splitzAuthorizer.isAdmin() || @paymentService.isPayee(#id)")
   public ResponseEntity<FriendshipSettlementDTO> confirmSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(
         paymentMapper.toFriendshipSettlementDTO(paymentService.confirmPayment(id)));
