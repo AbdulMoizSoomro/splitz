@@ -3,11 +3,9 @@ package com.splitz.expense.service;
 import com.splitz.expense.activity.ExpenseChange;
 import com.splitz.expense.activity.ExpenseChange.SplitChange;
 import com.splitz.expense.activity.ExpenseDiffCalculator;
-import com.splitz.expense.calculator.SplitCalculator;
-import com.splitz.expense.calculator.SplitResult;
+import com.splitz.expense.calculator.ExpenseSplitEngine;
 import com.splitz.expense.dto.CreateExpenseRequest;
 import com.splitz.expense.dto.ExpenseDTO;
-import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.dto.UpdateExpenseRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.governance.GroupGovernance;
@@ -17,13 +15,11 @@ import com.splitz.expense.model.Category;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
-import com.splitz.expense.model.SplitType;
 import com.splitz.expense.repository.CategoryRepository;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +35,7 @@ public class ExpenseService {
   private final GroupMemberRepository groupMemberRepository;
   private final CategoryRepository categoryRepository;
   private final ExpenseMapper expenseMapper;
-  private final SplitCalculator splitCalculator;
+  private final ExpenseSplitEngine expenseSplitEngine;
   private final SharedSecurityAuthorizer splitzAuthorizer;
   private final GroupGovernance groupGovernance;
   private final ActivityLogService activityLogService;
@@ -83,7 +79,7 @@ public class ExpenseService {
             .build();
 
     List<ExpenseSplit> splits =
-        calculateSplits(expense, request.getSplits(), request.getSplitType());
+        expenseSplitEngine.applyInitialSplits(expense, request.getSplits(), request.getSplitType());
     expense.setSplits(splits);
 
     Expense savedExpense = expenseRepository.save(expense);
@@ -96,29 +92,6 @@ public class ExpenseService {
         null);
 
     return expenseMapper.toDTO(savedExpense);
-  }
-
-  private List<ExpenseSplit> calculateSplits(
-      Expense expense, List<SplitRequest> splitRequests, SplitType splitType) {
-    if (splitRequests == null || splitRequests.isEmpty()) {
-      throw new IllegalArgumentException("At least one split is required");
-    }
-
-    BigDecimal totalAmount = expense.getAmount();
-
-    List<SplitResult> results =
-        splitCalculator.calculate(totalAmount, splitType, splitRequests, expense.getCurrency());
-    return results.stream()
-        .map(
-            r ->
-                ExpenseSplit.builder()
-                    .expense(expense)
-                    .userId(r.userId())
-                    .splitType(r.splitType())
-                    .splitValue(r.splitValue())
-                    .shareAmount(r.shareAmount())
-                    .build())
-        .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
@@ -226,34 +199,8 @@ public class ExpenseService {
       expense.setReceiptUrl(change.receiptUrl());
     }
 
-    if (splitChange == SplitChange.MODIFIED) {
-      SplitType splitType =
-          request.getSplitType() != null
-              ? request.getSplitType()
-              : (expense.getSplits().isEmpty()
-                  ? SplitType.EQUAL
-                  : expense.getSplits().get(0).getSplitType());
-      List<ExpenseSplit> newSplits = calculateSplits(expense, request.getSplits(), splitType);
-      expense.getSplits().clear();
-      expense.getSplits().addAll(newSplits);
-    } else if (splitChange == SplitChange.RECALCULATED) {
-      SplitType splitType =
-          expense.getSplits().isEmpty()
-              ? SplitType.EQUAL
-              : expense.getSplits().get(0).getSplitType();
-      List<SplitRequest> splitRequests =
-          expense.getSplits().stream()
-              .map(
-                  s ->
-                      SplitRequest.builder()
-                          .userId(s.getUserId())
-                          .splitValue(s.getSplitValue())
-                          .build())
-              .collect(Collectors.toList());
-      List<ExpenseSplit> updatedSplits = calculateSplits(expense, splitRequests, splitType);
-      expense.getSplits().clear();
-      expense.getSplits().addAll(updatedSplits);
-    }
+    expenseSplitEngine.reconcileSplits(
+        expense, splitChange, request.getSplits(), request.getSplitType());
 
     expense.setLastModifiedBy(currentUserId);
 

@@ -66,6 +66,10 @@ class ExpenseServiceTest {
               new com.splitz.expense.calculator.AdjustmentSplitStrategy()),
           new com.splitz.expense.calculator.RemainderHandler());
 
+  @Spy
+  private com.splitz.expense.calculator.ExpenseSplitEngine expenseSplitEngine =
+      new com.splitz.expense.calculator.DefaultExpenseSplitEngine(splitCalculator);
+
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
   @Mock private GroupGovernance groupGovernance;
