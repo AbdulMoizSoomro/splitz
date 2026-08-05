@@ -3,23 +3,157 @@ import type { Group } from "../../types/group";
 import type {
   Expense,
   SplitType,
+  SplitRequest,
   CreateExpenseRequest,
   UpdateExpenseRequest,
 } from "../../types/expense";
-import {
-  validateSplit,
-  perShare,
-  parseAmount,
-  buildSplits,
-  type SplitFormValues,
-  type ValidationResult,
-} from "./splitCalculator";
-import {
-  placeholder,
-  unitPrefix,
-  unitSuffix,
-  splitTypeLabel,
-} from "./splitUi";
+
+// --- Form & Calculation Interfaces ---
+
+export interface SplitFormValues {
+  splitType: SplitType;
+  /** Parsed numeric amount. */
+  amount: number;
+  /** Per-member split values, keyed by userId, still in string form. */
+  splitValues: Record<number, string>;
+  selectedMembers: number[];
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  message?: string;
+  error?: string;
+}
+
+interface SplitFormat {
+  placeholder: string;
+  prefix: string;
+  suffix: string;
+  label: string;
+}
+
+// --- UI Formatters & Presentation Specs ---
+
+const FORMAT: Record<SplitType, SplitFormat> = {
+  EQUAL: { placeholder: "", prefix: "", suffix: "", label: "equal" },
+  EXACT: { placeholder: "0.00", prefix: "$", suffix: "", label: "exact" },
+  PERCENTAGE: { placeholder: "0", prefix: "", suffix: "%", label: "percentage" },
+  SHARES: { placeholder: "1", prefix: "", suffix: " shares", label: "shares" },
+  ADJUSTMENT: {
+    placeholder: "0.00",
+    prefix: "$",
+    suffix: "",
+    label: "Fixed Adjustment",
+  },
+};
+
+export function placeholder(splitType: SplitType): string {
+  return FORMAT[splitType].placeholder;
+}
+
+export function unitPrefix(splitType: SplitType): string {
+  return FORMAT[splitType].prefix;
+}
+
+export function unitSuffix(splitType: SplitType): string {
+  return FORMAT[splitType].suffix;
+}
+
+export function splitTypeLabel(splitType: SplitType): string {
+  return FORMAT[splitType].label;
+}
+
+// --- Math & Split Calculations ---
+
+/** Coerces a raw input string to a number, treating empty/non-numeric as 0. */
+export function parseAmount(amount: string): number {
+  return parseFloat(amount) || 0;
+}
+
+function totalSplitValue(splitValues: Record<number, string>): number {
+  return Object.values(splitValues).reduce(
+    (sum, val) => sum + parseAmount(val),
+    0,
+  );
+}
+
+export function validateSplit(form: SplitFormValues): ValidationResult {
+  const { splitType, amount } = form;
+  const total = totalSplitValue(form.splitValues);
+
+  switch (splitType) {
+    case "EQUAL":
+      return { isValid: true };
+    case "EXACT": {
+      const isExactValid = Math.abs(total - amount) < 0.01;
+      return {
+        isValid: isExactValid,
+        message: isExactValid
+          ? "Fully allocated"
+          : `Remaining: $${(amount - total).toFixed(2)}`,
+        error:
+          !isExactValid && amount > 0
+            ? `Total must equal $${amount}`
+            : undefined,
+      };
+    }
+    case "PERCENTAGE": {
+      const isPercentValid = Math.abs(total - 100) < 0.01;
+      return {
+        isValid: isPercentValid,
+        message: isPercentValid
+          ? "100% allocated"
+          : `Total: ${total.toFixed(1)}%`,
+        error: !isPercentValid ? "Total must equal 100%" : undefined,
+      };
+    }
+    case "SHARES": {
+      const hasShares = total > 0;
+      return {
+        isValid: hasShares,
+        message: `Total shares: ${total}`,
+        error: !hasShares ? "Total shares must be greater than 0" : undefined,
+      };
+    }
+    case "ADJUSTMENT": {
+      const isAdjValid = Math.abs(total) < 0.01;
+      return {
+        isValid: isAdjValid,
+        message: isAdjValid
+          ? "Adjustments balanced"
+          : `Offset: ${total > 0 ? "+" : ""}$${total.toFixed(2)}`,
+        error: !isAdjValid ? "Adjustments must sum to $0.00" : undefined,
+      };
+    }
+    default:
+      return { isValid: true };
+  }
+}
+
+export function perShare(form: SplitFormValues): string {
+  const { amount, selectedMembers } = form;
+  return amount && selectedMembers.length > 0
+    ? (amount / selectedMembers.length).toFixed(2)
+    : "0.00";
+}
+
+export function buildSplits(form: SplitFormValues): SplitRequest[] {
+  const { selectedMembers, splitType, splitValues } = form;
+  return selectedMembers.map((userId) => ({
+    userId,
+    splitType,
+    splitValue:
+      splitType !== "EQUAL"
+        ? parseAmount(splitValues[userId] || "0")
+        : undefined,
+    shareAmount:
+      splitType === "EXACT"
+        ? parseAmount(splitValues[userId] || "0")
+        : undefined,
+  }));
+}
+
+// --- Form State & Reducer ---
 
 export interface ExpenseFormState {
   description: string;
@@ -60,7 +194,6 @@ export function createInitialExpenseFormState(
       splitsMap[s.userId] = s.shareAmount.toString();
     });
 
-    // Expense type doesn't carry splitType; infer from context or default to EQUAL
     const inferredSplitType: SplitType =
       (expense as Record<string, unknown>).splitType as SplitType || "EQUAL";
 
