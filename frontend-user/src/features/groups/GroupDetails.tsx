@@ -147,8 +147,6 @@ const GroupDetails = () => {
     setIsExpenseModalOpen(true);
   };
 
-  const canManageExpense = (expense: Expense) => governance.canManageExpense(expense);
-
   const deleteExpenseMutation = useMutation({
     mutationFn: (expenseId: number) =>
       expenseService.deleteExpense(Number(id), expenseId),
@@ -427,7 +425,7 @@ const GroupDetails = () => {
                       const payerName = isPayer ? "You" : (memberNames[expense.paidBy] ?? `User ${expense.paidBy}`);
                       const date = new Date(expense.expenseDate);
                       const mySplit = expense.splits.find((s) => s.userId === Number(user?.id));
-                      const canManage = canManageExpense(expense);
+                      const canManage = governance.canManageExpense(expense);
 
                       const category = categories?.find((c) => c.id === expense.categoryId);
                       const categoryName = category?.name ?? "General";

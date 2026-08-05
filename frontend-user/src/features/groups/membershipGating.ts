@@ -46,7 +46,7 @@ export function hasPendingSettlements(
     settlements?.some(
       (s) =>
         (s.payerId === currentUserId || s.payeeId === currentUserId) &&
-        s.status === "MARKED_PAID" &&
+        (s.status === "MARKED_PAID" || s.status === "PENDING") &&
         !isGlobalPayment(s),
     ) ?? false
   );
@@ -62,13 +62,7 @@ export function canLeaveGroup(params: {
   settlements?: PendingSettlementLike[];
   currentUserId: number;
 }): boolean {
-  if (params.balance !== 0) return false;
-  if (hasPendingSettlements(params.settlements, params.currentUserId)) return false;
-  if (params.group && params.group.createdBy === params.currentUserId) {
-    const memberCount = params.group.members?.length ?? 0;
-    if (memberCount > 1) return false;
-  }
-  return true;
+  return canLeaveGroupInfo(params).allowed;
 }
 
 /**
