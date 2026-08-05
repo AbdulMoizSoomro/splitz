@@ -10,7 +10,6 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.splitz.expense.calculator.SplitCalculator;
 import com.splitz.expense.dto.CreateExpenseRequest;
 import com.splitz.expense.dto.ExpenseDTO;
 import com.splitz.expense.dto.SplitRequest;
@@ -56,19 +55,8 @@ class ExpenseServiceTest {
   @Mock private ExpenseMapper expenseMapper;
 
   @Spy
-  private SplitCalculator splitCalculator =
-      new SplitCalculator(
-          java.util.List.of(
-              new com.splitz.expense.calculator.EqualSplitStrategy(),
-              new com.splitz.expense.calculator.ExactSplitStrategy(),
-              new com.splitz.expense.calculator.PercentageSplitStrategy(),
-              new com.splitz.expense.calculator.SharesSplitStrategy(),
-              new com.splitz.expense.calculator.AdjustmentSplitStrategy()),
-          new com.splitz.expense.calculator.RemainderHandler());
-
-  @Spy
   private com.splitz.expense.calculator.ExpenseSplitEngine expenseSplitEngine =
-      new com.splitz.expense.calculator.DefaultExpenseSplitEngine(splitCalculator);
+      new com.splitz.expense.calculator.DefaultExpenseSplitEngine();
 
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 

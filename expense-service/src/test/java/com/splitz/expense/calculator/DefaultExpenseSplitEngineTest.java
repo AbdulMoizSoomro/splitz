@@ -17,21 +17,12 @@ import org.junit.jupiter.api.Test;
 
 class DefaultExpenseSplitEngineTest {
 
-  private DefaultExpenseSplitEngine splitEngine;
+  private ExpenseSplitEngine splitEngine;
   private Expense expense;
 
   @BeforeEach
   void setUp() {
-    SplitCalculator splitCalculator =
-        new SplitCalculator(
-            List.of(
-                new EqualSplitStrategy(),
-                new ExactSplitStrategy(),
-                new PercentageSplitStrategy(),
-                new SharesSplitStrategy(),
-                new AdjustmentSplitStrategy()),
-            new RemainderHandler());
-    splitEngine = new DefaultExpenseSplitEngine(splitCalculator);
+    splitEngine = new DefaultExpenseSplitEngine();
 
     Group group = Group.builder().id(1L).name("Test Group").build();
     expense =
@@ -59,9 +50,151 @@ class DefaultExpenseSplitEngineTest {
   }
 
   @Test
-  void applyInitialSplits_EmptyRequests_ThrowsIllegalArgument() {
+  void applyInitialSplits_ExactSplit_CalculatesCorrectShareAmounts() {
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("40.00")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("60.00")).build());
+
+    List<ExpenseSplit> splits = splitEngine.applyInitialSplits(expense, requests, SplitType.EXACT);
+
+    assertEquals(2, splits.size());
+    assertEquals(new BigDecimal("40.00"), splits.get(0).getShareAmount());
+    assertEquals(new BigDecimal("60.00"), splits.get(1).getShareAmount());
+  }
+
+  @Test
+  void applyInitialSplits_ExactSplit_MismatchAmount_ThrowsException() {
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("40.00")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("50.00")).build());
+
     assertThrows(
-        IllegalArgumentException.class,
+        InvalidSplitCalculationException.class,
+        () -> splitEngine.applyInitialSplits(expense, requests, SplitType.EXACT));
+  }
+
+  @Test
+  void applyInitialSplits_PercentageSplit_CalculatesCorrectShareAmounts() {
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("25.00")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("75.00")).build());
+
+    List<ExpenseSplit> splits =
+        splitEngine.applyInitialSplits(expense, requests, SplitType.PERCENTAGE);
+
+    assertEquals(2, splits.size());
+    assertEquals(new BigDecimal("25.00"), splits.get(0).getShareAmount());
+    assertEquals(new BigDecimal("75.00"), splits.get(1).getShareAmount());
+  }
+
+  @Test
+  void applyInitialSplits_PercentageSplit_Not100_ThrowsException() {
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("50.00")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("40.00")).build());
+
+    assertThrows(
+        InvalidSplitCalculationException.class,
+        () -> splitEngine.applyInitialSplits(expense, requests, SplitType.PERCENTAGE));
+  }
+
+  @Test
+  void applyInitialSplits_SharesSplit_CalculatesCorrectShareAmounts() {
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("1.00")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("3.00")).build());
+
+    List<ExpenseSplit> splits = splitEngine.applyInitialSplits(expense, requests, SplitType.SHARES);
+
+    assertEquals(2, splits.size());
+    assertEquals(new BigDecimal("25.00"), splits.get(0).getShareAmount());
+    assertEquals(new BigDecimal("75.00"), splits.get(1).getShareAmount());
+  }
+
+  @Test
+  void applyInitialSplits_SharesSplit_InvalidShares_ThrowsException() {
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("0")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("3.00")).build());
+
+    assertThrows(
+        InvalidSplitCalculationException.class,
+        () -> splitEngine.applyInitialSplits(expense, requests, SplitType.SHARES));
+  }
+
+  @Test
+  void applyInitialSplits_AdjustmentSplit_CalculatesCorrectShareAmounts() {
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("10.00")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("-10.00")).build());
+
+    List<ExpenseSplit> splits =
+        splitEngine.applyInitialSplits(expense, requests, SplitType.ADJUSTMENT);
+
+    assertEquals(2, splits.size());
+    assertEquals(new BigDecimal("60.00"), splits.get(0).getShareAmount());
+    assertEquals(new BigDecimal("40.00"), splits.get(1).getShareAmount());
+  }
+
+  @Test
+  void applyInitialSplits_AdjustmentSplit_NonZeroSum_ThrowsException() {
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).splitValue(new BigDecimal("10.00")).build(),
+            SplitRequest.builder().userId(2L).splitValue(new BigDecimal("-5.00")).build());
+
+    assertThrows(
+        InvalidSplitCalculationException.class,
+        () -> splitEngine.applyInitialSplits(expense, requests, SplitType.ADJUSTMENT));
+  }
+
+  @Test
+  void applyInitialSplits_MultiCurrency_JPY_HandlesZeroScale() {
+    expense.setAmount(new BigDecimal("100"));
+    expense.setCurrency("JPY");
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).build(),
+            SplitRequest.builder().userId(2L).build(),
+            SplitRequest.builder().userId(3L).build());
+
+    List<ExpenseSplit> splits = splitEngine.applyInitialSplits(expense, requests, SplitType.EQUAL);
+
+    assertEquals(3, splits.size());
+    assertEquals(new BigDecimal("34"), splits.get(0).getShareAmount());
+    assertEquals(new BigDecimal("33"), splits.get(1).getShareAmount());
+    assertEquals(new BigDecimal("33"), splits.get(2).getShareAmount());
+  }
+
+  @Test
+  void applyInitialSplits_MultiCurrency_KWD_HandlesThreeScale() {
+    expense.setAmount(new BigDecimal("10.000"));
+    expense.setCurrency("KWD");
+    List<SplitRequest> requests =
+        List.of(
+            SplitRequest.builder().userId(1L).build(),
+            SplitRequest.builder().userId(2L).build(),
+            SplitRequest.builder().userId(3L).build());
+
+    List<ExpenseSplit> splits = splitEngine.applyInitialSplits(expense, requests, SplitType.EQUAL);
+
+    assertEquals(3, splits.size());
+    assertEquals(new BigDecimal("3.334"), splits.get(0).getShareAmount());
+    assertEquals(new BigDecimal("3.333"), splits.get(1).getShareAmount());
+    assertEquals(new BigDecimal("3.333"), splits.get(2).getShareAmount());
+  }
+
+  @Test
+  void applyInitialSplits_EmptyRequests_ThrowsInvalidSplitCalculationException() {
+    assertThrows(
+        InvalidSplitCalculationException.class,
         () -> splitEngine.applyInitialSplits(expense, List.of(), SplitType.EQUAL));
   }
 
