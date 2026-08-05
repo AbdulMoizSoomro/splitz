@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { friendService } from "./friendService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { invalidations, bindInvalidations } from "../../lib/queryKeys";
 import type { User } from "../../types/user";
 
 import {
@@ -44,6 +45,7 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
   const [allocations, setAllocations] = useState<Record<number, string>>({});
 
   const queryClient = useQueryClient();
+  const invalidate = bindInvalidations(queryClient);
 
   const { data: balanceData, isLoading: isLoadingBalance } = useQuery({
     queryKey: ["friend-balance", currentUser.id, friend.id],
@@ -89,8 +91,7 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
       allocations?: { groupId: number; amount: number }[];
     }) => friendService.createSettlement(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friend-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["friend-settlements"] });
+      invalidations.settlementMutated(invalidate, currentUser.id, friend.id);
       toast.success("Settlement recorded successfully");
       onClose();
     },

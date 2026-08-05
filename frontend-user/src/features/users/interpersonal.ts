@@ -250,10 +250,17 @@ export function useInterpersonalFriend(friendId: number) {
     enabled,
   });
 
+  const incomingRequestsQuery = useQuery({
+    queryKey: queryKeys.friendRequests(currentUserId, "INCOMING"),
+    queryFn: () => friendService.getFriendRequests(currentUserId, "INCOMING"),
+    enabled,
+  });
+
   const relationshipStatus = deriveRelationshipStatus({
     targetUserId: friendId,
     friends: friendsQuery.data,
     outgoingRequests: outgoingRequestsQuery.data,
+    incomingRequests: incomingRequestsQuery.data,
     netBalance: balanceQuery.data?.netBalance ?? 0,
   });
 
