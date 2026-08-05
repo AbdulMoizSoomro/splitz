@@ -21,15 +21,14 @@ export const useTempFriends = () => {
   const { ledger, friends, isLoading } = useLedger({ detail: true });
 
   const tempFriends: TempFriend[] = useMemo(() => {
+    const friendIds = new Set(friends?.map((f) => f.id));
+
     return (ledger?.counterparties ?? [])
       .filter(
         (cp: Counterparty) =>
           cp.userId !== ledger?.key &&
-          deriveRelationshipStatus({
-            targetUserId: cp.userId,
-            friends,
-            netBalance: cp.balance,
-          }) === "TEMP_FRIEND",
+          !friendIds.has(cp.userId) &&
+          Math.abs(cp.balance) > MONEY_TOLERANCE,
       )
       .map((cp) => {
         const parts = cp.name.split(" ");
