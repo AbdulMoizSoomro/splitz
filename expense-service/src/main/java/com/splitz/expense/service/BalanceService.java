@@ -66,12 +66,23 @@ public class BalanceService {
       Map<Long, String> groupNames =
           sharedGroups.stream().collect(Collectors.toMap(Group::getId, Group::getName));
 
+      List<Expense> expenses = expenseRepository.findByGroupIdIn(userGroupIds);
+      List<SettlementAllocation> allocations =
+          settlementAllocationRepository.findByGroupIdIn(userGroupIds);
+
       for (Long groupId : userGroupIds) {
-        List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-        List<SettlementAllocation> allocations =
-            settlementAllocationRepository.findByGroupId(groupId);
+        List<Expense> groupExpenses =
+            expenses.stream()
+                .filter(expense -> expense.getGroup() != null)
+                .filter(expense -> groupId.equals(expense.getGroup().getId()))
+                .toList();
+        List<SettlementAllocation> groupAllocations =
+            allocations.stream()
+                .filter(allocation -> groupId.equals(allocation.getGroupId()))
+                .toList();
         BigDecimal groupNetBalance =
-            debtBalanceEngine.calculateNetBalanceInGroup(userId, friendId, expenses, allocations);
+            debtBalanceEngine.calculateNetBalanceInGroup(
+                userId, friendId, groupExpenses, groupAllocations);
 
         // Include all shared groups (even with zero balance) so the friend detail
         // page can display them. The settlement modal already filters by non-zero
@@ -153,17 +164,27 @@ public class BalanceService {
   @Transactional(readOnly = true)
   public UserBalanceResponseDTO getUserBalances(Long userId) {
     List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
-    List<UserBalanceResponseDTO.GroupBalanceDTO> groupBalances = new ArrayList<>();
+    List<Long> groupIds =
+        memberships.stream().map(membership -> membership.getGroup().getId()).toList();
 
-    BigDecimal totalBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    Map<Long, BigDecimal> groupBalances = Collections.emptyMap();
+    if (!groupIds.isEmpty()) {
+      Map<Long, BigDecimal> batch =
+          debtBalanceEngine.calculateBalancesInGroups(List.of(userId), groupIds).get(userId);
+      groupBalances = batch != null ? batch : Collections.emptyMap();
+    }
+
+    BigDecimal zero = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    List<UserBalanceResponseDTO.GroupBalanceDTO> groupBalanceDTOs = new ArrayList<>();
+    BigDecimal totalBalance = zero;
 
     for (GroupMember membership : memberships) {
       Long groupId = membership.getGroup().getId();
       String groupName = membership.getGroup().getName();
 
-      BigDecimal userBalance = calculateUserBalanceInGroup(userId, groupId);
+      BigDecimal userBalance = groupBalances.getOrDefault(groupId, zero);
 
-      groupBalances.add(
+      groupBalanceDTOs.add(
           UserBalanceResponseDTO.GroupBalanceDTO.builder()
               .groupId(groupId)
               .groupName(groupName)
@@ -183,7 +204,7 @@ public class BalanceService {
         .username(user != null ? user.getUsername() : null)
         .email(user != null ? user.getEmail() : null)
         .totalBalance(totalBalance)
-        .groupBalances(groupBalances)
+        .groupBalances(groupBalanceDTOs)
         .build();
   }
 
