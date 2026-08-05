@@ -39,10 +39,7 @@ import GroupActivity from "./GroupActivity";
 import { balanceInGroup } from "../balances/ledger";
 import { queryKeys, invalidations, bindInvalidations } from "../../lib/queryKeys";
 import {
-  selfRole,
-  canLeaveGroup,
-  hasPendingSettlements,
-  canManageMembers,
+  useGroupGovernance,
 } from "./membershipGating";
 import { settlementService } from "../balances/settlementService";
 import { expenseService } from "../expenses/expenseService";
@@ -150,16 +147,7 @@ const GroupDetails = () => {
     setIsExpenseModalOpen(true);
   };
 
-  const canManageExpense = (expense: Expense) => {
-    if (!group) return false;
-    const member = group.members.find((m) => m.userId === Number(user?.id));
-    if (!member) return false;
-
-    const isAdmin = member.role === "ADMIN" || group.createdBy === Number(user?.id);
-    const isPayer = expense.paidBy === Number(user?.id);
-
-    return isAdmin || isPayer || group.allowMembersToEditExpenses;
-  };
+  const canManageExpense = (expense: Expense) => governance.canManageExpense(expense);
 
   const deleteExpenseMutation = useMutation({
     mutationFn: (expenseId: number) =>
@@ -259,15 +247,15 @@ const GroupDetails = () => {
     Number(user?.id),
   );
 
-  // Role + the Settled Membership Invariant (CONTEXT.md), from one module
-  // instead of being re-derived inline in the view.
-  const currentUserRole = selfRole(group, Number(user?.id));
-  const hasPending = hasPendingSettlements(settlements, Number(user?.id));
-  const canLeave = canLeaveGroup({
-    balance: currentUserBalance,
-    settlements,
+  const governance = useGroupGovernance({
+    group,
     currentUserId: Number(user?.id),
+    currentUserBalance,
+    settlements,
   });
+
+  const currentUserRole = governance.currentUserRole;
+  const canLeave = governance.canLeave;
 
   if (isLoading || isFriendsLoading) {
     return (
@@ -541,10 +529,7 @@ const GroupDetails = () => {
                       <span className="text-sm text-muted-foreground">
                         {group.members.length} members
                       </span>
-                      {canManageMembers(
-                        currentUserRole,
-                        group.allowMembersToManageMembers,
-                      ) && (
+                      {governance.canManageMembers && (
                         <button
                           aria-label="Add member"
                           onClick={() => setIsAddMemberModalOpen(true)}
@@ -645,9 +630,7 @@ const GroupDetails = () => {
                               <Badge className={badgeClassName}>{roleLabel}</Badge>
 
                               {/* Role Management Dropdown */}
-                              {(currentUserRole === "ADMIN" ||
-                                currentUserRole === "OWNER") &&
-                                member.userId !== group.createdBy && (
+                              {governance.canManageRoleFor(member.userId) && (
                                   <DropdownMenu>
                                     <DropdownMenuTrigger
                                       className="p-1 text-muted-foreground hover:text-muted-foreground rounded-full hover:bg-muted"
@@ -656,21 +639,26 @@ const GroupDetails = () => {
                                       <MoreVertical size={16} />
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                      <DropdownMenuItem
-                                        disabled={updateRoleMutation.isPending}
-                                        onClick={() =>
-                                          handleRoleUpdate(
-                                            member.userId,
-                                            member.role === "ADMIN"
-                                              ? "MEMBER"
-                                              : "ADMIN",
-                                          )
-                                        }
-                                      >
-                                        {member.role === "ADMIN"
-                                          ? "Demote to Member"
-                                          : "Promote to Admin"}
-                                      </DropdownMenuItem>
+                                      {member.role === "ADMIN" && governance.canDemoteMember(member.userId) && (
+                                        <DropdownMenuItem
+                                          disabled={updateRoleMutation.isPending}
+                                          onClick={() =>
+                                            handleRoleUpdate(member.userId, "MEMBER")
+                                          }
+                                        >
+                                          Demote to Member
+                                        </DropdownMenuItem>
+                                      )}
+                                      {member.role === "MEMBER" && governance.canPromoteMember(member.userId) && (
+                                        <DropdownMenuItem
+                                          disabled={updateRoleMutation.isPending}
+                                          onClick={() =>
+                                            handleRoleUpdate(member.userId, "ADMIN")
+                                          }
+                                        >
+                                          Promote to Admin
+                                        </DropdownMenuItem>
+                                      )}
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 )}
@@ -795,11 +783,7 @@ const GroupDetails = () => {
               </div>
             ) : !canLeave ? (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {hasPending ? (
-                  "You cannot leave this group while you have pending unconfirmed payments."
-                ) : (
-                  `You cannot leave this group while you have an outstanding balance (${currentUserBalance}).`
-                )}
+                {governance.leaveReason}
               </div>
             ) : (
               <p className="text-muted-foreground">
