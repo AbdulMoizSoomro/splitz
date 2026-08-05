@@ -3,6 +3,7 @@ package com.splitz.expense.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.splitz.expense.client.UserClient;
@@ -11,13 +12,15 @@ import com.splitz.expense.dto.BulkAddMembersRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateMemberRoleRequest;
 import com.splitz.expense.exception.UnauthorizedException;
-import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.mapper.GroupMapper;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import com.splitz.expense.repository.SettlementAllocationRepository;
+import com.splitz.security.authorization.SharedSecurityAuthorizer;
+import java.math.BigDecimal;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,9 +34,11 @@ class MembershipServiceTest {
 
   @Mock private GroupRepository groupRepository;
   @Mock private GroupMemberRepository groupMemberRepository;
+  @Mock private SettlementAllocationRepository settlementAllocationRepository;
   @Mock private GroupMapper groupMapper;
   @Mock private UserClient userClient;
-  @Mock private GroupGovernance groupGovernance;
+  @Mock private BalanceService balanceService;
+  @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
   @InjectMocks private MembershipService membershipService;
 
@@ -69,8 +74,10 @@ class MembershipServiceTest {
     request.setUserId(4L);
     request.setRole(GroupRole.MEMBER);
 
-    doNothing().when(groupGovernance).assertCanManageMembers(10L, 2L);
     when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 2L))
+        .thenReturn(Optional.of(adminMember));
     when(groupMemberRepository.existsByGroupIdAndUserId(10L, 4L)).thenReturn(false);
     when(userClient.existsById(4L)).thenReturn(true);
     when(groupRepository.save(any(Group.class))).thenReturn(group);
@@ -86,9 +93,10 @@ class MembershipServiceTest {
     AddMemberRequest request = new AddMemberRequest();
     request.setUserId(4L);
 
-    doThrow(new UnauthorizedException("You do not have permission to manage members in this group"))
-        .when(groupGovernance)
-        .assertCanManageMembers(10L, 3L);
+    when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 3L))
+        .thenReturn(Optional.of(standardMember));
 
     assertThrows(
         UnauthorizedException.class,
@@ -99,9 +107,12 @@ class MembershipServiceTest {
   void addMember_AsMemberSettingsEnabled_ShouldSucceed() {
     AddMemberRequest request = new AddMemberRequest();
     request.setUserId(4L);
+    group.setAllowMembersToManageMembers(true);
 
-    doNothing().when(groupGovernance).assertCanManageMembers(10L, 3L);
     when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 3L))
+        .thenReturn(Optional.of(standardMember));
     when(groupMemberRepository.existsByGroupIdAndUserId(10L, 4L)).thenReturn(false);
     when(userClient.existsById(4L)).thenReturn(true);
     when(groupRepository.save(any(Group.class))).thenReturn(group);
@@ -117,8 +128,10 @@ class MembershipServiceTest {
     AddMemberRequest request = new AddMemberRequest();
     request.setUserId(3L); // User 3 is already a member
 
-    doNothing().when(groupGovernance).assertCanManageMembers(10L, 1L);
     when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 1L))
+        .thenReturn(Optional.of(ownerMember));
     when(groupMemberRepository.existsByGroupIdAndUserId(10L, 3L)).thenReturn(true);
 
     assertThrows(
@@ -140,18 +153,20 @@ class MembershipServiceTest {
 
   @Test
   void removeMember_OwnerSelfRemoval_ShouldThrowUnauthorized() {
-    doThrow(new UnauthorizedException("The group owner cannot be removed from the group"))
-        .when(groupGovernance)
-        .assertCanRemoveMember(10L, 1L, 1L);
+    when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 1L))
+        .thenReturn(Optional.of(ownerMember));
 
     assertThrows(UnauthorizedException.class, () -> membershipService.removeMember(10L, 1L, 1L));
   }
 
   @Test
   void removeMember_NonMemberActing_ShouldThrowUnauthorized() {
-    doThrow(new UnauthorizedException("You are not a member of this group"))
-        .when(groupGovernance)
-        .assertCanRemoveMember(10L, 99L, 3L);
+    when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 3L))
+        .thenReturn(Optional.of(standardMember));
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 99L)).thenReturn(Optional.empty());
 
     assertThrows(
         UnauthorizedException.class,
@@ -160,10 +175,15 @@ class MembershipServiceTest {
 
   @Test
   void removeMember_AdminRemovingAdmin_ShouldSucceedWhenInvariantsMet() {
-    doNothing().when(groupGovernance).assertCanRemoveMember(10L, 1L, 2L);
     when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
     when(groupMemberRepository.findByGroupIdAndUserId(10L, 2L))
         .thenReturn(Optional.of(adminMember));
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 1L))
+        .thenReturn(Optional.of(ownerMember));
+    when(balanceService.calculateUserBalanceInGroup(2L, 10L)).thenReturn(BigDecimal.ZERO);
+    when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(2L), eq(10L), any()))
+        .thenReturn(false);
 
     membershipService.removeMember(10L, 2L, 1L); // Owner removes Admin
 
@@ -172,9 +192,13 @@ class MembershipServiceTest {
 
   @Test
   void removeMember_WithNonZeroBalance_ShouldThrowIllegalState() {
-    doThrow(new IllegalStateException("Cannot remove member with non-zero balance"))
-        .when(groupGovernance)
-        .assertCanRemoveMember(10L, 1L, 3L);
+    when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 3L))
+        .thenReturn(Optional.of(standardMember));
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 1L))
+        .thenReturn(Optional.of(ownerMember));
+    when(balanceService.calculateUserBalanceInGroup(3L, 10L)).thenReturn(BigDecimal.TEN);
 
     assertThrows(
         IllegalStateException.class,
@@ -183,9 +207,15 @@ class MembershipServiceTest {
 
   @Test
   void removeMember_WithActiveSettlements_ShouldThrowIllegalState() {
-    doThrow(new IllegalStateException("Cannot remove member with active settlements"))
-        .when(groupGovernance)
-        .assertCanRemoveMember(10L, 1L, 3L);
+    when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 3L))
+        .thenReturn(Optional.of(standardMember));
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 1L))
+        .thenReturn(Optional.of(ownerMember));
+    when(balanceService.calculateUserBalanceInGroup(3L, 10L)).thenReturn(BigDecimal.ZERO);
+    when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(3L), eq(10L), any()))
+        .thenReturn(true);
 
     assertThrows(IllegalStateException.class, () -> membershipService.removeMember(10L, 3L, 1L));
   }
@@ -195,9 +225,9 @@ class MembershipServiceTest {
     UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
     request.setRole(GroupRole.MEMBER);
 
-    doThrow(new UnauthorizedException("The group owner role cannot be modified"))
-        .when(groupGovernance)
-        .assertCanChangeRole(10L, 1L, 1L, GroupRole.MEMBER);
+    when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 1L))
+        .thenReturn(Optional.of(ownerMember));
 
     assertThrows(
         UnauthorizedException.class,
@@ -209,9 +239,10 @@ class MembershipServiceTest {
     UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
     request.setRole(GroupRole.MEMBER);
 
-    doThrow(new UnauthorizedException("Only the group owner can demote another admin"))
-        .when(groupGovernance)
-        .assertCanChangeRole(10L, 2L, 2L, GroupRole.MEMBER);
+    when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 2L))
+        .thenReturn(Optional.of(adminMember));
 
     // User 2 is Admin, User 2 (acting) is not Owner (who is User 1)
     assertThrows(
@@ -226,10 +257,12 @@ class MembershipServiceTest {
     UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
     request.setRole(GroupRole.MEMBER);
 
-    doNothing().when(groupGovernance).assertCanChangeRole(10L, 1L, 2L, GroupRole.MEMBER);
     when(groupRepository.findById(10L)).thenReturn(Optional.of(group));
+    when(splitzAuthorizer.isAdmin()).thenReturn(false);
     when(groupMemberRepository.findByGroupIdAndUserId(10L, 2L))
         .thenReturn(Optional.of(adminMember));
+    when(groupMemberRepository.findByGroupIdAndUserId(10L, 1L))
+        .thenReturn(Optional.of(ownerMember));
     when(groupRepository.save(any(Group.class))).thenReturn(group);
     when(groupMapper.toDTO(any(Group.class))).thenReturn(new GroupDTO());
 
