@@ -31,7 +31,7 @@ class GroupGovernanceTest {
   @Mock private BalanceService balanceService;
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
-  @InjectMocks private com.splitz.expense.service.MembershipService groupGovernance;
+  @InjectMocks private DefaultGroupGovernanceEngine groupGovernance;
 
   private Group group;
   private GroupMember member;
