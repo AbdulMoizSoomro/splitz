@@ -36,6 +36,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -62,11 +63,7 @@ class ExpenseServiceTest {
 
   @Mock private GroupGovernance groupGovernance;
 
-  @Mock private ActivityLogService activityLogService;
-
-  @Spy
-  private com.splitz.expense.activity.ExpenseDiffCalculator expenseDiffCalculator =
-      new com.splitz.expense.activity.ExpenseDiffCalculator();
+  @Mock private com.splitz.expense.activity.ExpenseActivityLogEngine expenseActivityLogEngine;
 
   @InjectMocks private ExpenseService expenseService;
 
@@ -705,15 +702,7 @@ class ExpenseServiceTest {
 
     expenseService.createExpense(1L, request, 100L);
 
-    verify(activityLogService)
-        .logActivity(
-            org.mockito.ArgumentMatchers.eq(1L),
-            org.mockito.ArgumentMatchers.eq(
-                com.splitz.expense.model.ActivityLogType.EXPENSE_CREATED),
-            org.mockito.ArgumentMatchers.eq(100L),
-            org.mockito.ArgumentMatchers.eq(1L),
-            org.mockito.ArgumentMatchers.eq("Dinner"),
-            org.mockito.ArgumentMatchers.nullable(String.class));
+    verify(expenseActivityLogEngine).recordCreated(any(), org.mockito.ArgumentMatchers.eq(100L));
   }
 
   @Test
@@ -722,15 +711,7 @@ class ExpenseServiceTest {
 
     expenseService.deleteExpense(1L, 100L);
 
-    verify(activityLogService)
-        .logActivity(
-            org.mockito.ArgumentMatchers.eq(1L),
-            org.mockito.ArgumentMatchers.eq(
-                com.splitz.expense.model.ActivityLogType.EXPENSE_DELETED),
-            org.mockito.ArgumentMatchers.eq(100L),
-            org.mockito.ArgumentMatchers.eq(1L),
-            org.mockito.ArgumentMatchers.eq("Dinner"),
-            org.mockito.ArgumentMatchers.nullable(String.class));
+    verify(expenseActivityLogEngine).recordDeleted(any(), org.mockito.ArgumentMatchers.eq(100L));
   }
 
   @Test
@@ -747,23 +728,16 @@ class ExpenseServiceTest {
 
     expenseService.updateExpense(1L, request, 100L);
 
-    verify(activityLogService)
-        .logActivity(
-            org.mockito.ArgumentMatchers.eq(1L),
-            org.mockito.ArgumentMatchers.eq(
-                com.splitz.expense.model.ActivityLogType.EXPENSE_UPDATED),
-            org.mockito.ArgumentMatchers.eq(100L),
-            org.mockito.ArgumentMatchers.eq(1L),
-            org.mockito.ArgumentMatchers.eq("Updated Dinner"),
-            org.mockito.ArgumentMatchers.contains("description: Dinner -> Updated Dinner"));
+    ArgumentCaptor<Expense> oldCaptor = ArgumentCaptor.forClass(Expense.class);
+    verify(expenseActivityLogEngine)
+        .recordUpdated(
+            oldCaptor.capture(),
+            org.mockito.ArgumentMatchers.eq(expense),
+            org.mockito.ArgumentMatchers.eq(com.splitz.expense.activity.SplitChange.RECALCULATED),
+            org.mockito.ArgumentMatchers.eq(100L));
 
-    verify(activityLogService)
-        .logActivity(
-            any(),
-            any(),
-            any(),
-            any(),
-            any(),
-            org.mockito.ArgumentMatchers.contains("amount: 60.00 -> 100.00"));
+    Expense oldExpense = oldCaptor.getValue();
+    assertEquals("Dinner", oldExpense.getDescription());
+    assertEquals(new BigDecimal("60.00"), oldExpense.getAmount());
   }
 }

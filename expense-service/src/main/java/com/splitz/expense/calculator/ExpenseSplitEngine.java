@@ -1,6 +1,6 @@
 package com.splitz.expense.calculator;
 
-import com.splitz.expense.activity.ExpenseChange.SplitChange;
+import com.splitz.expense.activity.SplitChange;
 import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.ExpenseSplit;
