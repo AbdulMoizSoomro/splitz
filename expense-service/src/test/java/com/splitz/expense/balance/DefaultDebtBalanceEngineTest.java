@@ -10,6 +10,7 @@ import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.model.SplitType;
 import com.splitz.expense.repository.ExpenseRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -22,13 +23,17 @@ class DefaultDebtBalanceEngineTest {
 
   private ExpenseRepository expenseRepository;
   private SettlementAllocationRepository settlementAllocationRepository;
+  private PaymentRepository paymentRepository;
   private DefaultDebtBalanceEngine engine;
 
   @BeforeEach
   void setUp() {
     expenseRepository = mock(ExpenseRepository.class);
     settlementAllocationRepository = mock(SettlementAllocationRepository.class);
-    engine = new DefaultDebtBalanceEngine(expenseRepository, settlementAllocationRepository);
+    paymentRepository = mock(PaymentRepository.class);
+    engine =
+        new DefaultDebtBalanceEngine(
+            expenseRepository, settlementAllocationRepository, paymentRepository);
   }
 
   @Test
@@ -273,5 +278,32 @@ class DefaultDebtBalanceEngineTest {
     // User paid 15 to friend, friend paid 5 to user => Net +10.00
     BigDecimal balance = engine.calculateGlobalSettlementBalance(userId, friendId);
     assertThat(balance).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  void shouldCalculateUserGlobalSettlementBalance() {
+    Long userId = 1L;
+
+    com.splitz.expense.model.Payment payment =
+        com.splitz.expense.model.Payment.builder()
+            .payerId(userId)
+            .payeeId(2L)
+            .amount(new BigDecimal("25.00"))
+            .status(SettlementStatus.COMPLETED)
+            .allocations(new ArrayList<>())
+            .build();
+    payment
+        .getAllocations()
+        .add(
+            SettlementAllocation.builder()
+                .groupId(null)
+                .amount(new BigDecimal("25.00"))
+                .payment(payment)
+                .build());
+
+    when(paymentRepository.findByPayerIdOrPayeeId(userId, userId)).thenReturn(List.of(payment));
+
+    BigDecimal balance = engine.calculateUserGlobalSettlementBalance(userId);
+    assertThat(balance).isEqualByComparingTo("25.00");
   }
 }

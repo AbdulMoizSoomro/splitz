@@ -22,7 +22,6 @@ import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -38,7 +37,6 @@ class BalanceServiceTest {
   @Mock private ExpenseRepository expenseRepository;
   @Mock private GroupMemberRepository groupMemberRepository;
   @Mock private GroupRepository groupRepository;
-  @Mock private PaymentRepository paymentRepository;
   @Mock private SettlementAllocationRepository settlementAllocationRepository;
   @Mock private UserClient userClient;
   @Mock private DebtBalanceEngine debtBalanceEngine;
@@ -55,7 +53,6 @@ class BalanceServiceTest {
             expenseRepository,
             groupMemberRepository,
             groupRepository,
-            paymentRepository,
             settlementAllocationRepository,
             userClient,
             debtBalanceEngine,
@@ -163,8 +160,8 @@ class BalanceServiceTest {
     Long userId = 1L;
 
     when(groupMemberRepository.findByUserId(userId)).thenReturn(Collections.emptyList());
-    when(paymentRepository.findByPayerIdOrPayeeId(userId, userId))
-        .thenReturn(Collections.emptyList());
+    when(debtBalanceEngine.calculateUserGlobalSettlementBalance(userId))
+        .thenReturn(BigDecimal.ZERO);
     when(userClient.getUserById(userId))
         .thenReturn(
             java.util.Optional.of(new UserResponse(userId, "user1", "u@e.com", "First", "Last")));
