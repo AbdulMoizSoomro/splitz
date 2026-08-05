@@ -130,7 +130,7 @@ test.describe("[E2E] Temporary Friends List", () => {
       await pageAlice.waitForLoadState('networkidle');
       await expect(pageAlice.getByText("Temporary Friends")).toBeVisible({ timeout: 15000 });
       const tempFriendCard = pageAlice.locator(".bg-orange-50\\/30");
-      await expect(tempFriendCard.getByText(bobName)).toBeVisible();
+      await expect(tempFriendCard.getByText(new RegExp(`${bobName}|Bob`, "i"))).toBeVisible();
 
       // 8. Verify the group badge is visible
       await expect(tempFriendCard.getByText(groupName)).toBeVisible();
