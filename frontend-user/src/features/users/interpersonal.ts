@@ -47,6 +47,10 @@ export function deriveRelationshipStatus({
   const isFriend = safeFriends.some((f) => f.id === targetUserId);
   if (isFriend) return "CONFIRMED_FRIEND";
 
+  if (Math.abs(netBalance) > MONEY_TOLERANCE) {
+    return "TEMP_FRIEND";
+  }
+
   const isOutgoing = safeOutgoing.some(
     (r) => r.addresseeId === targetUserId || r.friendId === targetUserId,
   );
@@ -56,10 +60,6 @@ export function deriveRelationshipStatus({
     (r) => r.requesterId === targetUserId || r.friendId === targetUserId,
   );
   if (isIncoming) return "PENDING_INCOMING";
-
-  if (Math.abs(netBalance) > MONEY_TOLERANCE) {
-    return "TEMP_FRIEND";
-  }
 
   return "NONE";
 }
@@ -97,6 +97,11 @@ export function autoAllocateSettlement({
   return allocations;
 }
 
+/** Pure helper to parse allocation values consistently. */
+export function parseAllocationValue(val: string | number): number {
+  return typeof val === "number" ? val : parseFloat(val) || 0;
+}
+
 export interface ValidateAllocationOptions {
   amount: number;
   isAllocating: boolean;
@@ -122,7 +127,7 @@ export function validateSettlementAllocation({
   }
 
   const totalAllocated = Object.values(allocations).reduce(
-    (sum, val) => sum + (typeof val === "number" ? val : parseFloat(val) || 0),
+    (sum, val) => sum + parseAllocationValue(val),
     0,
   );
 
@@ -170,7 +175,7 @@ export function buildSettlementPayload({
     payload.allocations = Object.entries(allocations)
       .map(([groupId, val]) => ({
         groupId: parseInt(groupId),
-        amount: typeof val === "number" ? val : parseFloat(val) || 0,
+        amount: parseAllocationValue(val),
       }))
       .filter((a) => a.amount > 0);
   }
@@ -297,6 +302,22 @@ export function useInterpersonalFriend(friendId: number) {
     },
   });
 
+  const updateSettlementMutation = useMutation({
+    mutationFn: ({ settlementId, amount }: { settlementId: number; amount: number }) =>
+      friendService.updateSettlement(settlementId, { amount }),
+    onSuccess: () => {
+      invalidations.settlementMutated(invalidate, currentUserId, friendId);
+    },
+  });
+
+  const confirmSettlementMutation = useMutation({
+    mutationFn: (settlementId: number) =>
+      friendService.confirmSettlement(settlementId),
+    onSuccess: () => {
+      invalidations.settlementMutated(invalidate, currentUserId, friendId);
+    },
+  });
+
   return {
     currentUserId,
     friend: friendQuery.data ?? undefined,
@@ -315,6 +336,8 @@ export function useInterpersonalFriend(friendId: number) {
       sendFriendRequest: sendFriendRequestMutation,
       cancelFriendRequest: cancelFriendRequestMutation,
       createSettlement: createSettlementMutation,
+      updateSettlement: updateSettlementMutation,
+      confirmSettlement: confirmSettlementMutation,
     },
   };
 }
