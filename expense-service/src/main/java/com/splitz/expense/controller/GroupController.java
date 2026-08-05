@@ -1,11 +1,11 @@
 package com.splitz.expense.controller;
 
+import com.splitz.expense.activity.ExpenseActivityLogEngine;
 import com.splitz.expense.dto.ActivityLogDTO;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.governance.GroupGovernance;
-import com.splitz.expense.service.ActivityLogService;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import jakarta.validation.Valid;
@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GroupController {
 
   private final GroupService groupService;
-  private final ActivityLogService activityLogService;
+  private final ExpenseActivityLogEngine expenseActivityLogEngine;
   private final GroupGovernance groupGovernance;
   private final SharedSecurityAuthorizer splitzAuthorizer;
 
@@ -65,6 +65,6 @@ public class GroupController {
   public ResponseEntity<List<ActivityLogDTO>> getGroupActivity(
       @PathVariable("groupId") Long groupId) {
     groupGovernance.assertIsMember(groupId, splitzAuthorizer.getCurrentUserId());
-    return ResponseEntity.ok(activityLogService.getActivitiesByGroup(groupId));
+    return ResponseEntity.ok(expenseActivityLogEngine.getGroupActivity(groupId));
   }
 }

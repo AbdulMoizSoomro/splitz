@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.splitz.expense.activity.ExpenseActivityLogEngine;
 import com.splitz.expense.dto.ActivityLogDTO;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
@@ -19,7 +20,6 @@ import com.splitz.expense.dto.UpdateGroupRequest;
 import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.model.GroupRole;
-import com.splitz.expense.service.ActivityLogService;
 import com.splitz.expense.service.GroupService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.JwtUtil;
@@ -51,7 +51,7 @@ class GroupControllerTest {
 
   @MockBean private GroupService groupService;
 
-  @MockBean private ActivityLogService activityLogService;
+  @MockBean private ExpenseActivityLogEngine expenseActivityLogEngine;
 
   @MockBean private GroupGovernance groupGovernance;
 
@@ -159,7 +159,7 @@ class GroupControllerTest {
             .entityName("Dinner")
             .build();
 
-    when(activityLogService.getActivitiesByGroup(1L)).thenReturn(List.of(dto));
+    when(expenseActivityLogEngine.getGroupActivity(1L)).thenReturn(List.of(dto));
 
     mockMvc
         .perform(get("/groups/1/activity"))
@@ -178,6 +178,6 @@ class GroupControllerTest {
 
     mockMvc.perform(get("/groups/1/activity")).andExpect(status().isForbidden());
 
-    org.mockito.Mockito.verifyNoInteractions(activityLogService);
+    org.mockito.Mockito.verifyNoInteractions(expenseActivityLogEngine);
   }
 }
