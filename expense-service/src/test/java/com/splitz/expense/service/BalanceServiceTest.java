@@ -130,11 +130,12 @@ class BalanceServiceTest {
     when(groupRepository.findAllById(any())).thenReturn(List.of(group));
 
     List<Expense> expenses =
-        List.of(Expense.builder().paidBy(userId).amount(new BigDecimal("20.00")).build());
-    when(expenseRepository.findByGroupId(10L)).thenReturn(expenses);
+        List.of(
+            Expense.builder().group(group).paidBy(userId).amount(new BigDecimal("20.00")).build());
+    when(expenseRepository.findByGroupIdIn(any())).thenReturn(expenses);
 
     List<SettlementAllocation> allocations = Collections.emptyList();
-    when(settlementAllocationRepository.findByGroupId(10L)).thenReturn(allocations);
+    when(settlementAllocationRepository.findByGroupIdIn(any())).thenReturn(allocations);
 
     when(debtBalanceEngine.calculateNetBalanceInGroup(userId, friendId, expenses, allocations))
         .thenReturn(new BigDecimal("10.00"));
@@ -169,5 +170,36 @@ class BalanceServiceTest {
     assertThat(result).isNotNull();
     assertThat(result.getUserId()).isEqualTo(userId);
     assertThat(result.getTotalBalance()).isEqualByComparingTo("0.00");
+  }
+
+  @Test
+  void shouldMapUserBalancesFromSingleBatchEngineCallIncludingZeroBalanceGroups() {
+    Long userId = 1L;
+
+    Group group10 = Group.builder().id(10L).name("Group A").build();
+    Group group20 = Group.builder().id(20L).name("Group B").build();
+    when(groupMemberRepository.findByUserId(userId))
+        .thenReturn(
+            List.of(
+                GroupMember.builder().userId(userId).group(group10).build(),
+                GroupMember.builder().userId(userId).group(group20).build()));
+
+    when(debtBalanceEngine.calculateBalancesInGroups(List.of(userId), List.of(10L, 20L)))
+        .thenReturn(Map.of(userId, Map.of(10L, new BigDecimal("35.00"), 20L, BigDecimal.ZERO)));
+    when(debtBalanceEngine.calculateUserGlobalSettlementBalance(userId))
+        .thenReturn(BigDecimal.ZERO);
+    when(userClient.getUserById(userId))
+        .thenReturn(
+            java.util.Optional.of(new UserResponse(userId, "user1", "u@e.com", "First", "Last")));
+
+    UserBalanceResponseDTO result = balanceService.getUserBalances(userId);
+
+    assertThat(result.getGroupBalances()).hasSize(2);
+    assertThat(result.getGroupBalances().get(0).getGroupId()).isEqualTo(10L);
+    assertThat(result.getGroupBalances().get(0).getBalance()).isEqualByComparingTo("35.00");
+    assertThat(result.getGroupBalances().get(1).getGroupId()).isEqualTo(20L);
+    assertThat(result.getGroupBalances().get(1).getBalance()).isEqualByComparingTo("0.00");
+    assertThat(result.getTotalBalance()).isEqualByComparingTo("35.00");
+    verify(debtBalanceEngine).calculateBalancesInGroups(List.of(userId), List.of(10L, 20L));
   }
 }
