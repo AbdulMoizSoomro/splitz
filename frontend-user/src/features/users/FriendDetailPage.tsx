@@ -28,12 +28,8 @@ import {
 } from "@/components/ui/dialog";
 import api from "../../lib/axios";
 import { Button } from "@/components/ui/button";
-import { groupService } from "../groups/groupService";
-import { expenseService } from "../expenses/expenseService";
-import { friendService } from "./friendService";
+import { useInterpersonalFriend } from "./interpersonal";
 import { isGlobalPayment as isGlobalPaymentFor, confirmPayment as confirmPaymentFor } from "../balances/settlement";
-import { decomposePosition } from "../balances/ledger";
-import { mergeActivity } from "./unifiedActivity";
 import { queryKeys, invalidations, bindInvalidations } from "../../lib/queryKeys";
 import { useAuthStore } from "../../store/authStore";
 import { toast } from "sonner";
@@ -60,144 +56,63 @@ const FriendDetailPage = () => {
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
   const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
   const queryClient = useQueryClient();
-
-  // The minimal `invalidateQueries` surface the queryKeys invalidations expect.
   const invalidate = bindInvalidations(queryClient);
 
-  const { data: friendsList } = useQuery({
-    queryKey: queryKeys.friends(currentUser!.id),
-    queryFn: () => friendService.getFriends(currentUser!.id),
-    enabled: !!currentUser?.id,
-  });
+  const {
+    friend,
+    relationshipStatus,
+    netBalance,
+    directBalance,
+    groupBalances,
+    sharedGroups,
+    activityFeed: unifiedActivity,
+    isLoading,
+    mutations,
+  } = useInterpersonalFriend(friendId);
 
-  const { data: outgoingRequests } = useQuery({
-    queryKey: queryKeys.friendRequests(currentUser!.id, "OUTGOING"),
-    queryFn: () => friendService.getFriendRequests(currentUser!.id, "OUTGOING"),
-    enabled: !!currentUser?.id,
-  });
+  const isConfirmedFriend = relationshipStatus === "CONFIRMED_FRIEND";
+  const isPendingOutgoing = relationshipStatus === "PENDING_OUTGOING";
+  const hasLoadedStatus = relationshipStatus !== undefined;
 
-  const hasLoadedStatus = friendsList !== undefined && outgoingRequests !== undefined;
-  const friendArray = Array.isArray(friendsList)
-    ? friendsList
-    : (friendsList as any)?.content && Array.isArray((friendsList as any).content)
-    ? (friendsList as any).content
-    : [];
-  const outgoingArray = Array.isArray(outgoingRequests)
-    ? outgoingRequests
-    : (outgoingRequests as any)?.content && Array.isArray((outgoingRequests as any).content)
-    ? (outgoingRequests as any).content
-    : [];
-
-  const isConfirmedFriend = friendArray.some((f: any) => f.id === friendId);
-  const isPendingOutgoing = outgoingArray.some((r: any) => r.addresseeId === friendId || r.friendId === friendId);
-
-  const addFriendMutation = useMutation({
-    mutationFn: () => friendService.sendFriendRequest(currentUser!.id, friendId),
-    onSuccess: () => {
-      // A request edge only touches the request lists, so invalidate those
-      // precisely instead of the broader friendship bundle.
-      invalidate(queryKeys.friendRequests(currentUser!.id));
-      setIsAddFriendModalOpen(false);
-      toast.success("Friend request sent");
+  const addFriendMutation = {
+    mutate: () => {
+      mutations.sendFriendRequest.mutate(undefined, {
+        onSuccess: () => {
+          setIsAddFriendModalOpen(false);
+          toast.success("Friend request sent");
+        },
+      });
     },
-  });
+    isPending: mutations.sendFriendRequest.isPending,
+  };
 
-  const cancelRequestMutation = useMutation({
-    mutationFn: () => friendService.removeFriend(currentUser!.id, friendId),
-    onSuccess: () => {
-      invalidate(queryKeys.friendRequests(currentUser!.id));
-      setIsCancelRequestModalOpen(false);
-      toast.success("Friend request cancelled");
+  const cancelRequestMutation = {
+    mutate: () => {
+      mutations.cancelFriendRequest.mutate(undefined, {
+        onSuccess: () => {
+          setIsCancelRequestModalOpen(false);
+          toast.success("Friend request cancelled");
+        },
+      });
     },
-  });
+    isPending: mutations.cancelFriendRequest.isPending,
+  };
 
-
-  const { data: friend, isLoading: isLoadingFriend } = useQuery({
-    queryKey: queryKeys.user(id!),
-    queryFn: async () => {
-      const response = await api.get<User>(`/users/${id}`);
-      return response.data;
-    },
-    enabled: !!id,
-  });
-
-  const { data: balanceData, isLoading: isLoadingBalance } = useQuery({
-    queryKey: queryKeys.friendBalance(currentUser!.id, friendId),
-    queryFn: () =>
-      friendService.getNetBalance(Number(currentUser!.id), friendId),
-    enabled: !!currentUser && !!friendId,
-  });
-
-  const netBalance = balanceData?.netBalance || 0;
-
-  const { data: groups, isLoading: isLoadingGroups } = useQuery({
-    queryKey: queryKeys.groups(),
-    queryFn: () => groupService.getGroups(),
-  });
-
-  const sharedGroups = useMemo(
-    () =>
-      groups?.filter((group) =>
-        group.members.some((member) => member.userId === friendId),
-      ) || [],
-    [groups, friendId],
-  );
-
-  // Build a groupId -> groupName lookup map
   const groupNameMap = useMemo(() => {
     const map: Record<number, string> = {};
-    if (groups) {
-      groups.forEach((g) => { map[g.id] = g.name; });
-    }
+    sharedGroups.forEach((g) => {
+      map[g.id] = g.name;
+    });
     return map;
-  }, [groups]);
+  }, [sharedGroups]);
 
-  // Compute group-specific balances lookup map
   const groupBalancesMap = useMemo(() => {
     const map: Record<number, number> = {};
-    if (balanceData?.groupBalances) {
-      balanceData.groupBalances.forEach((gb) => {
-        map[gb.groupId] = gb.balance;
-      });
-    }
+    groupBalances.forEach((gb) => {
+      map[gb.groupId] = gb.balance;
+    });
     return map;
-  }, [balanceData]);
-
-  // Direct (non-group) balance is the net total minus all group allocations —
-  // the ledger's one decomposition rule.
-  const { position } = decomposePosition({
-    total: netBalance,
-    balances: balanceData?.groupBalances ?? [],
-  });
-  const directBalance = position.direct;
-
-  const { data: sharedExpenses, isLoading: isLoadingExpenses } = useQuery({
-    queryKey: queryKeys.sharedExpenses(id!, sharedGroups.map((g) => g.id)),
-    queryFn: async () => {
-      if (sharedGroups.length === 0) return [];
-
-      const allExpenses = await expenseService.getBulkGroupExpenses(
-        sharedGroups.map((g) => g.id),
-      );
-
-      // Filter expenses where friend is involved (either as payer or in splits)
-      const filtered = allExpenses.filter(
-        (expense) =>
-          expense.paidBy === friendId ||
-          expense.splits.some((split) => split.userId === friendId),
-      );
-
-      return filtered;
-    },
-    enabled: !!groups,
-  });
-
-  const { data: settlements, isLoading: isLoadingSettlements } = useQuery({
-    queryKey: queryKeys.friendSettlements(currentUser!.id, friendId),
-    queryFn: () =>
-      friendService.getSettlementsWithFriend(Number(currentUser!.id), friendId),
-    enabled: !!currentUser && !!friendId,
-  });
+  }, [groupBalances]);
 
   const confirmMutation = useMutation({
     mutationFn: (settlementId: number) =>
@@ -224,15 +139,6 @@ const FriendDetailPage = () => {
       toast.error("Failed to update payment");
     },
   });
-
-  const unifiedActivity = useMemo(
-    () => mergeActivity(sharedExpenses, settlements),
-    [sharedExpenses, settlements],
-  );
-
-
-  const isLoading =
-    isLoadingFriend || isLoadingGroups || isLoadingExpenses || isLoadingBalance || isLoadingSettlements;
 
   if (isLoading) {
     return (
