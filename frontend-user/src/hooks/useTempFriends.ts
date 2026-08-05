@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useLedger } from "./useLedger";
 import { MONEY_TOLERANCE, type Counterparty } from "../features/balances/ledger";
+import { deriveRelationshipStatus } from "../features/users/interpersonal";
 
 export interface TempFriend {
   userId: number;
@@ -20,14 +21,15 @@ export const useTempFriends = () => {
   const { ledger, friends, isLoading } = useLedger({ detail: true });
 
   const tempFriends: TempFriend[] = useMemo(() => {
-    const friendIds = new Set(friends?.map((f) => f.id));
-
     return (ledger?.counterparties ?? [])
       .filter(
         (cp: Counterparty) =>
           cp.userId !== ledger?.key &&
-          !friendIds.has(cp.userId) &&
-          Math.abs(cp.balance) > MONEY_TOLERANCE,
+          deriveRelationshipStatus({
+            targetUserId: cp.userId,
+            friends,
+            netBalance: cp.balance,
+          }) === "TEMP_FRIEND",
       )
       .map((cp) => {
         const parts = cp.name.split(" ");
