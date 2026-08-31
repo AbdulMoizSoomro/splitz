@@ -7,7 +7,7 @@ import { expenseService } from "../expenses/expenseService";
 import { queryKeys, invalidations, bindInvalidations } from "../../lib/queryKeys";
 import { MONEY_TOLERANCE } from "../balances/ledger";
 import { mergeActivity, type ActivityItem } from "./unifiedActivity";
-import type { User, Friendship, FriendshipSettlementDTO } from "../../types/user";
+import type { User, Friendship } from "../../types/user";
 
 export type RelationshipStatus =
   | "CONFIRMED_FRIEND"

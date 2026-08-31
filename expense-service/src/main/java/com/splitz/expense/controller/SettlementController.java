@@ -2,7 +2,9 @@ package com.splitz.expense.controller;
 
 import com.splitz.expense.dto.CreateSettlementRequest;
 import com.splitz.expense.dto.SettlementDTO;
+import com.splitz.expense.dto.UpdateSettlementRequest;
 import com.splitz.expense.mapper.PaymentMapper;
+import com.splitz.expense.model.Payment;
 import com.splitz.expense.service.PaymentService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -24,22 +26,24 @@ public class SettlementController {
   private final PaymentService paymentService;
   private final PaymentMapper paymentMapper;
 
-  @PostMapping("/settlements")
-  @PreAuthorize("@security.isGroupMember(#request.groupId)")
+  @PostMapping({"/settlements", "/friendship-settlements"})
+  @PreAuthorize(
+      "(#request.groupId != null && @security.isGroupMember(#request.groupId)) ||"
+          + " @splitzAuthorizer.isSelfOrAdmin(#request.payerId) ||"
+          + " @splitzAuthorizer.isSelfOrAdmin(#request.payeeId)")
   public ResponseEntity<SettlementDTO> createSettlement(
       @Valid @RequestBody CreateSettlementRequest request) {
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(
-            paymentMapper.toSettlementDTO(
-                paymentService.createPayment(
-                    request.getPayerId(),
-                    request.getPayeeId(),
-                    request.getAmount(),
-                    request.getGroupId(),
-                    null)));
+    Payment payment =
+        paymentService.createPayment(
+            request.getPayerId(),
+            request.getPayeeId(),
+            request.getAmount(),
+            request.getGroupId(),
+            request.getAllocations());
+    return ResponseEntity.status(HttpStatus.CREATED).body(paymentMapper.toSettlementDTO(payment));
   }
 
-  @GetMapping("/settlements/{id}")
+  @GetMapping({"/settlements/{id}", "/friendship-settlements/{id}"})
   public ResponseEntity<SettlementDTO> getSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.getPaymentById(id)));
   }
@@ -52,12 +56,28 @@ public class SettlementController {
         paymentMapper.toSettlementDTOs(paymentService.getPaymentsByGroup(groupId)));
   }
 
-  @PutMapping("/settlements/{id}/mark-paid")
+  @GetMapping("/users/{userId1}/friendships/{userId2}/settlements")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId1)")
+  public ResponseEntity<List<SettlementDTO>> getSettlementsBetweenUsers(
+      @PathVariable("userId1") Long userId1, @PathVariable("userId2") Long userId2) {
+    return ResponseEntity.ok(
+        paymentMapper.toSettlementDTOs(paymentService.getPaymentsBetweenUsers(userId1, userId2)));
+  }
+
+  @PutMapping({"/settlements/{id}", "/friendship-settlements/{id}"})
+  public ResponseEntity<SettlementDTO> updateSettlement(
+      @PathVariable("id") Long id, @Valid @RequestBody UpdateSettlementRequest request) {
+    Payment updated =
+        paymentService.updatePayment(id, request.getAmount(), request.getAllocations());
+    return ResponseEntity.ok(paymentMapper.toSettlementDTO(updated));
+  }
+
+  @PutMapping({"/settlements/{id}/mark-paid", "/friendship-settlements/{id}/mark-paid"})
   public ResponseEntity<SettlementDTO> markAsPaid(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.markAsPaid(id)));
   }
 
-  @PutMapping("/settlements/{id}/confirm")
+  @PutMapping({"/settlements/{id}/confirm", "/friendship-settlements/{id}/confirm"})
   public ResponseEntity<SettlementDTO> confirmSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.confirmPayment(id)));
   }

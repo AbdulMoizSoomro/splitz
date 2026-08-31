@@ -1,6 +1,6 @@
 package com.splitz.expense.allocator;
 
-import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
+import com.splitz.expense.dto.CreateSettlementRequest;
 import com.splitz.expense.model.SettlementAllocation;
 import java.math.BigDecimal;
 import java.util.List;
@@ -30,5 +30,5 @@ public interface AllocationEngine {
       Long payeeId,
       BigDecimal amount,
       Long groupId,
-      List<CreateFriendshipSettlementRequest.Allocation> explicitAllocations);
+      List<CreateSettlementRequest.Allocation> explicitAllocations);
 }

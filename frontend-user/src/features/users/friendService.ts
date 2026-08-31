@@ -6,6 +6,8 @@ import type {
   FriendBalanceResponse,
 } from "../../types/user";
 
+import { settlementService } from "../balances/settlementService";
+
 export const friendService = {
   getFriends: async (userId: string | number): Promise<User[]> => {
     const response = await api.get<User[]>(`/users/${userId}/friends`);
@@ -64,10 +66,7 @@ export const friendService = {
     userId: number,
     friendId: number,
   ): Promise<FriendshipSettlementDTO[]> => {
-    const response = await expenseApi.get<FriendshipSettlementDTO[]>(
-      `/users/${userId}/friendships/${friendId}/settlements`,
-    );
-    return response.data;
+    return settlementService.getSettlementsBetweenUsers(userId, friendId);
   },
 
   createSettlement: async (data: {
@@ -75,30 +74,20 @@ export const friendService = {
     payeeId: number;
     amount: number;
     allocations?: { groupId: number; amount: number }[];
-  }): Promise<FriendshipSettlementDTO[]> => {
-    const response = await expenseApi.post<FriendshipSettlementDTO[]>(
-      "/friendship-settlements",
-      data,
-    );
-    return response.data;
+  }): Promise<FriendshipSettlementDTO> => {
+    return settlementService.createSettlement(data);
   },
 
   markAsPaid: async (
     settlementId: number,
   ): Promise<FriendshipSettlementDTO> => {
-    const response = await expenseApi.put<FriendshipSettlementDTO>(
-      `/friendship-settlements/${settlementId}/mark-paid`,
-    );
-    return response.data;
+    return settlementService.markAsPaid(settlementId);
   },
 
   confirmSettlement: async (
     settlementId: number,
   ): Promise<FriendshipSettlementDTO> => {
-    const response = await expenseApi.put<FriendshipSettlementDTO>(
-      `/friendship-settlements/${settlementId}/confirm`,
-    );
-    return response.data;
+    return settlementService.confirmSettlement(settlementId);
   },
 
   updateSettlement: async (
@@ -108,10 +97,7 @@ export const friendService = {
       allocations?: { groupId: number; amount: number }[];
     },
   ): Promise<FriendshipSettlementDTO> => {
-    const response = await expenseApi.put<FriendshipSettlementDTO>(
-      `/friendship-settlements/${settlementId}`,
-      data,
-    );
-    return response.data;
+    return settlementService.updateSettlement(settlementId, data);
   },
 };
+

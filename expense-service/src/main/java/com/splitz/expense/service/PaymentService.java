@@ -1,7 +1,7 @@
 package com.splitz.expense.service;
 
 import com.splitz.expense.allocator.AllocationEngine;
-import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
+import com.splitz.expense.dto.CreateSettlementRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.lifecycle.PaymentLifecycle;
@@ -34,7 +34,7 @@ public class PaymentService {
       Long payeeId,
       BigDecimal amount,
       Long groupId,
-      List<CreateFriendshipSettlementRequest.Allocation> explicitAllocations) {
+      List<CreateSettlementRequest.Allocation> explicitAllocations) {
     if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("Payment amount must be positive");
     }
@@ -139,7 +139,7 @@ public class PaymentService {
   public Payment updatePayment(
       Long paymentId,
       BigDecimal newAmount,
-      List<CreateFriendshipSettlementRequest.Allocation> newAllocations) {
+      List<CreateSettlementRequest.Allocation> newAllocations) {
     Payment payment =
         paymentRepository
             .findByIdWithLock(paymentId)
