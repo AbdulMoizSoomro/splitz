@@ -20,6 +20,7 @@ export interface Friendship {
   id: number;
   requesterId: number;
   addresseeId: number;
+  friendId?: number;
   status: FriendshipStatus;
   createdAt: string;
   updatedAt: string;
@@ -43,22 +44,11 @@ export interface FriendBalanceResponse {
   userId: number;
   friendId: number;
   netBalance: number;
+  directBalance?: number;
   groupBalances: GroupBalance[];
 }
 
-export interface FriendshipSettlementDTO {
-  id: number;
-  payerId: number;
-  payeeId: number;
-  groupId?: number;
-  amount: number;
-  status: "PENDING" | "MARKED_PAID" | "COMPLETED";
-  createdAt: string;
-  updatedAt: string;
-  markedPaidAt?: string;
-  settledAt?: string;
-  allocations?: Array<{
-    groupId: number;
-    amount: number;
-  }>;
-}
+import type { Settlement } from "../features/balances/settlementService";
+
+export type FriendshipSettlementDTO = Settlement;
+

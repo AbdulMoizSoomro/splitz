@@ -2,7 +2,6 @@ import api, { expenseApi } from "../../lib/axios";
 import type {
   User,
   Friendship,
-  FriendshipSettlementDTO,
   FriendBalanceResponse,
 } from "../../types/user";
 
@@ -59,59 +58,5 @@ export const friendService = {
     );
     return response.data;
   },
-
-  getSettlementsWithFriend: async (
-    userId: number,
-    friendId: number,
-  ): Promise<FriendshipSettlementDTO[]> => {
-    const response = await expenseApi.get<FriendshipSettlementDTO[]>(
-      `/users/${userId}/friendships/${friendId}/settlements`,
-    );
-    return response.data;
-  },
-
-  createSettlement: async (data: {
-    payerId: number;
-    payeeId: number;
-    amount: number;
-    allocations?: { groupId: number; amount: number }[];
-  }): Promise<FriendshipSettlementDTO[]> => {
-    const response = await expenseApi.post<FriendshipSettlementDTO[]>(
-      "/friendship-settlements",
-      data,
-    );
-    return response.data;
-  },
-
-  markAsPaid: async (
-    settlementId: number,
-  ): Promise<FriendshipSettlementDTO> => {
-    const response = await expenseApi.put<FriendshipSettlementDTO>(
-      `/friendship-settlements/${settlementId}/mark-paid`,
-    );
-    return response.data;
-  },
-
-  confirmSettlement: async (
-    settlementId: number,
-  ): Promise<FriendshipSettlementDTO> => {
-    const response = await expenseApi.put<FriendshipSettlementDTO>(
-      `/friendship-settlements/${settlementId}/confirm`,
-    );
-    return response.data;
-  },
-
-  updateSettlement: async (
-    settlementId: number,
-    data: {
-      amount: number;
-      allocations?: { groupId: number; amount: number }[];
-    },
-  ): Promise<FriendshipSettlementDTO> => {
-    const response = await expenseApi.put<FriendshipSettlementDTO>(
-      `/friendship-settlements/${settlementId}`,
-      data,
-    );
-    return response.data;
-  },
 };
+

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.splitz.user.dto.UserDTO;
+import com.splitz.user.event.DomainEventPublisher;
 import com.splitz.user.mapper.UserMapper;
 import com.splitz.user.model.User;
 import com.splitz.user.repository.RoleRepository;
@@ -31,6 +32,7 @@ class UserServiceTest {
 
   @Mock private UserRepository userRepository;
   @Mock private RoleRepository roleRepository;
+  @Mock private DomainEventPublisher eventPublisher;
   @Mock private UserMapper userMapper;
   @Mock private BCryptPasswordEncoder passwordEncoder;
 

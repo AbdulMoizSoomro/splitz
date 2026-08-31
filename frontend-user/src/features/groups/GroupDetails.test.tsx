@@ -10,6 +10,7 @@ import { cleanup } from "@testing-library/react";
 import GroupDetails from "./GroupDetails";
 import { groupService } from "./groupService";
 import { friendService } from "../users/friendService";
+import { userService } from "../users/userService";
 import { settlementService } from "../balances/settlementService";
 import { expenseService } from "../expenses/expenseService";
 import { categoryService } from "../expenses/categoryService";
@@ -21,6 +22,7 @@ let queryClient: QueryClient;
 
 vi.mock("./groupService");
 vi.mock("../users/friendService");
+vi.mock("../users/userService");
 vi.mock("../balances/settlementService");
 vi.mock("../expenses/expenseService");
 vi.mock("../expenses/categoryService");
@@ -72,6 +74,13 @@ describe("GroupDetails", () => {
       simplifiedDebts: [],
     });
     vi.mocked(friendService.getFriends).mockResolvedValue([]);
+    vi.mocked(userService.getUser).mockImplementation(async (id) => {
+      const numId = Number(id);
+      if (numId === 1) return { id: 1, firstName: "Owner", lastName: "User", username: "owneruser", email: "o@e.com" };
+      if (numId === 2) return { id: 2, firstName: "Admin", lastName: "User", username: "adminuser", email: "a@e.com" };
+      if (numId === 3) return { id: 3, firstName: "Member", lastName: "User", username: "memberuser", email: "m@e.com" };
+      return null;
+    });
     vi.mocked(settlementService.getSettlementsByGroup).mockResolvedValue([]);
     vi.mocked(expenseService.getGroupExpenses).mockResolvedValue([]);
     vi.mocked(categoryService.getCategories).mockResolvedValue([]);
