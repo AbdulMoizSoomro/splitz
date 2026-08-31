@@ -1,61 +1,34 @@
 package com.splitz.user.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.event.FriendshipEvent;
 import com.splitz.user.dto.FriendshipDTO;
 import com.splitz.user.dto.UserDTO;
+import com.splitz.user.event.DomainEventPublisher;
 import com.splitz.user.exception.ResourceNotFoundException;
 import com.splitz.user.mapper.FriendshipMapper;
 import com.splitz.user.mapper.UserMapper;
 import com.splitz.user.model.Friendship;
 import com.splitz.user.model.FriendshipStatus;
-import com.splitz.user.model.OutboxEvent;
 import com.splitz.user.model.User;
 import com.splitz.user.repository.FriendshipRepository;
-import com.splitz.user.repository.OutboxRepository;
 import com.splitz.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class FriendshipService {
 
   private final FriendshipRepository friendshipRepository;
   private final UserRepository userRepository;
-  private final OutboxRepository outboxRepository;
+  private final DomainEventPublisher eventPublisher;
   private final FriendshipMapper friendshipMapper;
   private final UserMapper userMapper;
-  private final ObjectMapper objectMapper;
-
-  @Autowired
-  public FriendshipService(
-      FriendshipRepository friendshipRepository,
-      UserRepository userRepository,
-      OutboxRepository outboxRepository,
-      FriendshipMapper friendshipMapper,
-      UserMapper userMapper,
-      ObjectMapper objectMapper) {
-    this.friendshipRepository = friendshipRepository;
-    this.userRepository = userRepository;
-    this.outboxRepository = outboxRepository;
-    this.friendshipMapper = friendshipMapper;
-    this.userMapper = userMapper;
-    this.objectMapper =
-        objectMapper != null ? objectMapper : new ObjectMapper().findAndRegisterModules();
-  }
-
-  public FriendshipService(
-      FriendshipRepository friendshipRepository,
-      UserRepository userRepository,
-      FriendshipMapper friendshipMapper,
-      UserMapper userMapper) {
-    this(friendshipRepository, userRepository, null, friendshipMapper, userMapper, null);
-  }
 
   /** Send a friend request from requester to addressee. */
   @Transactional
@@ -77,7 +50,7 @@ public class FriendshipService {
     Friendship saved =
         Objects.requireNonNull(friendshipRepository.save(friendship), "saved friendship");
 
-    saveFriendshipOutboxEvent("FRIENDSHIP_REQUESTED", saved);
+    publishFriendshipEvent("FRIENDSHIP_REQUESTED", saved);
 
     return friendshipMapper.toDTO(saved);
   }
@@ -97,7 +70,7 @@ public class FriendshipService {
     Friendship saved =
         Objects.requireNonNull(friendshipRepository.save(friendship), "saved friendship");
 
-    saveFriendshipOutboxEvent("FRIENDSHIP_ACCEPTED", saved);
+    publishFriendshipEvent("FRIENDSHIP_ACCEPTED", saved);
 
     return friendshipMapper.toDTO(saved);
   }
@@ -117,7 +90,7 @@ public class FriendshipService {
     Friendship saved =
         Objects.requireNonNull(friendshipRepository.save(friendship), "saved friendship");
 
-    saveFriendshipOutboxEvent("FRIENDSHIP_REJECTED", saved);
+    publishFriendshipEvent("FRIENDSHIP_REJECTED", saved);
 
     return friendshipMapper.toDTO(saved);
   }
@@ -181,7 +154,7 @@ public class FriendshipService {
 
     friendshipRepository.delete(friendship);
 
-    saveFriendshipOutboxEvent("FRIENDSHIP_REMOVED", friendship);
+    publishFriendshipEvent("FRIENDSHIP_REMOVED", friendship);
   }
 
   private User getUserOrThrow(Long userId) {
@@ -199,38 +172,20 @@ public class FriendshipService {
             () -> new ResourceNotFoundException("Friendship not found with id: " + friendshipId));
   }
 
-  private void saveFriendshipOutboxEvent(String eventType, Friendship friendship) {
-    if (outboxRepository == null) {
+  private void publishFriendshipEvent(String eventType, Friendship friendship) {
+    if (eventPublisher == null) {
       return;
     }
-    try {
-      FriendshipEvent event =
-          FriendshipEvent.builder()
-              .eventId(UUID.randomUUID().toString())
-              .eventType(eventType)
-              .userId(friendship.getRequester().getId())
-              .friendId(friendship.getAddressee().getId())
-              .status(friendship.getStatus() != null ? friendship.getStatus().name() : "REMOVED")
-              .timestamp(Instant.now())
-              .build();
+    FriendshipEvent event =
+        FriendshipEvent.builder()
+            .eventId(UUID.randomUUID().toString())
+            .eventType(eventType)
+            .userId(friendship.getRequester().getId())
+            .friendId(friendship.getAddressee().getId())
+            .status(friendship.getStatus() != null ? friendship.getStatus().name() : "REMOVED")
+            .timestamp(Instant.now())
+            .build();
 
-      String payload = objectMapper.writeValueAsString(event);
-
-      OutboxEvent outboxEvent =
-          OutboxEvent.builder()
-              .id(event.getEventId())
-              .aggregateType("FRIENDSHIP")
-              .aggregateId(String.valueOf(friendship.getId()))
-              .eventType(eventType)
-              .payload(payload)
-              .createdAt(event.getTimestamp())
-              .processed(false)
-              .build();
-
-      outboxRepository.save(outboxEvent);
-    } catch (Exception e) {
-      throw new RuntimeException(
-          "Failed to serialize OutboxEvent payload for friendship: " + friendship.getId(), e);
-    }
+    eventPublisher.publish("FRIENDSHIP", String.valueOf(friendship.getId()), eventType, event);
   }
 }

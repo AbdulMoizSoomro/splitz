@@ -2,17 +2,18 @@ package com.splitz.user.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.splitz.event.FriendshipEvent;
 import com.splitz.user.dto.FriendshipDTO;
+import com.splitz.user.event.DomainEventPublisher;
 import com.splitz.user.mapper.FriendshipMapper;
 import com.splitz.user.mapper.UserMapper;
 import com.splitz.user.model.Friendship;
-import com.splitz.user.model.OutboxEvent;
 import com.splitz.user.model.User;
 import com.splitz.user.repository.FriendshipRepository;
-import com.splitz.user.repository.OutboxRepository;
 import com.splitz.user.repository.UserRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -24,20 +25,20 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("FriendshipService Outbox Unit Tests")
+@DisplayName("FriendshipService Domain Event Unit Tests")
 class FriendshipServiceOutboxTest {
 
   @Mock private FriendshipRepository friendshipRepository;
   @Mock private UserRepository userRepository;
-  @Mock private OutboxRepository outboxRepository;
+  @Mock private DomainEventPublisher eventPublisher;
   @Mock private FriendshipMapper friendshipMapper;
   @Mock private UserMapper userMapper;
 
   @InjectMocks private FriendshipService friendshipService;
 
   @Test
-  @DisplayName("Should save FRIENDSHIP_ACCEPTED OutboxEvent when friend request is accepted")
-  void testAcceptFriendRequest_SavesOutboxEvent() {
+  @DisplayName("Should publish FRIENDSHIP_ACCEPTED event when friend request is accepted")
+  void testAcceptFriendRequest_PublishesEvent() {
     User requester = new User();
     requester.setId(10L);
 
@@ -53,15 +54,16 @@ class FriendshipServiceOutboxTest {
 
     friendshipService.acceptFriendRequest(50L, 20L);
 
-    ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
-    verify(outboxRepository).save(outboxCaptor.capture());
+    ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+    verify(eventPublisher)
+        .publish(eq("FRIENDSHIP"), eq("50"), eq("FRIENDSHIP_ACCEPTED"), payloadCaptor.capture());
 
-    OutboxEvent savedEvent = outboxCaptor.getValue();
-    assertThat(savedEvent).isNotNull();
-    assertThat(savedEvent.getAggregateType()).isEqualTo("FRIENDSHIP");
-    assertThat(savedEvent.getAggregateId()).isEqualTo("50");
-    assertThat(savedEvent.getEventType()).isEqualTo("FRIENDSHIP_ACCEPTED");
-    assertThat(savedEvent.getPayload()).contains("\"userId\":10");
-    assertThat(savedEvent.getPayload()).contains("\"friendId\":20");
+    Object payload = payloadCaptor.getValue();
+    assertThat(payload).isInstanceOf(FriendshipEvent.class);
+    FriendshipEvent event = (FriendshipEvent) payload;
+    assertThat(event.getUserId()).isEqualTo(10L);
+    assertThat(event.getFriendId()).isEqualTo(20L);
+    assertThat(event.getStatus()).isEqualTo("ACCEPTED");
+    assertThat(event.getEventType()).isEqualTo("FRIENDSHIP_ACCEPTED");
   }
 }
