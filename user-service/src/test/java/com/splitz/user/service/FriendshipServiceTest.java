@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.splitz.user.dto.FriendshipDTO;
 import com.splitz.user.dto.UserDTO;
+import com.splitz.user.event.DomainEventPublisher;
 import com.splitz.user.exception.ResourceNotFoundException;
 import com.splitz.user.mapper.FriendshipMapper;
 import com.splitz.user.mapper.UserMapper;
@@ -38,6 +39,8 @@ class FriendshipServiceTest {
   @Mock private FriendshipRepository friendshipRepository;
 
   @Mock private UserRepository userRepository;
+
+  @Mock private DomainEventPublisher eventPublisher;
 
   @Mock private FriendshipMapper friendshipMapper;
 
