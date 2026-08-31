@@ -341,3 +341,6 @@ export function useInterpersonalFriend(friendId: number) {
     },
   };
 }
+
+export type InterpersonalResult = ReturnType<typeof useInterpersonalFriend>;
+
