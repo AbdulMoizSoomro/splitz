@@ -26,7 +26,7 @@ public class SettlementController {
   private final PaymentService paymentService;
   private final PaymentMapper paymentMapper;
 
-  @PostMapping({"/settlements", "/friendship-settlements"})
+  @PostMapping("/settlements")
   @PreAuthorize(
       "(#request.groupId != null && @security.isGroupMember(#request.groupId)) ||"
           + " @splitzAuthorizer.isSelfOrAdmin(#request.payerId) ||"
@@ -43,7 +43,7 @@ public class SettlementController {
     return ResponseEntity.status(HttpStatus.CREATED).body(paymentMapper.toSettlementDTO(payment));
   }
 
-  @GetMapping({"/settlements/{id}", "/friendship-settlements/{id}"})
+  @GetMapping("/settlements/{id}")
   public ResponseEntity<SettlementDTO> getSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.getPaymentById(id)));
   }
@@ -57,14 +57,14 @@ public class SettlementController {
   }
 
   @GetMapping("/users/{userId1}/friendships/{userId2}/settlements")
-  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId1)")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId1) || @splitzAuthorizer.isSelf(#userId2)")
   public ResponseEntity<List<SettlementDTO>> getSettlementsBetweenUsers(
       @PathVariable("userId1") Long userId1, @PathVariable("userId2") Long userId2) {
     return ResponseEntity.ok(
         paymentMapper.toSettlementDTOs(paymentService.getPaymentsBetweenUsers(userId1, userId2)));
   }
 
-  @PutMapping({"/settlements/{id}", "/friendship-settlements/{id}"})
+  @PutMapping("/settlements/{id}")
   public ResponseEntity<SettlementDTO> updateSettlement(
       @PathVariable("id") Long id, @Valid @RequestBody UpdateSettlementRequest request) {
     Payment updated =
@@ -72,12 +72,12 @@ public class SettlementController {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(updated));
   }
 
-  @PutMapping({"/settlements/{id}/mark-paid", "/friendship-settlements/{id}/mark-paid"})
+  @PutMapping("/settlements/{id}/mark-paid")
   public ResponseEntity<SettlementDTO> markAsPaid(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.markAsPaid(id)));
   }
 
-  @PutMapping({"/settlements/{id}/confirm", "/friendship-settlements/{id}/confirm"})
+  @PutMapping("/settlements/{id}/confirm")
   public ResponseEntity<SettlementDTO> confirmSettlement(@PathVariable("id") Long id) {
     return ResponseEntity.ok(paymentMapper.toSettlementDTO(paymentService.confirmPayment(id)));
   }

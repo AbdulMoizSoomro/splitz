@@ -186,6 +186,18 @@ class SettlementControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "102")
+  void getSettlementsBetweenUsers_WhenActingAsUserId2_Success() throws Exception {
+    when(paymentService.getPaymentsBetweenUsers(101L, 102L)).thenReturn(java.util.List.of(payment));
+    when(paymentMapper.toSettlementDTOs(any())).thenReturn(java.util.List.of(settlementDTO));
+
+    mockMvc
+        .perform(get("/users/101/friendships/102/settlements"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id").value(1));
+  }
+
+  @Test
   @WithMockUser(username = "101")
   void getSettlementsByGroup_Success() throws Exception {
     when(paymentService.getPaymentsByGroup(1L)).thenReturn(java.util.List.of(payment));

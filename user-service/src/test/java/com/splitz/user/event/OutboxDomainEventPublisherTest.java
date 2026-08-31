@@ -123,6 +123,26 @@ class OutboxDomainEventPublisherTest {
   }
 
   @Test
+  @DisplayName("Should generate UUID and timestamp and populate DomainEvent when not provided")
+  void testPublish_DomainEventWithoutIdOrTimestamp_GeneratesAndInjectsThem() {
+    UserEvent userEvent =
+        UserEvent.builder().userId(99L).username("bob").email("bob@example.com").build();
+
+    publisher.publish("USER", "99", "USER_CREATED", userEvent);
+
+    ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+    verify(outboxRepository).save(captor.capture());
+
+    OutboxEvent saved = captor.getValue();
+    assertThat(saved).isNotNull();
+    assertThat(saved.getId()).isNotEmpty();
+    assertThat(userEvent.getEventId()).isEqualTo(saved.getId());
+    assertThat(userEvent.getEventType()).isEqualTo("USER_CREATED");
+    assertThat(userEvent.getTimestamp()).isEqualTo(saved.getCreatedAt());
+    assertThat(saved.getPayload()).contains("\"eventId\":\"" + saved.getId() + "\"");
+  }
+
+  @Test
   @DisplayName("Should throw RuntimeException if JSON serialization fails")
   void testPublish_SerializationFails_ThrowsRuntimeException() throws Exception {
     ObjectMapper mockMapper = mock(ObjectMapper.class);

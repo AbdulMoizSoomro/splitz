@@ -2,11 +2,8 @@ import api, { expenseApi } from "../../lib/axios";
 import type {
   User,
   Friendship,
-  FriendshipSettlementDTO,
   FriendBalanceResponse,
 } from "../../types/user";
-
-import { settlementService } from "../balances/settlementService";
 
 export const friendService = {
   getFriends: async (userId: string | number): Promise<User[]> => {
@@ -60,44 +57,6 @@ export const friendService = {
       `/users/${userId}/balances/with/${friendId}`,
     );
     return response.data;
-  },
-
-  getSettlementsWithFriend: async (
-    userId: number,
-    friendId: number,
-  ): Promise<FriendshipSettlementDTO[]> => {
-    return settlementService.getSettlementsBetweenUsers(userId, friendId);
-  },
-
-  createSettlement: async (data: {
-    payerId: number;
-    payeeId: number;
-    amount: number;
-    allocations?: { groupId: number; amount: number }[];
-  }): Promise<FriendshipSettlementDTO> => {
-    return settlementService.createSettlement(data);
-  },
-
-  markAsPaid: async (
-    settlementId: number,
-  ): Promise<FriendshipSettlementDTO> => {
-    return settlementService.markAsPaid(settlementId);
-  },
-
-  confirmSettlement: async (
-    settlementId: number,
-  ): Promise<FriendshipSettlementDTO> => {
-    return settlementService.confirmSettlement(settlementId);
-  },
-
-  updateSettlement: async (
-    settlementId: number,
-    data: {
-      amount: number;
-      allocations?: { groupId: number; amount: number }[];
-    },
-  ): Promise<FriendshipSettlementDTO> => {
-    return settlementService.updateSettlement(settlementId, data);
   },
 };
 

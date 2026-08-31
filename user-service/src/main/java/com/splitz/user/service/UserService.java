@@ -11,11 +11,9 @@ import com.splitz.user.model.Role;
 import com.splitz.user.model.User;
 import com.splitz.user.repository.RoleRepository;
 import com.splitz.user.repository.UserRepository;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -140,7 +138,6 @@ public class UserService implements UserDetailsService {
             + (user.getLastName() != null ? user.getLastName() : "");
     UserEvent event =
         UserEvent.builder()
-            .eventId(UUID.randomUUID().toString())
             .eventType(eventType)
             .userId(user.getId())
             .username(
@@ -149,7 +146,6 @@ public class UserService implements UserDetailsService {
                     : (user.getUsername() != null ? user.getUsername() : ""))
             .fullName(fullName.trim())
             .email(user.getEmail())
-            .timestamp(Instant.now())
             .build();
 
     eventPublisher.publish("USER", String.valueOf(user.getId()), eventType, event);

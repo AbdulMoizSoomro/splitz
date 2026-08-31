@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../../lib/axios";
 import { useAuthStore } from "../../store/authStore";
 import { friendService } from "./friendService";
+import { settlementService } from "../balances/settlementService";
 import { groupService } from "../groups/groupService";
 import { expenseService } from "../expenses/expenseService";
 import { queryKeys, invalidations, bindInvalidations } from "../../lib/queryKeys";
@@ -238,7 +239,7 @@ export function useInterpersonalFriend(friendId: number) {
   // 5. Settlements with friend
   const settlementsQuery = useQuery({
     queryKey: queryKeys.friendSettlements(currentUserId, friendId),
-    queryFn: () => friendService.getSettlementsWithFriend(currentUserId, friendId),
+    queryFn: () => settlementService.getSettlementsBetweenUsers(currentUserId, friendId),
     enabled,
   });
 
@@ -296,7 +297,7 @@ export function useInterpersonalFriend(friendId: number) {
       payeeId: number;
       amount: number;
       allocations?: { groupId: number; amount: number }[];
-    }) => friendService.createSettlement(data),
+    }) => settlementService.createSettlement(data),
     onSuccess: () => {
       invalidations.settlementMutated(invalidate, currentUserId, friendId);
     },
@@ -304,7 +305,7 @@ export function useInterpersonalFriend(friendId: number) {
 
   const updateSettlementMutation = useMutation({
     mutationFn: ({ settlementId, amount }: { settlementId: number; amount: number }) =>
-      friendService.updateSettlement(settlementId, { amount }),
+      settlementService.updateSettlement(settlementId, { amount }),
     onSuccess: () => {
       invalidations.settlementMutated(invalidate, currentUserId, friendId);
     },
@@ -312,7 +313,7 @@ export function useInterpersonalFriend(friendId: number) {
 
   const confirmSettlementMutation = useMutation({
     mutationFn: (settlementId: number) =>
-      friendService.confirmSettlement(settlementId),
+      settlementService.confirmSettlement(settlementId),
     onSuccess: () => {
       invalidations.settlementMutated(invalidate, currentUserId, friendId);
     },
