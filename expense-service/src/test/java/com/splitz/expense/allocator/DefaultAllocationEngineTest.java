@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.splitz.expense.dto.CreateFriendshipSettlementRequest;
+import com.splitz.expense.dto.CreateSettlementRequest;
 import com.splitz.expense.model.SettlementAllocation;
 import java.math.BigDecimal;
 import java.util.List;
@@ -39,13 +39,13 @@ class DefaultAllocationEngineTest {
 
   @Test
   void explicitAllocations_producesMatchingSettlementAllocations() {
-    List<CreateFriendshipSettlementRequest.Allocation> explicit =
+    List<CreateSettlementRequest.Allocation> explicit =
         List.of(
-            CreateFriendshipSettlementRequest.Allocation.builder()
+            CreateSettlementRequest.Allocation.builder()
                 .groupId(10L)
                 .amount(new BigDecimal("60.00"))
                 .build(),
-            CreateFriendshipSettlementRequest.Allocation.builder()
+            CreateSettlementRequest.Allocation.builder()
                 .groupId(20L)
                 .amount(new BigDecimal("40.00"))
                 .build());
@@ -62,9 +62,9 @@ class DefaultAllocationEngineTest {
 
   @Test
   void explicitAllocations_totalMismatch_throwsIllegalArgument() {
-    List<CreateFriendshipSettlementRequest.Allocation> explicit =
+    List<CreateSettlementRequest.Allocation> explicit =
         List.of(
-            CreateFriendshipSettlementRequest.Allocation.builder()
+            CreateSettlementRequest.Allocation.builder()
                 .groupId(10L)
                 .amount(new BigDecimal("50.00"))
                 .build());

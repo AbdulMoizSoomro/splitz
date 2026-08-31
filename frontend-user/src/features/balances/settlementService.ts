@@ -4,8 +4,20 @@ export interface CreateSettlementRequest {
   payerId: number;
   payeeId: number;
   amount: number;
-  currency: string;
-  groupId: number;
+  currency?: string;
+  groupId?: number | null;
+  allocations?: Array<{
+    groupId: number;
+    amount: number;
+  }>;
+}
+
+export interface UpdateSettlementRequest {
+  amount: number;
+  allocations?: Array<{
+    groupId: number;
+    amount: number;
+  }>;
 }
 
 export interface Settlement {
@@ -13,8 +25,8 @@ export interface Settlement {
   payerId: number;
   payeeId: number;
   amount: number;
-  currency: string;
-  groupId: number;
+  currency?: string;
+  groupId?: number | null;
   status: "PENDING" | "MARKED_PAID" | "COMPLETED";
   createdAt: string;
   paidAt?: string;
@@ -36,6 +48,36 @@ export const settlementService = {
     return response.data;
   },
 
+  getSettlement: async (id: number): Promise<Settlement> => {
+    const response = await expenseApi.get<Settlement>(`/settlements/${id}`);
+    return response.data;
+  },
+
+  getSettlementsByGroup: async (groupId: number): Promise<Settlement[]> => {
+    const response = await expenseApi.get<Settlement[]>(
+      `/groups/${groupId}/settlements`,
+    );
+    return response.data;
+  },
+
+  getSettlementsBetweenUsers: async (
+    userId1: number,
+    userId2: number,
+  ): Promise<Settlement[]> => {
+    const response = await expenseApi.get<Settlement[]>(
+      `/users/${userId1}/friendships/${userId2}/settlements`,
+    );
+    return response.data;
+  },
+
+  updateSettlement: async (
+    id: number,
+    data: UpdateSettlementRequest,
+  ): Promise<Settlement> => {
+    const response = await expenseApi.put<Settlement>(`/settlements/${id}`, data);
+    return response.data;
+  },
+
   markAsPaid: async (id: number): Promise<Settlement> => {
     const response = await expenseApi.put<Settlement>(
       `/settlements/${id}/mark-paid`,
@@ -49,11 +91,5 @@ export const settlementService = {
     );
     return response.data;
   },
-
-  getSettlementsByGroup: async (groupId: number): Promise<Settlement[]> => {
-    const response = await expenseApi.get<Settlement[]>(
-      `/groups/${groupId}/settlements`,
-    );
-    return response.data;
-  },
 };
+
