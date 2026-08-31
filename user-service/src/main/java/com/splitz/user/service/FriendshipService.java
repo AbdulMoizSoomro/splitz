@@ -12,10 +12,8 @@ import com.splitz.user.model.FriendshipStatus;
 import com.splitz.user.model.User;
 import com.splitz.user.repository.FriendshipRepository;
 import com.splitz.user.repository.UserRepository;
-import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -178,12 +176,10 @@ public class FriendshipService {
     }
     FriendshipEvent event =
         FriendshipEvent.builder()
-            .eventId(UUID.randomUUID().toString())
             .eventType(eventType)
             .userId(friendship.getRequester().getId())
             .friendId(friendship.getAddressee().getId())
             .status(friendship.getStatus() != null ? friendship.getStatus().name() : "REMOVED")
-            .timestamp(Instant.now())
             .build();
 
     eventPublisher.publish("FRIENDSHIP", String.valueOf(friendship.getId()), eventType, event);

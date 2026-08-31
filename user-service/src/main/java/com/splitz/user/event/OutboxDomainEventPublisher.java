@@ -2,8 +2,7 @@ package com.splitz.user.event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.splitz.event.FriendshipEvent;
-import com.splitz.event.UserEvent;
+import com.splitz.event.DomainEvent;
 import com.splitz.user.model.OutboxEvent;
 import com.splitz.user.repository.OutboxRepository;
 import java.time.Instant;
@@ -28,6 +27,19 @@ public class OutboxDomainEventPublisher implements DomainEventPublisher {
     try {
       String eventId = extractOrGenerateEventId(payload);
       Instant timestamp = extractOrGenerateTimestamp(payload);
+
+      if (payload instanceof DomainEvent de) {
+        if (de.getEventId() == null) {
+          de.setEventId(eventId);
+        }
+        if (de.getEventType() == null) {
+          de.setEventType(eventType);
+        }
+        if (de.getTimestamp() == null) {
+          de.setTimestamp(timestamp);
+        }
+      }
+
       String jsonPayload =
           (payload instanceof String) ? (String) payload : objectMapper.writeValueAsString(payload);
 
@@ -59,21 +71,15 @@ public class OutboxDomainEventPublisher implements DomainEventPublisher {
   }
 
   private String extractOrGenerateEventId(Object payload) {
-    if (payload instanceof UserEvent ue && ue.getEventId() != null) {
-      return ue.getEventId();
-    }
-    if (payload instanceof FriendshipEvent fe && fe.getEventId() != null) {
-      return fe.getEventId();
+    if (payload instanceof DomainEvent de && de.getEventId() != null) {
+      return de.getEventId();
     }
     return UUID.randomUUID().toString();
   }
 
   private Instant extractOrGenerateTimestamp(Object payload) {
-    if (payload instanceof UserEvent ue && ue.getTimestamp() != null) {
-      return ue.getTimestamp();
-    }
-    if (payload instanceof FriendshipEvent fe && fe.getTimestamp() != null) {
-      return fe.getTimestamp();
+    if (payload instanceof DomainEvent de && de.getTimestamp() != null) {
+      return de.getTimestamp();
     }
     return Instant.now();
   }

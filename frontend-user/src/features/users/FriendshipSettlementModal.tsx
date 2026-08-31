@@ -11,6 +11,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { friendService } from "./friendService";
+import { settlementService } from "../balances/settlementService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { invalidations, bindInvalidations } from "../../lib/queryKeys";
@@ -89,7 +90,7 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
       payeeId: number;
       amount: number;
       allocations?: { groupId: number; amount: number }[];
-    }) => friendService.createSettlement(data),
+    }) => settlementService.createSettlement(data),
     onSuccess: () => {
       invalidations.settlementMutated(invalidate, currentUser.id, friend.id);
       toast.success("Settlement recorded successfully");

@@ -22,33 +22,12 @@ function formatName(
 }
 
 function lookupCachedName(id: number, queryClient: QueryClient): string | null {
-  // 1. Direct user cache
+  // Direct user cache
   const cachedUser = queryClient.getQueryData<User>(queryKeys.user(id));
   if (cachedUser) {
     const name = formatName(cachedUser);
     if (name) return name;
   }
-
-  // 2. Group balances cache
-  const groupBalanceQueries = queryClient.getQueriesData<{
-    balances?: Array<{
-      userId: number;
-      firstName?: string;
-      lastName?: string;
-      username?: string;
-    }>;
-  }>({ queryKey: ["group-balances"] });
-
-  for (const [, data] of groupBalanceQueries) {
-    if (data?.balances) {
-      const match = data.balances.find((b) => b.userId === id);
-      if (match) {
-        const name = formatName(match);
-        if (name) return name;
-      }
-    }
-  }
-
   return null;
 }
 
