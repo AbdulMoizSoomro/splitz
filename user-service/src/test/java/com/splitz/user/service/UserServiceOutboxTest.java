@@ -2,15 +2,16 @@ package com.splitz.user.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.splitz.event.UserEvent;
 import com.splitz.user.dto.UserDTO;
+import com.splitz.user.event.DomainEventPublisher;
 import com.splitz.user.mapper.UserMapper;
-import com.splitz.user.model.OutboxEvent;
 import com.splitz.user.model.Role;
 import com.splitz.user.model.User;
-import com.splitz.user.repository.OutboxRepository;
 import com.splitz.user.repository.RoleRepository;
 import com.splitz.user.repository.UserRepository;
 import java.util.Optional;
@@ -24,20 +25,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("UserService Outbox Integration Unit Tests")
+@DisplayName("UserService Domain Event Unit Tests")
 class UserServiceOutboxTest {
 
   @Mock private UserRepository userRepository;
   @Mock private RoleRepository roleRepository;
-  @Mock private OutboxRepository outboxRepository;
+  @Mock private DomainEventPublisher eventPublisher;
   @Mock private UserMapper userMapper;
   @Mock private BCryptPasswordEncoder passwordEncoder;
 
   @InjectMocks private UserService userService;
 
   @Test
-  @DisplayName("Should save USER_CREATED OutboxEvent when user is created")
-  void testCreateUser_SavesOutboxEvent() {
+  @DisplayName("Should publish USER_CREATED event when user is created")
+  void testCreateUser_PublishesEvent() {
     UserDTO inputDto = new UserDTO();
     inputDto.setUsername("alice");
     inputDto.setEmail("alice@example.com");
@@ -63,15 +64,17 @@ class UserServiceOutboxTest {
 
     userService.createUser(inputDto);
 
-    ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
-    verify(outboxRepository).save(outboxCaptor.capture());
+    ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+    verify(eventPublisher)
+        .publish(eq("USER"), eq("100"), eq("USER_CREATED"), payloadCaptor.capture());
 
-    OutboxEvent savedEvent = outboxCaptor.getValue();
-    assertThat(savedEvent).isNotNull();
-    assertThat(savedEvent.getAggregateType()).isEqualTo("USER");
-    assertThat(savedEvent.getAggregateId()).isEqualTo("100");
-    assertThat(savedEvent.getEventType()).isEqualTo("USER_CREATED");
-    assertThat(savedEvent.getPayload()).contains("alice@example.com");
-    assertThat(savedEvent.isProcessed()).isFalse();
+    Object payload = payloadCaptor.getValue();
+    assertThat(payload).isInstanceOf(UserEvent.class);
+    UserEvent userEvent = (UserEvent) payload;
+    assertThat(userEvent.getUserId()).isEqualTo(100L);
+    assertThat(userEvent.getUsername()).isEqualTo("alice");
+    assertThat(userEvent.getEmail()).isEqualTo("alice@example.com");
+    assertThat(userEvent.getFullName()).isEqualTo("Alice Smith");
+    assertThat(userEvent.getEventType()).isEqualTo("USER_CREATED");
   }
 }

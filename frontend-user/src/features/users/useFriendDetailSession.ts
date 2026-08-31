@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useInterpersonalFriend } from "./interpersonal";
+import { useFriendRelationship } from "./useFriendRelationship";
+import { useFriendSettlementEditing } from "./useFriendSettlementEditing";
 import { useAuthStore } from "../../store/authStore";
-import { toast } from "sonner";
-import type { FriendshipSettlementDTO } from "../../types/user";
 
 export function useFriendDetailSession() {
   const { id } = useParams<{ id: string }>();
@@ -11,14 +11,9 @@ export function useFriendDetailSession() {
   const friendId = Number(id);
   const { user: currentUser } = useAuthStore();
 
-  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
-  const [editingSettlementId, setEditingSettlementId] = useState<number | null>(
-    null,
-  );
-  const [editAmount, setEditAmount] = useState("");
-  const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
-  const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] =
-    useState(false);
+  const interpersonal = useInterpersonalFriend(friendId);
+  const relationship = useFriendRelationship(interpersonal);
+  const settlementEditing = useFriendSettlementEditing(interpersonal);
 
   const {
     friend,
@@ -30,7 +25,7 @@ export function useFriendDetailSession() {
     activityFeed: unifiedActivity,
     isLoading,
     mutations,
-  } = useInterpersonalFriend(friendId);
+  } = interpersonal;
 
   const isConfirmedFriend = relationshipStatus === "CONFIRMED_FRIEND";
   const isPendingOutgoing = relationshipStatus === "PENDING_OUTGOING";
@@ -52,67 +47,6 @@ export function useFriendDetailSession() {
     return map;
   }, [groupBalances]);
 
-  const handleAddFriend = () => {
-    mutations.sendFriendRequest.mutate(undefined, {
-      onSuccess: () => {
-        setIsAddFriendModalOpen(false);
-        toast.success("Friend request sent");
-      },
-    });
-  };
-
-  const handleCancelRequest = () => {
-    mutations.cancelFriendRequest.mutate(undefined, {
-      onSuccess: () => {
-        setIsCancelRequestModalOpen(false);
-        toast.success("Friend request cancelled");
-      },
-    });
-  };
-
-  const handleConfirmSettlement = (settlementId: number) => {
-    mutations.confirmSettlement.mutate(settlementId, {
-      onSuccess: () => toast.success("Payment confirmed"),
-      onError: () => toast.error("Failed to confirm payment"),
-    });
-  };
-
-  const handleUpdateSettlement = (
-    settlementId: number,
-    amount: number,
-  ) => {
-    mutations.updateSettlement.mutate(
-      { settlementId, amount },
-      {
-        onSuccess: () => {
-          setEditingSettlementId(null);
-          setEditAmount("");
-          toast.success("Payment updated");
-        },
-        onError: () => toast.error("Failed to update payment"),
-      },
-    );
-  };
-
-  const startEditing = (settlement: FriendshipSettlementDTO) => {
-    setEditingSettlementId(settlement.id);
-    setEditAmount(settlement.amount.toFixed(2));
-  };
-
-  const cancelEditing = () => {
-    setEditingSettlementId(null);
-    setEditAmount("");
-  };
-
-  const submitEdit = (settlementId: number) => {
-    const parsedAmount = parseFloat(editAmount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-    handleUpdateSettlement(settlementId, parsedAmount);
-  };
-
   return {
     friendId,
     navigate,
@@ -130,23 +64,23 @@ export function useFriendDetailSession() {
     isLoading,
     groupNameMap,
     groupBalancesMap,
-    isSettlementModalOpen,
-    setIsSettlementModalOpen,
-    editingSettlementId,
-    setEditingSettlementId,
-    editAmount,
-    setEditAmount,
-    isAddFriendModalOpen,
-    setIsAddFriendModalOpen,
-    isCancelRequestModalOpen,
-    setIsCancelRequestModalOpen,
-    handleAddFriend,
-    handleCancelRequest,
-    handleConfirmSettlement,
-    handleUpdateSettlement,
-    startEditing,
-    cancelEditing,
-    submitEdit,
+    isSettlementModalOpen: settlementEditing.isSettlementModalOpen,
+    setIsSettlementModalOpen: settlementEditing.setIsSettlementModalOpen,
+    editingSettlementId: settlementEditing.editingSettlementId,
+    setEditingSettlementId: settlementEditing.setEditingSettlementId,
+    editAmount: settlementEditing.editAmount,
+    setEditAmount: settlementEditing.setEditAmount,
+    isAddFriendModalOpen: relationship.isAddFriendModalOpen,
+    setIsAddFriendModalOpen: relationship.setIsAddFriendModalOpen,
+    isCancelRequestModalOpen: relationship.isCancelRequestModalOpen,
+    setIsCancelRequestModalOpen: relationship.setIsCancelRequestModalOpen,
+    handleAddFriend: relationship.handleAddFriend,
+    handleCancelRequest: relationship.handleCancelRequest,
+    handleConfirmSettlement: settlementEditing.handleConfirmSettlement,
+    handleUpdateSettlement: settlementEditing.handleUpdateSettlement,
+    startEditing: settlementEditing.startEditing,
+    cancelEditing: settlementEditing.cancelEditing,
+    submitEdit: settlementEditing.submitEdit,
     sendFriendRequestPending: mutations.sendFriendRequest.isPending,
     cancelFriendRequestPending: mutations.cancelFriendRequest.isPending,
     confirmSettlementPending: mutations.confirmSettlement.isPending,

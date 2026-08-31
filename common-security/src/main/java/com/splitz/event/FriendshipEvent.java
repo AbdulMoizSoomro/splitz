@@ -1,6 +1,5 @@
 package com.splitz.event;
 
-import java.io.Serializable;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class FriendshipEvent implements Serializable {
+public class FriendshipEvent implements DomainEvent {
 
   private static final long serialVersionUID = 1L;
 

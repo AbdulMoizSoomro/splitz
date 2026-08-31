@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useLedger } from "./useLedger";
 import { MONEY_TOLERANCE, type Counterparty } from "../features/balances/ledger";
-import { deriveRelationshipStatus } from "../features/users/interpersonal";
 
 export interface TempFriend {
   userId: number;

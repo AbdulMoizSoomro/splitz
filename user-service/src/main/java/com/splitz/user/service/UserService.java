@@ -1,24 +1,20 @@
 package com.splitz.user.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.event.UserEvent;
 import com.splitz.user.dto.UpdateUserDTO;
 import com.splitz.user.dto.UserDTO;
+import com.splitz.user.event.DomainEventPublisher;
 import com.splitz.user.exception.ResourceNotFoundException;
 import com.splitz.user.exception.UserAlreadyExistsException;
 import com.splitz.user.mapper.UserMapper;
-import com.splitz.user.model.OutboxEvent;
 import com.splitz.user.model.Role;
 import com.splitz.user.model.User;
-import com.splitz.user.repository.OutboxRepository;
 import com.splitz.user.repository.RoleRepository;
 import com.splitz.user.repository.UserRepository;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,39 +25,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class UserService implements UserDetailsService {
 
   private final UserRepository userRepository;
   private final RoleRepository roleRepository;
-  private final OutboxRepository outboxRepository;
+  private final DomainEventPublisher eventPublisher;
   private final UserMapper userMapper;
   private final BCryptPasswordEncoder passwordEncoder;
-  private final ObjectMapper objectMapper;
-
-  @Autowired
-  public UserService(
-      UserRepository userRepository,
-      RoleRepository roleRepository,
-      OutboxRepository outboxRepository,
-      UserMapper userMapper,
-      BCryptPasswordEncoder passwordEncoder,
-      ObjectMapper objectMapper) {
-    this.userRepository = userRepository;
-    this.roleRepository = roleRepository;
-    this.outboxRepository = outboxRepository;
-    this.userMapper = userMapper;
-    this.passwordEncoder = passwordEncoder;
-    this.objectMapper =
-        objectMapper != null ? objectMapper : new ObjectMapper().findAndRegisterModules();
-  }
-
-  public UserService(
-      UserRepository userRepository,
-      RoleRepository roleRepository,
-      UserMapper userMapper,
-      BCryptPasswordEncoder passwordEncoder) {
-    this(userRepository, roleRepository, null, userMapper, passwordEncoder, null);
-  }
 
   public Page<UserDTO> getAllUsers(Pageable pageable) {
     return userRepository.findAll(pageable).map(userMapper::toDTO);
@@ -108,7 +79,7 @@ public class UserService implements UserDetailsService {
 
     User savedUser = userRepository.save(user);
 
-    saveUserOutboxEvent("USER_CREATED", savedUser);
+    publishUserEvent("USER_CREATED", savedUser);
 
     return userMapper.toDTO(savedUser);
   }
@@ -141,7 +112,7 @@ public class UserService implements UserDetailsService {
 
     User updatedUser = userRepository.save(user);
 
-    saveUserOutboxEvent("USER_UPDATED", updatedUser);
+    publishUserEvent("USER_UPDATED", updatedUser);
 
     return userMapper.toDTO(updatedUser);
   }
@@ -154,47 +125,30 @@ public class UserService implements UserDetailsService {
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     userRepository.deleteById(id);
 
-    saveUserOutboxEvent("USER_DELETED", user);
+    publishUserEvent("USER_DELETED", user);
   }
 
-  private void saveUserOutboxEvent(String eventType, User user) {
-    if (outboxRepository == null) {
+  private void publishUserEvent(String eventType, User user) {
+    if (eventPublisher == null) {
       return;
     }
-    try {
-      String fullName =
-          (user.getFirstName() != null ? user.getFirstName() : "")
-              + " "
-              + (user.getLastName() != null ? user.getLastName() : "");
-      UserEvent event =
-          UserEvent.builder()
-              .eventId(UUID.randomUUID().toString())
-              .eventType(eventType)
-              .userId(user.getId())
-              .username(user.getUsername())
-              .fullName(fullName.trim())
-              .email(user.getEmail())
-              .timestamp(Instant.now())
-              .build();
+    String fullName =
+        (user.getFirstName() != null ? user.getFirstName() : "")
+            + " "
+            + (user.getLastName() != null ? user.getLastName() : "");
+    UserEvent event =
+        UserEvent.builder()
+            .eventType(eventType)
+            .userId(user.getId())
+            .username(
+                user.getActualUsername() != null
+                    ? user.getActualUsername()
+                    : (user.getUsername() != null ? user.getUsername() : ""))
+            .fullName(fullName.trim())
+            .email(user.getEmail())
+            .build();
 
-      String payload = objectMapper.writeValueAsString(event);
-
-      OutboxEvent outboxEvent =
-          OutboxEvent.builder()
-              .id(event.getEventId())
-              .aggregateType("USER")
-              .aggregateId(String.valueOf(user.getId()))
-              .eventType(eventType)
-              .payload(payload)
-              .createdAt(event.getTimestamp())
-              .processed(false)
-              .build();
-
-      outboxRepository.save(outboxEvent);
-    } catch (Exception e) {
-      throw new RuntimeException(
-          "Failed to serialize OutboxEvent payload for user: " + user.getId(), e);
-    }
+    eventPublisher.publish("USER", String.valueOf(user.getId()), eventType, event);
   }
 
   public Page<UserDTO> searchUsers(String query, Pageable pageable) {
