@@ -145,6 +145,7 @@ export interface BuildSettlementPayloadOptions {
   amount: number;
   isAllocating: boolean;
   allocations: Record<number, string | number>;
+  sharedGroups?: GroupBalanceItem[];
 }
 
 /**
@@ -157,6 +158,7 @@ export function buildSettlementPayload({
   amount,
   isAllocating,
   allocations,
+  sharedGroups = [],
 }: BuildSettlementPayloadOptions) {
   const payerId = type === "PAY" ? currentUserId : friendId;
   const payeeId = type === "PAY" ? friendId : currentUserId;
@@ -165,7 +167,7 @@ export function buildSettlementPayload({
     payerId: number;
     payeeId: number;
     amount: number;
-    allocations?: { groupId: number; amount: number }[];
+    allocations?: { groupId: number | null; amount: number }[];
   } = {
     payerId,
     payeeId,
@@ -179,6 +181,28 @@ export function buildSettlementPayload({
         amount: parseAllocationValue(val),
       }))
       .filter((a) => a.amount > 0);
+  } else if (sharedGroups.length > 0) {
+    const autoAlloc = autoAllocateSettlement({
+      amount,
+      type,
+      groupBalances: sharedGroups,
+    });
+
+    const allocList: { groupId: number | null; amount: number }[] = [];
+    let allocatedTotal = 0;
+    for (const [gId, val] of Object.entries(autoAlloc)) {
+      if (val > 0) {
+        allocList.push({ groupId: parseInt(gId), amount: val });
+        allocatedTotal += val;
+      }
+    }
+    const remainder = amount - allocatedTotal;
+    if (remainder > 0.009) {
+      allocList.push({ groupId: null, amount: parseFloat(remainder.toFixed(2)) });
+    }
+    if (allocList.length > 0) {
+      payload.allocations = allocList;
+    }
   }
 
   return payload;

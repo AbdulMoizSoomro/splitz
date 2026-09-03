@@ -9,7 +9,7 @@ export interface CreateSettlementRequest {
   type?: "GROUP" | "DIRECT";
   notes?: string | null;
   allocations?: Array<{
-    groupId: number;
+    groupId: number | null;
     amount: number;
   }>;
 }

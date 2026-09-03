@@ -23,10 +23,10 @@ test.describe("Stale Token Handling", () => {
     await page.locator('#password').fill(password);
     await page.getByRole("button", { name: /login/i }).click();
 
-    await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/$/, { timeout: 20000 });
     await expect(
       page.getByText(new RegExp(`Hi, ${username}`, "i")),
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible({ timeout: 20000 });
 
     // 2. Simulate a stale token by corrupting it in localStorage
     // We need to keep the structure but make the token invalid

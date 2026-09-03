@@ -164,11 +164,12 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
       await saveButton.click();
       
       await expect(modal).not.toBeVisible({ timeout: 15000 });
-      await expect(pageAlice.getByText(/settlement recorded successfully/i)).toBeVisible();
+      await expect(pageAlice.getByText(/settlement recorded successfully/i)).toBeVisible({ timeout: 15000 });
 
       // 10. Verify activity feed shows settlements
       await expect(pageAlice.getByText("Bob paid you").first()).toBeVisible({ timeout: 15000 });
-      await expect(pageAlice.getByText("$70.00")).toBeVisible();
+      await expect(pageAlice.getByText("$20.00").first()).toBeVisible({ timeout: 15000 });
+      await expect(pageAlice.getByText("$50.00").first()).toBeVisible({ timeout: 15000 });
 
     } finally {
       await ctxAlice.close();

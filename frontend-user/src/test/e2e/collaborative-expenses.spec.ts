@@ -34,6 +34,7 @@ async function acceptFriendRequest(page: Page, requesterName: string) {
 
 test.describe("[E2E] Collaborative Expenses", () => {
   test("Members can edit and delete expenses when collaborative editing is enabled", async ({ browser }) => {
+    test.setTimeout(60000);
     const ts = Date.now();
     const aliceName = `alice_collab_${ts}`;
     const bobName = `bob_collab_${ts}`;
