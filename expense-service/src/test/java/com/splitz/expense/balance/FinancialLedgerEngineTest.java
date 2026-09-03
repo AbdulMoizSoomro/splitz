@@ -29,7 +29,6 @@ import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.expense.repository.PaymentRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
 import com.splitz.expense.repository.UserGroupAggregate;
 import com.splitz.expense.service.GroupSimplificationSettingsService;
 import java.math.BigDecimal;
@@ -46,7 +45,6 @@ class FinancialLedgerEngineTest {
   private ExpenseRepository expenseRepository;
   private GroupMemberRepository groupMemberRepository;
   private GroupRepository groupRepository;
-  private SettlementAllocationRepository settlementAllocationRepository;
   private PaymentRepository paymentRepository;
   private UserClient userClient;
   private DebtNettingEngine debtNettingEngine;
@@ -59,7 +57,6 @@ class FinancialLedgerEngineTest {
     expenseRepository = mock(ExpenseRepository.class);
     groupMemberRepository = mock(GroupMemberRepository.class);
     groupRepository = mock(GroupRepository.class);
-    settlementAllocationRepository = mock(SettlementAllocationRepository.class);
     paymentRepository = mock(PaymentRepository.class);
     userClient = mock(UserClient.class);
     debtNettingEngine = mock(DebtNettingEngine.class);
@@ -72,7 +69,6 @@ class FinancialLedgerEngineTest {
             expenseRepository,
             groupMemberRepository,
             groupRepository,
-            settlementAllocationRepository,
             paymentRepository,
             userClient,
             debtNettingEngine,
@@ -103,8 +99,8 @@ class FinancialLedgerEngineTest {
 
       when(expenseRepository.findByGroupId(10L)).thenReturn(Collections.emptyList());
       when(expenseRepository.findByGroupId(20L)).thenReturn(Collections.emptyList());
-      when(settlementAllocationRepository.findByGroupId(10L)).thenReturn(Collections.emptyList());
-      when(settlementAllocationRepository.findByGroupId(20L)).thenReturn(Collections.emptyList());
+      when(paymentRepository.findByGroupId(10L)).thenReturn(Collections.emptyList());
+      when(paymentRepository.findByGroupId(20L)).thenReturn(Collections.emptyList());
 
       // In Trip: 2 owes 1 $15
       DebtSimplificationPlan tripPlan =
@@ -251,8 +247,7 @@ class FinancialLedgerEngineTest {
                               .build()))
                   .build());
       when(expenseRepository.findByGroupId(groupId)).thenReturn(expenses);
-      when(settlementAllocationRepository.findByGroupId(groupId))
-          .thenReturn(Collections.emptyList());
+      when(paymentRepository.findByGroupId(groupId)).thenReturn(Collections.emptyList());
 
       UserResponse user1 =
           UserResponse.builder().id(1L).username("user1").email("user1@example.com").build();
@@ -342,8 +337,7 @@ class FinancialLedgerEngineTest {
                           .build()))
               .build();
       when(expenseRepository.findByGroupId(groupId)).thenReturn(List.of(exp1, exp2));
-      when(settlementAllocationRepository.findByGroupId(groupId))
-          .thenReturn(Collections.emptyList());
+      when(paymentRepository.findByGroupId(groupId)).thenReturn(Collections.emptyList());
 
       UserResponse u1 = UserResponse.builder().id(1L).username("alice").build();
       UserResponse u2 = UserResponse.builder().id(2L).username("bob").build();
@@ -422,7 +416,7 @@ class FinancialLedgerEngineTest {
                               .build()))
                   .build());
       when(expenseRepository.findByGroupId(10L)).thenReturn(expenses);
-      when(settlementAllocationRepository.findByGroupId(10L)).thenReturn(Collections.emptyList());
+      when(paymentRepository.findByGroupId(10L)).thenReturn(Collections.emptyList());
 
       FriendBalanceResponseDTO result = engine.getNetBalanceWithFriend(userId, friendId);
 
@@ -446,12 +440,12 @@ class FinancialLedgerEngineTest {
           .thenReturn(List.of(aggregate(userId, groupId, "50.00")));
       when(expenseRepository.calculateTotalShareForUsersInGroups(List.of(userId), List.of(groupId)))
           .thenReturn(List.of(aggregate(userId, groupId, "20.00")));
-      when(settlementAllocationRepository.calculateTotalSettlementsPaidByUsersInGroups(
+      when(paymentRepository.calculateTotalPaymentsPaidInGroups(
               List.of(userId),
               List.of(groupId),
               List.of(SettlementStatus.COMPLETED, SettlementStatus.MARKED_PAID)))
           .thenReturn(List.of(aggregate(userId, groupId, "10.00")));
-      when(settlementAllocationRepository.calculateTotalSettlementsReceivedByUsersInGroups(
+      when(paymentRepository.calculateTotalPaymentsReceivedInGroups(
               List.of(userId),
               List.of(groupId),
               List.of(SettlementStatus.COMPLETED, SettlementStatus.MARKED_PAID)))
@@ -471,10 +465,10 @@ class FinancialLedgerEngineTest {
           .thenReturn(List.of(aggregate(1L, 10L, "50.00")));
       when(expenseRepository.calculateTotalShareForUsersInGroups(userIds, groupIds))
           .thenReturn(List.of(aggregate(1L, 10L, "20.00")));
-      when(settlementAllocationRepository.calculateTotalSettlementsPaidByUsersInGroups(
+      when(paymentRepository.calculateTotalPaymentsPaidInGroups(
               userIds, groupIds, List.of(SettlementStatus.COMPLETED, SettlementStatus.MARKED_PAID)))
           .thenReturn(List.of(aggregate(1L, 10L, "10.00")));
-      when(settlementAllocationRepository.calculateTotalSettlementsReceivedByUsersInGroups(
+      when(paymentRepository.calculateTotalPaymentsReceivedInGroups(
               userIds, groupIds, List.of(SettlementStatus.COMPLETED, SettlementStatus.MARKED_PAID)))
           .thenReturn(List.of(aggregate(1L, 10L, "5.00")));
 

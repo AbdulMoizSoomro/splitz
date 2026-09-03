@@ -11,7 +11,7 @@ import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.util.Optional;
 import java.util.Set;
@@ -27,7 +27,7 @@ class GroupGovernanceTest {
 
   @Mock private GroupRepository groupRepository;
   @Mock private GroupMemberRepository groupMemberRepository;
-  @Mock private SettlementAllocationRepository settlementAllocationRepository;
+  @Mock private PaymentRepository paymentRepository;
   @Mock private FinancialLedgerEngine financialLedgerEngine;
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
@@ -403,8 +403,7 @@ class GroupGovernanceTest {
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
     when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(java.math.BigDecimal.ZERO);
-    when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(100L), eq(1L), any()))
-        .thenReturn(false);
+    when(paymentRepository.hasActivePaymentsInGroup(eq(100L), eq(1L), any())).thenReturn(false);
 
     assertDoesNotThrow(() -> groupGovernance.assertCanRemoveMember(1L, 100L, 100L));
   }
@@ -417,8 +416,7 @@ class GroupGovernanceTest {
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 200L)).thenReturn(Optional.of(admin));
     when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(java.math.BigDecimal.ZERO);
-    when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(100L), eq(1L), any()))
-        .thenReturn(false);
+    when(paymentRepository.hasActivePaymentsInGroup(eq(100L), eq(1L), any())).thenReturn(false);
 
     assertDoesNotThrow(() -> groupGovernance.assertCanRemoveMember(1L, 200L, 100L));
   }
@@ -430,8 +428,7 @@ class GroupGovernanceTest {
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
     when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(java.math.BigDecimal.ZERO);
-    when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(100L), eq(1L), any()))
-        .thenReturn(false);
+    when(paymentRepository.hasActivePaymentsInGroup(eq(100L), eq(1L), any())).thenReturn(false);
 
     assertDoesNotThrow(() -> groupGovernance.assertCanRemoveMember(1L, 999L, 100L));
   }
@@ -458,8 +455,7 @@ class GroupGovernanceTest {
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
     when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(java.math.BigDecimal.ZERO);
-    when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(100L), eq(1L), any()))
-        .thenReturn(true);
+    when(paymentRepository.hasActivePaymentsInGroup(eq(100L), eq(1L), any())).thenReturn(true);
 
     IllegalStateException exception =
         assertThrows(

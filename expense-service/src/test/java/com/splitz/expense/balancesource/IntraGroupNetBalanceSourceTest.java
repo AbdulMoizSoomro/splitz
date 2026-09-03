@@ -7,10 +7,12 @@ import static org.mockito.Mockito.when;
 
 import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.model.Expense;
-import com.splitz.expense.model.SettlementAllocation;
+import com.splitz.expense.model.Payment;
+import com.splitz.expense.model.PaymentType;
+import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.model.SimplificationScope;
 import com.splitz.expense.repository.ExpenseRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
@@ -22,7 +24,7 @@ import org.junit.jupiter.api.Test;
 class IntraGroupNetBalanceSourceTest {
 
   private ExpenseRepository expenseRepository;
-  private SettlementAllocationRepository settlementAllocationRepository;
+  private PaymentRepository paymentRepository;
   private FinancialLedgerEngine financialLedgerEngine;
   private IntraGroupNetBalanceSource source;
 
@@ -31,11 +33,10 @@ class IntraGroupNetBalanceSourceTest {
   @BeforeEach
   void setUp() {
     expenseRepository = mock(ExpenseRepository.class);
-    settlementAllocationRepository = mock(SettlementAllocationRepository.class);
+    paymentRepository = mock(PaymentRepository.class);
     financialLedgerEngine = mock(FinancialLedgerEngine.class);
     source =
-        new IntraGroupNetBalanceSource(
-            expenseRepository, settlementAllocationRepository, financialLedgerEngine);
+        new IntraGroupNetBalanceSource(expenseRepository, paymentRepository, financialLedgerEngine);
   }
 
   @Test
@@ -46,19 +47,25 @@ class IntraGroupNetBalanceSourceTest {
 
   @Test
   @DisplayName(
-      "Should source balances from the group's expenses and allocations and count them as originals")
-  void shouldResolveFromGroupExpensesAndAllocations() {
+      "Should source balances from the group's expenses and payments and count them as originals")
+  void shouldResolveFromGroupExpensesAndPayments() {
     List<Long> memberIds = List.of(1L, 2L, 3L);
 
     List<Expense> expenses =
         List.of(
             Expense.builder().paidBy(1L).amount(new BigDecimal("100.00")).build(),
             Expense.builder().paidBy(2L).amount(new BigDecimal("50.00")).build());
-    List<SettlementAllocation> allocations =
-        List.of(SettlementAllocation.builder().amount(new BigDecimal("20.00")).build());
+    List<Payment> payments =
+        List.of(
+            Payment.builder()
+                .type(PaymentType.GROUP)
+                .groupId(GROUP_ID)
+                .amount(new BigDecimal("20.00"))
+                .status(SettlementStatus.COMPLETED)
+                .build());
 
     when(expenseRepository.findByGroupId(GROUP_ID)).thenReturn(expenses);
-    when(settlementAllocationRepository.findByGroupId(GROUP_ID)).thenReturn(allocations);
+    when(paymentRepository.findByGroupId(GROUP_ID)).thenReturn(payments);
 
     Map<Long, BigDecimal> balances = new HashMap<>();
     balances.put(1L, new BigDecimal("30.00"));
@@ -68,10 +75,9 @@ class IntraGroupNetBalanceSourceTest {
     NetBalanceResult result = source.resolve(GROUP_ID, memberIds);
 
     assertThat(result.getNetBalances()).isEqualTo(balances);
-    assertThat(result.getOriginalTransactionCount())
-        .isEqualTo(expenses.size() + allocations.size());
+    assertThat(result.getOriginalTransactionCount()).isEqualTo(expenses.size() + payments.size());
     verify(expenseRepository).findByGroupId(GROUP_ID);
-    verify(settlementAllocationRepository).findByGroupId(GROUP_ID);
+    verify(paymentRepository).findByGroupId(GROUP_ID);
     verify(financialLedgerEngine).calculateGroupBalances(GROUP_ID, memberIds);
   }
 }

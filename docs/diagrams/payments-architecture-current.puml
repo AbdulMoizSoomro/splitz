@@ -1,0 +1,161 @@
+@startuml
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam class {
+    BackgroundColor #F8FAFC
+    ArrowColor #475569
+    BorderColor #94A3B8
+}
+skinparam note {
+    BackgroundColor #FEF3C7
+    BorderColor #F59E0B
+}
+
+title Current Payment Architecture (Splitz) - Flaws & Over-Engineering
+
+package "API / Web Layer" {
+    class SettlementController {
+        +createSettlement(CreateSettlementRequest)
+        +getSettlement(id)
+        +getSettlementsByGroup(groupId)
+        +getSettlementsBetweenUsers(u1, u2)
+        +updateSettlement(id, UpdateSettlementRequest)
+        +markAsPaid(id)
+        +confirmSettlement(id)
+    }
+
+    class PaymentMapper {
+        +toSettlementDTO(Payment) : SettlementDTO
+        note bottom: HACK: groupId = payment.getAllocations().get(0).getGroupId()\nBreaks on multi-group or direct payments!
+    }
+
+    class SettlementDTO {
+        +Long id
+        +Long groupId
+        +Long payerId
+        +Long payeeId
+        +BigDecimal amount
+        +SettlementStatus status
+        +List<AllocationDTO> allocations
+    }
+}
+
+package "Core Domain & Service Layer" {
+    class PaymentService {
+        +createPayment(payerId, payeeId, amount, groupId, explicitAllocations)
+        +markAsPaid(id)
+        +confirmPayment(id)
+        +updatePayment(id, amount, newAllocations)
+        +getPaymentsByGroup(groupId)
+        +getPaymentsBetweenUsers(u1, u2)
+    }
+
+    class PaymentLifecycle <<Deep Module>> {
+        +initialState(actorId, payerId, payeeId, now)
+        +markAsPaid(payment, actorId, admin, now)
+        +confirm(payment, actorId, admin, now)
+        +assertUpdateAllowed(payment, actorId, admin)
+    }
+
+    interface AllocationEngine {
+        +resolveAllocations(payerId, payeeId, amount, groupId, explicitAllocations)
+    }
+
+    class DefaultAllocationEngine {
+        -DebtPositionResolver debtPositionResolver
+        -SettlementAutoAllocator settlementAutoAllocator
+        +resolveAllocations(...)
+    }
+
+    class DebtPositionResolver {
+        +resolve(payerId, payeeId) : DebtPosition
+    }
+
+    class ProRataSettlementAutoAllocator {
+        +allocate(position, amount) : List<SettlementAllocation>
+        note bottom: Slices single payment across multiple groups pro-rata.\nIf remaining/no debts, sets groupId = null.
+    }
+}
+
+package "Persistence / Data Model" {
+    class Payment <<Entity>> {
+        +Long id
+        +Long payerId
+        +Long payeeId
+        +BigDecimal amount
+        +SettlementStatus status
+        +LocalDateTime markedPaidAt
+        +LocalDateTime settledAt
+        +List<SettlementAllocation> allocations
+        note right: Payment has NO type column\nand NO direct groupId!
+    }
+
+    class SettlementAllocation <<Entity>> {
+        +Long id
+        +Payment payment
+        +Long groupId  <<Nullable>>
+        +BigDecimal amount
+        note right: Nullable groupId distinguishes\ngroup vs global allocations!
+    }
+
+    enum SettlementStatus {
+        PENDING
+        MARKED_PAID
+        COMPLETED
+    }
+
+    interface PaymentRepository {
+        +findByIdWithLock(id)
+        +findByPayerIdOrPayeeId(u1, u2)
+        +findBetweenUsers(u1, u2)
+    }
+
+    interface SettlementAllocationRepository {
+        +findByGroupId(groupId)
+        +calculateTotalSettledBetweenUsersInGroup(...)
+        +hasActiveSettlementsForUserInGroup(...)
+    }
+}
+
+package "Cross-Cutting Consumers" {
+    class DefaultFinancialLedgerEngine {
+        +calculateGroupBalances(...)
+        +getNetBalanceWithFriend(...)
+        note bottom: Balances queried via SettlementAllocation joins.\nDirect settlements identified by groupId IS NULL.
+    }
+
+    class DefaultGroupGovernanceEngine {
+        +assertCanRemoveMember(...)
+        note bottom: Checks active settlements via SettlementAllocation query.
+    }
+}
+
+' Relationships
+SettlementController --> PaymentService : delegates
+SettlementController --> PaymentMapper : maps
+PaymentService --> AllocationEngine : resolves allocations
+AllocationEngine <|.. DefaultAllocationEngine
+DefaultAllocationEngine --> DebtPositionResolver : gets debt position
+DefaultAllocationEngine --> ProRataSettlementAutoAllocator : auto-allocates
+PaymentService --> PaymentLifecycle : state transitions
+PaymentService --> PaymentRepository : persists
+PaymentService --> SettlementAllocationRepository : queries
+
+Payment "1" *-- "0..*" SettlementAllocation : allocations (orphanRemoval)
+Payment --> SettlementStatus
+
+DefaultFinancialLedgerEngine --> SettlementAllocationRepository : aggregates
+DefaultGroupGovernanceEngine --> SettlementAllocationRepository : invariant checks
+
+note as N1
+  <b>CURRENT ARCHITECTURAL FLAWS:</b>
+  1. <b>Dual Naming:</b> Entity is 'Payment', but API is 'SettlementController', 'SettlementDTO', etc.
+  2. <b>Indirect Group Association:</b> Payment does NOT know its group! It relies on child 'SettlementAllocation'.
+  3. <b>Over-Engineering:</b> Full pro-rata multi-group allocation engine for simple settlements.
+  4. <b>Leaky Abstraction:</b> Nullable groupId in allocations represents "direct/global", forcing callers to inspect collection.
+  5. <b>Query Overhead:</b> Cross-table joins needed to find group payments and check membership invariants.
+end note
+
+@enduml

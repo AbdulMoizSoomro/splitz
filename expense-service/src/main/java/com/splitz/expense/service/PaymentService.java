@@ -1,19 +1,17 @@
 package com.splitz.expense.service;
 
-import com.splitz.expense.allocator.AllocationEngine;
 import com.splitz.expense.dto.CreateSettlementRequest;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.exception.UnauthorizedException;
+import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.lifecycle.PaymentLifecycle;
 import com.splitz.expense.model.Payment;
-import com.splitz.expense.model.SettlementAllocation;
+import com.splitz.expense.model.PaymentType;
 import com.splitz.expense.repository.PaymentRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,24 +21,49 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentService {
 
   private final PaymentRepository paymentRepository;
-  private final SettlementAllocationRepository settlementAllocationRepository;
   private final SharedSecurityAuthorizer splitzAuthorizer;
-  private final AllocationEngine allocationEngine;
   private final PaymentLifecycle paymentLifecycle;
+  private final GroupGovernance groupGovernance;
 
   @Transactional
-  public Payment createPayment(
-      Long payerId,
-      Long payeeId,
-      BigDecimal amount,
-      Long groupId,
-      List<CreateSettlementRequest.Allocation> explicitAllocations) {
-    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new IllegalArgumentException("Payment amount must be positive");
+  public Payment createGroupPayment(
+      Long groupId, Long payerId, Long payeeId, BigDecimal amount, String notes) {
+    if (groupId == null) {
+      throw new IllegalArgumentException("Group ID is required for in-group payments");
     }
-    if (payerId.equals(payeeId)) {
-      throw new IllegalArgumentException("Payer and payee cannot be the same user");
+    validateAmountAndParties(payerId, payeeId, amount);
+
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
+    boolean admin = splitzAuthorizer.isAdmin();
+    if (!paymentLifecycle.canCreate(currentUserId, payerId, payeeId, admin)) {
+      throw new UnauthorizedException("You are not authorized to create this payment");
     }
+
+    groupGovernance.assertIsMember(groupId, payerId);
+    groupGovernance.assertIsMember(groupId, payeeId);
+
+    PaymentLifecycle.InitialState initialState =
+        paymentLifecycle.initialState(currentUserId, payerId, payeeId, LocalDateTime.now());
+
+    Payment payment =
+        Payment.builder()
+            .type(PaymentType.GROUP)
+            .groupId(groupId)
+            .payerId(payerId)
+            .payeeId(payeeId)
+            .amount(amount)
+            .notes(notes)
+            .status(initialState.getStatus())
+            .markedPaidAt(initialState.getMarkedPaidAt())
+            .settledAt(initialState.getSettledAt())
+            .build();
+
+    return paymentRepository.save(payment);
+  }
+
+  @Transactional
+  public Payment createDirectPayment(Long payerId, Long payeeId, BigDecimal amount, String notes) {
+    validateAmountAndParties(payerId, payeeId, amount);
 
     Long currentUserId = splitzAuthorizer.getCurrentUserId();
     boolean admin = splitzAuthorizer.isAdmin();
@@ -53,22 +76,37 @@ public class PaymentService {
 
     Payment payment =
         Payment.builder()
+            .type(PaymentType.DIRECT)
+            .groupId(null)
             .payerId(payerId)
             .payeeId(payeeId)
             .amount(amount)
+            .notes(notes)
             .status(initialState.getStatus())
             .markedPaidAt(initialState.getMarkedPaidAt())
             .settledAt(initialState.getSettledAt())
             .build();
 
-    List<SettlementAllocation> allocations =
-        allocationEngine.resolveAllocations(payerId, payeeId, amount, groupId, explicitAllocations);
-
-    for (SettlementAllocation allocation : allocations) {
-      payment.addAllocation(allocation);
-    }
-
     return paymentRepository.save(payment);
+  }
+
+  @Transactional
+  public Payment createPayment(
+      Long payerId,
+      Long payeeId,
+      BigDecimal amount,
+      Long groupId,
+      List<CreateSettlementRequest.Allocation> explicitAllocations) {
+    if (groupId != null) {
+      return createGroupPayment(groupId, payerId, payeeId, amount, null);
+    }
+    if (explicitAllocations != null && !explicitAllocations.isEmpty()) {
+      Long firstGroupId = explicitAllocations.get(0).getGroupId();
+      if (firstGroupId != null) {
+        return createGroupPayment(firstGroupId, payerId, payeeId, amount, null);
+      }
+    }
+    return createDirectPayment(payerId, payeeId, amount, null);
   }
 
   @Transactional
@@ -127,12 +165,18 @@ public class PaymentService {
   }
 
   @Transactional(readOnly = true)
+  public List<Payment> getDirectPaymentsBetweenUsers(Long userId1, Long userId2) {
+    Long currentUserId = splitzAuthorizer.getCurrentUserId();
+    if (!paymentLifecycle.canViewBetween(
+        currentUserId, userId1, userId2, splitzAuthorizer.isAdmin())) {
+      throw new UnauthorizedException("You are not authorized to view these payments");
+    }
+    return paymentRepository.findDirectBetweenUsers(userId1, userId2);
+  }
+
+  @Transactional(readOnly = true)
   public List<Payment> getPaymentsByGroup(Long groupId) {
-    List<SettlementAllocation> allocations = settlementAllocationRepository.findByGroupId(groupId);
-    return allocations.stream()
-        .map(SettlementAllocation::getPayment)
-        .distinct()
-        .collect(Collectors.toList());
+    return paymentRepository.findByGroupId(groupId);
   }
 
   @Transactional
@@ -153,18 +197,25 @@ public class PaymentService {
       payment.setAmount(newAmount);
     }
 
-    // Clear existing allocations (orphanRemoval will delete from DB)
-    payment.getAllocations().clear();
-
-    BigDecimal amount = payment.getAmount();
-    List<SettlementAllocation> allocations =
-        allocationEngine.resolveAllocations(
-            payment.getPayerId(), payment.getPayeeId(), amount, null, newAllocations);
-
-    for (SettlementAllocation allocation : allocations) {
-      payment.addAllocation(allocation);
+    if (newAllocations != null && !newAllocations.isEmpty()) {
+      Long newGroupId = newAllocations.get(0).getGroupId();
+      if (newGroupId != null) {
+        groupGovernance.assertIsMember(newGroupId, payment.getPayerId());
+        groupGovernance.assertIsMember(newGroupId, payment.getPayeeId());
+        payment.setType(PaymentType.GROUP);
+        payment.setGroupId(newGroupId);
+      }
     }
 
     return paymentRepository.save(payment);
+  }
+
+  private void validateAmountAndParties(Long payerId, Long payeeId, BigDecimal amount) {
+    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalArgumentException("Payment amount must be positive");
+    }
+    if (payerId.equals(payeeId)) {
+      throw new IllegalArgumentException("Payer and payee cannot be the same user");
+    }
   }
 }

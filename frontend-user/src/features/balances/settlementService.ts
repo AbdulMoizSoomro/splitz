@@ -6,6 +6,8 @@ export interface CreateSettlementRequest {
   amount: number;
   currency?: string;
   groupId?: number | null;
+  type?: "GROUP" | "DIRECT";
+  notes?: string | null;
   allocations?: Array<{
     groupId: number;
     amount: number;
@@ -14,6 +16,7 @@ export interface CreateSettlementRequest {
 
 export interface UpdateSettlementRequest {
   amount: number;
+  notes?: string | null;
   allocations?: Array<{
     groupId: number;
     amount: number;
@@ -26,7 +29,9 @@ export interface Settlement {
   payeeId: number;
   amount: number;
   currency?: string;
+  type?: "GROUP" | "DIRECT";
   groupId?: number | null;
+  notes?: string | null;
   status: "PENDING" | "MARKED_PAID" | "COMPLETED";
   createdAt: string;
   paidAt?: string;
@@ -45,6 +50,27 @@ export const settlementService = {
     data: CreateSettlementRequest,
   ): Promise<Settlement> => {
     const response = await expenseApi.post<Settlement>("/settlements", data);
+    return response.data;
+  },
+
+  createGroupPayment: async (
+    groupId: number,
+    data: Omit<CreateSettlementRequest, "groupId">,
+  ): Promise<Settlement> => {
+    const response = await expenseApi.post<Settlement>(
+      `/groups/${groupId}/payments`,
+      data,
+    );
+    return response.data;
+  },
+
+  createDirectPayment: async (
+    data: Omit<CreateSettlementRequest, "groupId">,
+  ): Promise<Settlement> => {
+    const response = await expenseApi.post<Settlement>(
+      "/payments/direct",
+      data,
+    );
     return response.data;
   },
 
@@ -92,4 +118,3 @@ export const settlementService = {
     return response.data;
   },
 };
-

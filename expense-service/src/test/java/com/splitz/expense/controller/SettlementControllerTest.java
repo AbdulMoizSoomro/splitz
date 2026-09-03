@@ -85,7 +85,7 @@ class SettlementControllerTest {
             .amount(new BigDecimal("50.00"))
             .build();
 
-    when(paymentService.createPayment(any(), any(), any(), any(), any())).thenReturn(payment);
+    when(paymentService.createGroupPayment(any(), any(), any(), any(), any())).thenReturn(payment);
     when(paymentMapper.toSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
@@ -96,6 +96,28 @@ class SettlementControllerTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(1))
         .andExpect(jsonPath("$.status").value("PENDING"));
+  }
+
+  @Test
+  @WithMockUser(username = "101")
+  void createDirectPayment_Success() throws Exception {
+    CreateSettlementRequest request =
+        CreateSettlementRequest.builder()
+            .payerId(101L)
+            .payeeId(102L)
+            .amount(new BigDecimal("50.00"))
+            .build();
+
+    when(paymentService.createDirectPayment(any(), any(), any(), any())).thenReturn(payment);
+    when(paymentMapper.toSettlementDTO(any())).thenReturn(settlementDTO);
+
+    mockMvc
+        .perform(
+            post("/payments/direct")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id").value(1));
   }
 
   @Test
@@ -160,7 +182,7 @@ class SettlementControllerTest {
                         .build()))
             .build();
 
-    when(paymentService.createPayment(any(), any(), any(), any(), any())).thenReturn(payment);
+    when(paymentService.createGroupPayment(any(), any(), any(), any(), any())).thenReturn(payment);
     when(paymentMapper.toSettlementDTO(any())).thenReturn(settlementDTO);
 
     mockMvc
