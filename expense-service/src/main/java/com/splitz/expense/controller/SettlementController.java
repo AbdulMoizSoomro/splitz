@@ -7,6 +7,7 @@ import com.splitz.expense.mapper.PaymentMapper;
 import com.splitz.expense.model.Payment;
 import com.splitz.expense.service.PaymentService;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,16 +43,34 @@ public class SettlementController {
               request.getPayeeId(),
               request.getAmount(),
               null);
-    } else if (request.getAllocations() != null
-        && !request.getAllocations().isEmpty()
-        && request.getAllocations().get(0).getGroupId() != null) {
+    } else if (request.getAllocations() != null && !request.getAllocations().isEmpty()) {
+      Payment firstCreated = null;
+      for (CreateSettlementRequest.Allocation alloc : request.getAllocations()) {
+        if (alloc.getAmount() != null && alloc.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+          Payment p;
+          if (alloc.getGroupId() != null) {
+            p =
+                paymentService.createGroupPayment(
+                    alloc.getGroupId(),
+                    request.getPayerId(),
+                    request.getPayeeId(),
+                    alloc.getAmount(),
+                    null);
+          } else {
+            p =
+                paymentService.createDirectPayment(
+                    request.getPayerId(), request.getPayeeId(), alloc.getAmount(), null);
+          }
+          if (firstCreated == null) {
+            firstCreated = p;
+          }
+        }
+      }
       payment =
-          paymentService.createGroupPayment(
-              request.getAllocations().get(0).getGroupId(),
-              request.getPayerId(),
-              request.getPayeeId(),
-              request.getAmount(),
-              null);
+          firstCreated != null
+              ? firstCreated
+              : paymentService.createDirectPayment(
+                  request.getPayerId(), request.getPayeeId(), request.getAmount(), null);
     } else {
       payment =
           paymentService.createDirectPayment(

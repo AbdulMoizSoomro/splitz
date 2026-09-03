@@ -89,7 +89,7 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
       payerId: number;
       payeeId: number;
       amount: number;
-      allocations?: { groupId: number; amount: number }[];
+      allocations?: { groupId: number | null; amount: number }[];
     }) => settlementService.createSettlement(data),
     onSuccess: () => {
       invalidations.settlementMutated(invalidate, currentUser.id, friend.id);
@@ -114,6 +114,7 @@ const FriendshipSettlementModal: React.FC<FriendshipSettlementModalProps> = ({
       amount: parseFloat(amount),
       isAllocating,
       allocations,
+      sharedGroups,
     });
     createMutation.mutate(payload);
   };

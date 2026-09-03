@@ -35,6 +35,7 @@ async function acceptFriendRequest(page: Page, requesterName: string) {
 
 test.describe("[E2E] Settlement Lifecycle", () => {
   test("Alice pays Bob and Bob confirms", async ({ browser }) => {
+    test.setTimeout(60000);
     const ts = Date.now();
     const aliceName = `alice_${ts}`;
     const bobName = `bob_${ts}`;

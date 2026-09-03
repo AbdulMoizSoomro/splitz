@@ -119,7 +119,7 @@ test.describe("Leave Group", () => {
       // 7. Verify redirect and group absence for member
       await expect(pageMember).toHaveURL(/\/groups/, { timeout: 15000 });
       await expect(
-        pageMember.getByRole("heading", { name: /your groups/i }),
+        pageMember.getByRole("heading", { name: "Your Groups", exact: true }),
       ).toBeVisible({ timeout: 15000 });
 
       // Look for the group name specifically in an h3 (the card title) to avoid matching other text
