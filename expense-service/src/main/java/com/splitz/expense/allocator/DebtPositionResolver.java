@@ -1,8 +1,8 @@
 package com.splitz.expense.allocator;
 
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.FriendGroupBalanceDTO;
-import com.splitz.expense.service.BalanceService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,21 +12,22 @@ import org.springframework.stereotype.Component;
 
 /**
  * Deep module that turns (payerId, payeeId) into the payer's {@link DebtPosition}. Hides the {@link
- * BalanceService} fetch, the rule "only the groups where the payer owes count", and the
+ * FinancialLedgerEngine} fetch, the rule "only the groups where the payer owes count", and the
  * deterministic group-id ordering. Allocators consume the resolved {@link DebtPosition} as a pure
  * input, so they no longer re-derive the debt picture themselves (locality for the debt rule).
  */
 @Component
 public class DebtPositionResolver {
 
-  private final BalanceService balanceService;
+  private final FinancialLedgerEngine financialLedgerEngine;
 
-  public DebtPositionResolver(BalanceService balanceService) {
-    this.balanceService = balanceService;
+  public DebtPositionResolver(FinancialLedgerEngine financialLedgerEngine) {
+    this.financialLedgerEngine = financialLedgerEngine;
   }
 
   public DebtPosition resolve(Long payerId, Long payeeId) {
-    FriendBalanceResponseDTO response = balanceService.getNetBalanceWithFriend(payerId, payeeId);
+    FriendBalanceResponseDTO response =
+        financialLedgerEngine.getNetBalanceWithFriend(payerId, payeeId);
 
     List<GroupDebt> debts = new ArrayList<>();
     if (response != null && response.getGroupBalances() != null) {

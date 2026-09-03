@@ -5,9 +5,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.FriendGroupBalanceDTO;
-import com.splitz.expense.service.BalanceService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,19 +16,19 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests the deep {@link DebtPositionResolver} — the module that turns (payerId, payeeId) into the
- * payer's eligible group debts, hiding the BalanceService fetch, the filter-to-owed-groups rule and
- * the deterministic group id ordering. This is the seam the settlement-allocation decision reads
- * from, instead of each allocator re-deriving the debt picture itself.
+ * payer's eligible group debts, hiding the FinancialLedgerEngine fetch, the filter-to-owed-groups
+ * rule and the deterministic group id ordering. This is the seam the settlement-allocation decision
+ * reads from, instead of each allocator re-deriving the debt picture itself.
  */
 class DebtPositionResolverTest {
 
-  private BalanceService balanceService;
+  private FinancialLedgerEngine financialLedgerEngine;
   private DebtPositionResolver resolver;
 
   @BeforeEach
   void setUp() {
-    balanceService = mock(BalanceService.class);
-    resolver = new DebtPositionResolver(balanceService);
+    financialLedgerEngine = mock(FinancialLedgerEngine.class);
+    resolver = new DebtPositionResolver(financialLedgerEngine);
   }
 
   @Test
@@ -60,7 +60,7 @@ class DebtPositionResolverTest {
                         .build()))
             .build();
 
-    when(balanceService.getNetBalanceWithFriend(payerId, payeeId)).thenReturn(response);
+    when(financialLedgerEngine.getNetBalanceWithFriend(payerId, payeeId)).thenReturn(response);
 
     DebtPosition position = resolver.resolve(payerId, payeeId);
 
@@ -72,7 +72,7 @@ class DebtPositionResolverTest {
     assertThat(position.getDebts().get(0).getOwedAmount()).isEqualByComparingTo("10.00");
     assertThat(position.getDebts().get(1).getGroupId()).isEqualTo(30L);
     assertThat(position.getDebts().get(1).getOwedAmount()).isEqualByComparingTo("30.00");
-    verify(balanceService).getNetBalanceWithFriend(payerId, payeeId);
+    verify(financialLedgerEngine).getNetBalanceWithFriend(payerId, payeeId);
   }
 
   @Test
@@ -89,7 +89,7 @@ class DebtPositionResolverTest {
             .groupBalances(List.of())
             .build();
 
-    when(balanceService.getNetBalanceWithFriend(payerId, payeeId)).thenReturn(response);
+    when(financialLedgerEngine.getNetBalanceWithFriend(payerId, payeeId)).thenReturn(response);
 
     DebtPosition position = resolver.resolve(payerId, payeeId);
 
@@ -102,7 +102,7 @@ class DebtPositionResolverTest {
     Long payerId = 1L;
     Long payeeId = 2L;
 
-    when(balanceService.getNetBalanceWithFriend(payerId, payeeId)).thenReturn(null);
+    when(financialLedgerEngine.getNetBalanceWithFriend(payerId, payeeId)).thenReturn(null);
 
     DebtPosition position = resolver.resolve(payerId, payeeId);
 
@@ -129,7 +129,7 @@ class DebtPositionResolverTest {
                         .build()))
             .build();
 
-    when(balanceService.getNetBalanceWithFriend(payerId, payeeId)).thenReturn(response);
+    when(financialLedgerEngine.getNetBalanceWithFriend(payerId, payeeId)).thenReturn(response);
 
     DebtPosition position = resolver.resolve(payerId, payeeId);
 

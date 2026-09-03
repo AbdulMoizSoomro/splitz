@@ -1,4 +1,3 @@
-import type { Balance, Debt } from "../../types/group";
 import type { GroupBalance } from "../../types/user";
 
 /**
@@ -6,29 +5,18 @@ import type { GroupBalance } from "../../types/user";
  * to be re-derived in five call sites, each with its own shape and sign
  * convention.
  *
- * The module is "deep": a small pure surface (`deriveLedger`, `deriveCounterparties`,
- * `decomposePosition`) hides the group fan-out and the sign conventions:
+ * The module is "deep": a small pure surface (`deriveLedger`, `decomposePosition`)
+ * hides the group decomposition and the sign conventions:
  *
  * - a **counterparty** is one other person the ledger key has a non-zero
  *   position with, aggregated across every shared group;
  * - `balance > 0` always means *"they owe the key"*; `balance < 0` means
  *   *"the key owes them"* (same sign as the backend's group `Balance.balance`);
  * - `decomposePosition` implements the `direct = total − groupTotal` rule once;
- * - names are resolved from the per-group member rows, falling back to the
- *   simplified-debt usernames — so name resolution and money positions share
- *   one data source.
  */
 
 /** The smallest float magnitude still treated as "real money". */
 export const MONEY_TOLERANCE = 0.01;
-
-/** A per-group balance slice, as returned by `groupService.getBalances`. */
-export interface GroupBalanceSlice {
-  groupId: number;
-  groupName?: string;
-  balances?: Balance[];
-  simplifiedDebts?: Debt[];
-}
 
 /** A group identified by id and name (the shape counterparties group by). */
 export interface GroupRef {
@@ -45,6 +33,10 @@ export interface Counterparty {
   balance: number;
   /** The shared groups where this position exists. */
   groups: GroupRef[];
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
 }
 
 /** The key's balance inside one group. */
@@ -76,92 +68,12 @@ export interface Ledger {
   key: number;
   /** Everyone the key has a non-zero position with, one entry per person. */
   counterparties: Counterparty[];
-  /** userId → display name for every person seen in the ledger's groups. */
+  /** userId → display name for every person seen in the ledger's counterparties. */
   memberNames: Record<number, string>;
   /** The key's balance inside each of its groups. */
   groupPositions: GroupPosition[];
   /** The overall position (group + direct decomposition). */
   position: LedgerPosition;
-}
-
-function fullName(
-  b: { firstName?: string; lastName?: string; username?: string },
-): string {
-  return `${b.firstName ?? ""} ${b.lastName ?? ""}`.trim() || b.username || "";
-}
-
-/** userId → name for everyone appearing in the slices (member rows first). */
-export function memberNames(slices: GroupBalanceSlice[]): Record<number, string> {
-  const map: Record<number, string> = {};
-
-  for (const slice of slices) {
-    for (const balance of slice.balances ?? []) {
-      const name = fullName(balance);
-      if (name && map[balance.userId] === undefined) {
-        map[balance.userId] = name;
-      }
-    }
-    for (const debt of slice.simplifiedDebts ?? []) {
-      if (debt.fromUsername && map[debt.from] === undefined) {
-        map[debt.from] = debt.fromUsername;
-      }
-      if (debt.toUsername && map[debt.to] === undefined) {
-        map[debt.to] = debt.toUsername;
-      }
-    }
-  }
-
-  return map;
-}
-
-/**
- * Derive the per-counterparty positions from the simplified-debt edges.
- *
- * A debt `from → to, amount` means "`from` owes `to`", so from the key's
- * point of view it is a negative position (the key owes) when the key is
- * `from`, and a positive position (they owe the key) when the key is `to`.
- * Positions for the same counterparty are aggregated across all groups.
- */
-export function deriveCounterparties(
-  key: number,
-  slices: GroupBalanceSlice[],
-): Counterparty[] {
-  const names = memberNames(slices);
-  const byId = new Map<number, Counterparty>();
-
-  for (const slice of slices) {
-    const groupName = slice.groupName ?? `Group #${slice.groupId}`;
-    for (const debt of slice.simplifiedDebts ?? []) {
-      let otherId: number;
-      let delta: number;
-
-      if (debt.from === key && debt.to !== key) {
-        otherId = debt.to;
-        delta = -debt.amount;
-      } else if (debt.to === key && debt.from !== key) {
-        otherId = debt.from;
-        delta = debt.amount;
-      } else {
-        continue;
-      }
-
-      let counterparty = byId.get(otherId);
-      if (!counterparty) {
-        counterparty = { userId: otherId, name: "", balance: 0, groups: [] };
-        byId.set(otherId, counterparty);
-      }
-
-      counterparty.balance += delta;
-      if (!counterparty.groups.some((g) => g.id === slice.groupId)) {
-        counterparty.groups.push({ id: slice.groupId, name: groupName });
-      }
-    }
-  }
-
-  return [...byId.values()].map((cp) => ({
-    ...cp,
-    name: names[cp.userId] ?? "",
-  }));
 }
 
 /**
@@ -197,18 +109,30 @@ export function balanceInGroup(
   return balances.find((b) => b.userId === userId)?.balance ?? 0;
 }
 
-/** Derive the complete ledger from a net-balance source and group slices. */
+/** Derive the complete ledger from a net-balance source and counterparties. */
 export function deriveLedger(
   key: number,
   source: PositionSource | undefined,
-  slices: GroupBalanceSlice[],
+  counterparties: Counterparty[] = [],
 ): Ledger {
   const { position, groupPositions } = decomposePosition(source ?? { total: 0 });
 
+  const names: Record<number, string> = {};
+  for (const cp of counterparties) {
+    const displayName =
+      cp.name ||
+      [cp.firstName, cp.lastName].filter(Boolean).join(" ").trim() ||
+      cp.username ||
+      "";
+    if (displayName) {
+      names[cp.userId] = displayName;
+    }
+  }
+
   return {
     key,
-    counterparties: deriveCounterparties(key, slices),
-    memberNames: memberNames(slices),
+    counterparties,
+    memberNames: names,
     groupPositions,
     position,
   };

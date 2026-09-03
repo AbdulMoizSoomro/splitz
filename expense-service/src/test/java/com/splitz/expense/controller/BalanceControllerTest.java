@@ -8,12 +8,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.dto.BalanceDTO;
+import com.splitz.expense.dto.CounterpartyResponseDTO;
 import com.splitz.expense.dto.DebtDTO;
 import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
-import com.splitz.expense.service.BalanceService;
 import com.splitz.security.JwtRequestFilter;
 import com.splitz.security.JwtUtil;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
@@ -24,6 +25,7 @@ import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +41,7 @@ class BalanceControllerTest {
 
   @Autowired private MockMvc mockMvc;
 
-  @MockBean private BalanceService balanceService;
+  @MockBean private FinancialLedgerEngine financialLedgerEngine;
 
   @MockBean private JwtRequestFilter jwtRequestFilter;
 
@@ -80,7 +82,7 @@ class BalanceControllerTest {
                     DebtDTO.builder().from(103L).to(101L).amount(new BigDecimal("20.00")).build()))
             .build();
 
-    when(balanceService.getGroupBalances(eq(1L))).thenReturn(response);
+    when(financialLedgerEngine.getGroupBalances(eq(1L))).thenReturn(response);
 
     mockMvc
         .perform(get("/groups/1/balances"))
@@ -107,7 +109,7 @@ class BalanceControllerTest {
                         2L, "Group 2", new BigDecimal("-10.00"))))
             .build();
 
-    when(balanceService.getUserBalances(eq(101L))).thenReturn(response);
+    when(financialLedgerEngine.getUserBalances(eq(101L))).thenReturn(response);
 
     mockMvc
         .perform(get("/users/101/balances"))
@@ -128,7 +130,7 @@ class BalanceControllerTest {
             .netBalance(new BigDecimal("5.00"))
             .build();
 
-    when(balanceService.getNetBalanceWithFriend(eq(101L), eq(102L))).thenReturn(response);
+    when(financialLedgerEngine.getNetBalanceWithFriend(eq(101L), eq(102L))).thenReturn(response);
 
     mockMvc
         .perform(get("/users/101/balances/with/102"))
@@ -136,5 +138,34 @@ class BalanceControllerTest {
         .andExpect(jsonPath("$.userId").value(101L))
         .andExpect(jsonPath("$.friendId").value(102L))
         .andExpect(jsonPath("$.netBalance").value(5.00));
+  }
+
+  @Test
+  @WithMockUser(username = "101")
+  void getCounterparties_ShouldReturnHydratedCounterparties() throws Exception {
+    CounterpartyResponseDTO cp =
+        CounterpartyResponseDTO.builder()
+            .userId(102L)
+            .username("bob")
+            .firstName("Bob")
+            .lastName("Smith")
+            .email("bob@example.com")
+            .balance(new BigDecimal("20.00"))
+            .groups(List.of(new CounterpartyResponseDTO.GroupRefDTO(10L, "Trip")))
+            .build();
+
+    when(financialLedgerEngine.getCounterparties(eq(101L))).thenReturn(List.of(cp));
+
+    mockMvc
+        .perform(get("/users/101/counterparties"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].userId").value(102L))
+        .andExpect(jsonPath("$[0].username").value("bob"))
+        .andExpect(jsonPath("$[0].firstName").value("Bob"))
+        .andExpect(jsonPath("$[0].lastName").value("Smith"))
+        .andExpect(jsonPath("$[0].email").value("bob@example.com"))
+        .andExpect(jsonPath("$[0].balance").value(20.00))
+        .andExpect(jsonPath("$[0].groups[0].id").value(10L))
+        .andExpect(jsonPath("$[0].groups[0].name").value("Trip"));
   }
 }

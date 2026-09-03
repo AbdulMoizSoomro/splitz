@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.splitz.expense.balance.DebtBalanceEngine;
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.SimplificationScope;
@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests the {@link CrossGroupNetBalanceSource} — the balance-source adapter for the CROSS_GROUP
- * scope. It delegates batch balance evaluation to the {@link DebtBalanceEngine} and sums each
+ * scope. It delegates batch balance evaluation to the {@link FinancialLedgerEngine} and sums each
  * member's per-group balances from the batch result in a single round trip. Original transaction
  * count is zero (balances are derived from the cross-group ledger, not a single group's
  * transactions).
@@ -28,14 +28,14 @@ import org.junit.jupiter.api.Test;
 class CrossGroupNetBalanceSourceTest {
 
   private GroupMemberRepository groupMemberRepository;
-  private DebtBalanceEngine debtBalanceEngine;
+  private FinancialLedgerEngine financialLedgerEngine;
   private CrossGroupNetBalanceSource source;
 
   @BeforeEach
   void setUp() {
     groupMemberRepository = mock(GroupMemberRepository.class);
-    debtBalanceEngine = mock(DebtBalanceEngine.class);
-    source = new CrossGroupNetBalanceSource(groupMemberRepository, debtBalanceEngine);
+    financialLedgerEngine = mock(FinancialLedgerEngine.class);
+    source = new CrossGroupNetBalanceSource(groupMemberRepository, financialLedgerEngine);
   }
 
   @Test
@@ -60,28 +60,37 @@ class CrossGroupNetBalanceSourceTest {
                 GroupMember.builder().userId(2L).group(group10).build(),
                 GroupMember.builder().userId(2L).group(group30).build()));
 
-    Map<Long, Map<Long, BigDecimal>> batch = new HashMap<>();
-    batch.put(1L, Map.of(10L, new BigDecimal("-30.00"), 20L, new BigDecimal("-20.00")));
-    batch.put(2L, Map.of(10L, new BigDecimal("30.00"), 30L, new BigDecimal("20.00")));
-    when(debtBalanceEngine.calculateBalancesInGroups(any(), any())).thenReturn(batch);
+    Map<Long, Map<Long, BigDecimal>> engineBatch = new HashMap<>();
+    engineBatch.put(
+        1L,
+        Map.of(
+            10L, new BigDecimal("10.00"),
+            20L, new BigDecimal("-3.50"),
+            30L, BigDecimal.ZERO));
+    engineBatch.put(
+        2L,
+        Map.of(
+            10L, new BigDecimal("-10.00"),
+            20L, BigDecimal.ZERO,
+            30L, new BigDecimal("25.00")));
 
-    NetBalanceResult result = source.resolve(1L, List.of(1L, 2L));
+    when(financialLedgerEngine.calculateBalancesInGroups(any(), any())).thenReturn(engineBatch);
 
-    Map<Long, BigDecimal> expected =
-        Map.of(1L, new BigDecimal("-50.00"), 2L, new BigDecimal("50.00"));
-    assertThat(result.getNetBalances()).isEqualTo(expected);
-    assertThat(result.getOriginalTransactionCount()).isZero();
+    NetBalanceResult result = source.resolve(10L, List.of(1L, 2L));
+
+    assertThat(result.getOriginalTransactionCount()).isEqualTo(0);
+    assertThat(result.getNetBalances().get(1L)).isEqualByComparingTo("6.50");
+    assertThat(result.getNetBalances().get(2L)).isEqualByComparingTo("15.00");
   }
 
   @Test
-  @DisplayName("Should resolve a member with no memberships to a zero balance")
-  void shouldResolveZeroBalanceForMemberWithoutMemberships() {
-    when(groupMemberRepository.findByUserIdIn(List.of(9L))).thenReturn(List.of());
-    when(debtBalanceEngine.calculateBalancesInGroups(any(), any()))
-        .thenReturn(Map.of(9L, Map.of()));
+  @DisplayName("Should return zero balances when members belong to no groups")
+  void shouldReturnZeroWhenNoMemberships() {
+    when(groupMemberRepository.findByUserIdIn(List.of(99L))).thenReturn(List.of());
 
-    NetBalanceResult result = source.resolve(1L, List.of(9L));
+    NetBalanceResult result = source.resolve(10L, List.of(99L));
 
-    assertThat(result.getNetBalances().get(9L)).isEqualByComparingTo("0.00");
+    assertThat(result.getOriginalTransactionCount()).isEqualTo(0);
+    assertThat(result.getNetBalances().get(99L)).isEqualByComparingTo("0.00");
   }
 }

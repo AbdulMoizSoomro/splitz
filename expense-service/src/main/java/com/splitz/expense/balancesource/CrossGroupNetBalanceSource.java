@@ -1,6 +1,6 @@
 package com.splitz.expense.balancesource;
 
-import com.splitz.expense.balance.DebtBalanceEngine;
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.SimplificationScope;
 import com.splitz.expense.repository.GroupMemberRepository;
@@ -17,23 +17,19 @@ import org.springframework.stereotype.Component;
 
 /**
  * Balance-source adapter for the {@link SimplificationScope#CROSS_GROUP} scope: aggregates a single
- * member's net balances across all of their group memberships. Loads every member's memberships in
- * one {@link GroupMemberRepository#findByUserIdIn} lookup, evaluates all per-group balances in a
- * single batch {@link DebtBalanceEngine#calculateBalancesInGroups} round trip, and sums them per
- * member. Owns the "walk a member's memberships and sum per-group balances" algorithm — its
- * repositories and cost profile — in one place instead of inside the plan orchestrator's scope
- * branch.
+ * member's net balances across all of their group memberships using the deep {@link
+ * FinancialLedgerEngine}.
  */
 @Component
 public class CrossGroupNetBalanceSource implements NetBalanceSource {
 
   private final GroupMemberRepository groupMemberRepository;
-  private final DebtBalanceEngine debtBalanceEngine;
+  private final FinancialLedgerEngine financialLedgerEngine;
 
   public CrossGroupNetBalanceSource(
-      GroupMemberRepository groupMemberRepository, DebtBalanceEngine debtBalanceEngine) {
+      GroupMemberRepository groupMemberRepository, FinancialLedgerEngine financialLedgerEngine) {
     this.groupMemberRepository = groupMemberRepository;
-    this.debtBalanceEngine = debtBalanceEngine;
+    this.financialLedgerEngine = financialLedgerEngine;
   }
 
   @Override
@@ -67,7 +63,7 @@ public class CrossGroupNetBalanceSource implements NetBalanceSource {
     }
 
     Map<Long, Map<Long, BigDecimal>> balances =
-        debtBalanceEngine.calculateBalancesInGroups(memberIds, allGroupIds);
+        financialLedgerEngine.calculateBalancesInGroups(memberIds, allGroupIds);
 
     for (Long memberId : memberIds) {
       BigDecimal total = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);

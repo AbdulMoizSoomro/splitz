@@ -1,6 +1,6 @@
 package com.splitz.expense.balancesource;
 
-import com.splitz.expense.balance.DebtBalanceEngine;
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SimplificationScope;
@@ -11,26 +11,23 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * Balance-source adapter for the {@link SimplificationScope#INTRA_GROUP} scope: reads the group's
- * Expenses and Settlement Allocations and runs them through the {@link DebtBalanceEngine} to derive
- * per-member net balances. Owns the "how the plan's intra-group balances are sourced" algorithm,
- * its repositories and its cost profile — in one place instead of inside the plan orchestrator's
- * scope branch.
+ * Balance-source adapter for the {@link SimplificationScope#INTRA_GROUP} scope: delegates to the
+ * deep {@link FinancialLedgerEngine} to derive per-member net balances.
  */
 @Component
 public class IntraGroupNetBalanceSource implements NetBalanceSource {
 
   private final ExpenseRepository expenseRepository;
   private final SettlementAllocationRepository settlementAllocationRepository;
-  private final DebtBalanceEngine debtBalanceEngine;
+  private final FinancialLedgerEngine financialLedgerEngine;
 
   public IntraGroupNetBalanceSource(
       ExpenseRepository expenseRepository,
       SettlementAllocationRepository settlementAllocationRepository,
-      DebtBalanceEngine debtBalanceEngine) {
+      FinancialLedgerEngine financialLedgerEngine) {
     this.expenseRepository = expenseRepository;
     this.settlementAllocationRepository = settlementAllocationRepository;
-    this.debtBalanceEngine = debtBalanceEngine;
+    this.financialLedgerEngine = financialLedgerEngine;
   }
 
   @Override
@@ -45,7 +42,7 @@ public class IntraGroupNetBalanceSource implements NetBalanceSource {
     return NetBalanceResult.builder()
         .netBalances(
             Collections.unmodifiableMap(
-                debtBalanceEngine.calculateGroupBalances(memberIds, expenses, allocations)))
+                financialLedgerEngine.calculateGroupBalances(groupId, memberIds)))
         .originalTransactionCount(expenses.size() + allocations.size())
         .build();
   }

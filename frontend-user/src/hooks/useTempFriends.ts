@@ -29,17 +29,14 @@ export const useTempFriends = () => {
           !friendIds.has(cp.userId) &&
           Math.abs(cp.balance) > MONEY_TOLERANCE,
       )
-      .map((cp) => {
-        const parts = cp.name.split(" ");
-        return {
-          userId: cp.userId,
-          username: cp.name,
-          firstName: parts[0],
-          lastName: parts.slice(1).join(" "),
-          balance: cp.balance,
-          groups: cp.groups,
-        };
-      });
+      .map((cp) => ({
+        userId: cp.userId,
+        username: cp.username || cp.name,
+        firstName: cp.firstName || "",
+        lastName: cp.lastName || "",
+        balance: cp.balance,
+        groups: cp.groups,
+      }));
   }, [ledger, friends]);
 
   return {

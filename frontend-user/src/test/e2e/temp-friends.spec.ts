@@ -53,23 +53,39 @@ async function createGroupWithMember(
     .click();
   const modal = pageOwner.getByRole("dialog");
   await expect(modal).toBeVisible();
-  await modal.locator('#group-name').fill(groupName);
+  await modal.locator("#group-name").fill(groupName);
 
-  const friendPicker = modal.locator(".max-h-48");
-  const friendEntry = friendPicker.getByText(
-    new RegExp(friendDisplayFirstName, "i"),
-  );
-  await expect(friendEntry.first()).toBeVisible();
-  await friendEntry.first().click();
+  await expect(modal.locator(".animate-spin")).not.toBeVisible();
+  const friendRow = modal.locator("div.cursor-pointer", {
+    hasText: new RegExp(friendDisplayFirstName, "i"),
+  });
+  await expect(friendRow.first()).toBeVisible({ timeout: 15000 });
+  await friendRow.first().click();
 
   await modal.getByRole("button", { name: /create group/i }).click();
-  await expect(modal).not.toBeVisible();
+  await expect(modal).not.toBeVisible({ timeout: 15000 });
 
-  await expect(pageOwner.getByText(groupName)).toBeVisible();
+  await expect(pageOwner.getByText(groupName)).toBeVisible({ timeout: 15000 });
   await pageOwner.getByText(groupName).click();
   await expect(pageOwner).toHaveURL(/\/groups\/\d+/);
 
   return pageOwner.url();
+}
+
+async function addEqualExpense(
+  pagePayer: Page,
+  groupName: string,
+  description: string,
+  amount: string,
+) {
+  await pagePayer.goto("/groups");
+  await pagePayer.getByText(groupName).click();
+  await pagePayer.getByRole("button", { name: /add expense/i }).first().click();
+  await pagePayer.locator("#description").fill(description);
+  await pagePayer.locator("#amount").fill(amount);
+
+  await pagePayer.getByRole("dialog").getByRole("button", { name: "Add Expense", exact: true }).click();
+  await expect(pagePayer.getByRole("dialog")).toBeHidden({ timeout: 15000 });
 }
 
 test.describe("[E2E] Temporary Friends List", () => {
@@ -152,6 +168,79 @@ test.describe("[E2E] Temporary Friends List", () => {
       await expect(
         tempFriendCard.getByRole("button", { name: /add friend/i }),
       ).toBeVisible();
+    } finally {
+      await ctxAlice.close();
+      await ctxBob.close();
+    }
+  });
+
+  test("should aggregate counterparty positions across multiple groups using single counterparties endpoint", async ({
+    browser,
+  }) => {
+    const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const aliceName = `alice_mg_${ts}`;
+    const bobName = `bob_mg_${ts}`;
+
+    const ctxAlice = await browser.newContext();
+    const ctxBob = await browser.newContext();
+    const pageAlice = await ctxAlice.newPage();
+    const pageBob = await ctxBob.newPage();
+
+    try {
+      // 1. Register and login Alice & Bob
+      await registerUser(pageAlice, aliceName, "Alice", "User");
+      await registerUser(pageBob, bobName, "Bob", "User");
+      await loginUser(pageAlice, aliceName);
+      await loginUser(pageBob, bobName);
+
+      // 2. Connect as friends
+      await sendFriendRequest(pageAlice, bobName);
+      await acceptFriendRequest(pageBob, aliceName);
+
+      // 3. Create Group 1 and add $20 expense (Bob owes $10)
+      const group1Name = `Trip Group ${ts}`;
+      await createGroupWithMember(pageAlice, group1Name, "Bob");
+      await addEqualExpense(pageAlice, group1Name, "Tickets", "20.00");
+
+      // 4. Create Group 2 and add $10 expense (Bob owes $5)
+      const group2Name = `Dinner Group ${ts}`;
+      await createGroupWithMember(pageAlice, group2Name, "Bob");
+      await addEqualExpense(pageAlice, group2Name, "Dinner", "10.00");
+
+      // 5. Alice unfriends Bob
+      await pageAlice.goto("/friends");
+      await expect(pageAlice.getByText(`@${bobName}`)).toBeVisible();
+      pageAlice.once("dialog", (dialog) => dialog.accept());
+      await pageAlice.getByTitle("Remove Friend").click();
+      await expect(pageAlice.getByText(/no friends added yet/i)).toBeVisible();
+
+      // 6. Listen for the /counterparties endpoint call and verify payload
+      const counterpartiesPromise = pageAlice.waitForResponse(
+        (res) => res.url().includes("/counterparties") && res.status() === 200,
+      );
+
+      // 7. Reload /friends page to trigger useLedger({ detail: true })
+      await pageAlice.reload();
+      const cpResponse = await counterpartiesPromise;
+      const cpData = await cpResponse.json();
+
+      // 8. Assert backend payload contains hydrated user details and multi-group references
+      const bobCounterparty = cpData.find((cp: any) => cp.username === bobName);
+      expect(bobCounterparty).toBeDefined();
+      expect(bobCounterparty.firstName).toBe("Bob");
+      expect(bobCounterparty.lastName).toBe("User");
+      expect(bobCounterparty.balance).toBe(15);
+      expect(bobCounterparty.groups).toHaveLength(2);
+
+      // 9. Assert UI renders both group badges and the netted balance ($15.00)
+      await expect(pageAlice.getByText("Temporary Friends")).toBeVisible({
+        timeout: 15000,
+      });
+      const tempCard = pageAlice.locator(".bg-orange-50\\/30");
+      await expect(tempCard.getByText(bobName)).toBeVisible();
+      await expect(tempCard.getByText(group1Name)).toBeVisible();
+      await expect(tempCard.getByText(group2Name)).toBeVisible();
+      await expect(tempCard.getByText(/15\.00/)).toBeVisible();
     } finally {
       await ctxAlice.close();
       await ctxBob.close();

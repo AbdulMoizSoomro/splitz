@@ -1,12 +1,14 @@
 package com.splitz.expense.controller;
 
+import com.splitz.expense.balance.FinancialLedgerEngine;
+import com.splitz.expense.dto.CounterpartyResponseDTO;
 import com.splitz.expense.dto.FriendBalanceResponseDTO;
 import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
-import com.splitz.expense.service.BalanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = "bearerAuth")
 public class BalanceController {
 
-  private final BalanceService balanceService;
+  private final FinancialLedgerEngine financialLedgerEngine;
 
   @GetMapping("/groups/{id}/balances")
   @Operation(
@@ -30,7 +32,7 @@ public class BalanceController {
       description = "Returns balance per member and simplified debts for a group")
   @PreAuthorize("@security.isGroupMember(#id)")
   public ResponseEntity<GroupBalanceResponseDTO> getGroupBalances(@PathVariable("id") Long id) {
-    return ResponseEntity.ok(balanceService.getGroupBalances(id));
+    return ResponseEntity.ok(financialLedgerEngine.getGroupBalances(id));
   }
 
   @GetMapping("/users/{id}/balances")
@@ -39,7 +41,7 @@ public class BalanceController {
       description = "Returns user's balances across all groups")
   @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#id)")
   public ResponseEntity<UserBalanceResponseDTO> getUserBalances(@PathVariable("id") Long id) {
-    return ResponseEntity.ok(balanceService.getUserBalances(id));
+    return ResponseEntity.ok(financialLedgerEngine.getUserBalances(id));
   }
 
   @GetMapping("/users/{userId}/balances/with/{friendId}")
@@ -50,6 +52,16 @@ public class BalanceController {
   @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#userId)")
   public ResponseEntity<FriendBalanceResponseDTO> getFriendBalance(
       @PathVariable("userId") Long userId, @PathVariable("friendId") Long friendId) {
-    return ResponseEntity.ok(balanceService.getNetBalanceWithFriend(userId, friendId));
+    return ResponseEntity.ok(financialLedgerEngine.getNetBalanceWithFriend(userId, friendId));
+  }
+
+  @GetMapping("/users/{id}/counterparties")
+  @Operation(
+      summary = "Get user counterparties",
+      description = "Returns hydrated counterparties with net debt positions across shared groups")
+  @PreAuthorize("@splitzAuthorizer.isSelfOrAdmin(#id)")
+  public ResponseEntity<List<CounterpartyResponseDTO>> getCounterparties(
+      @PathVariable("id") Long id) {
+    return ResponseEntity.ok(financialLedgerEngine.getCounterparties(id));
   }
 }
