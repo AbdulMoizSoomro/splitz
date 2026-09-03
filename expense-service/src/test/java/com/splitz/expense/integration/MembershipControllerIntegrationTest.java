@@ -22,7 +22,7 @@ import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.security.JwtUtil;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -51,7 +51,7 @@ public class MembershipControllerIntegrationTest {
 
   @MockBean private UserClient userClient;
   @MockBean private FinancialLedgerEngine financialLedgerEngine;
-  @MockBean private SettlementAllocationRepository settlementAllocationRepository;
+  @MockBean private PaymentRepository paymentRepository;
 
   private String tokenFor(long userId) {
     var user =
@@ -123,8 +123,7 @@ public class MembershipControllerIntegrationTest {
     // Mock zero balance and no active settlements
     when(financialLedgerEngine.calculateUserBalanceInGroup(200L, saved.getId()))
         .thenReturn(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
-    when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(
-            eq(200L), eq(saved.getId()), any()))
+    when(paymentRepository.hasActivePaymentsInGroup(eq(200L), eq(saved.getId()), any()))
         .thenReturn(false);
 
     mockMvc

@@ -1,6 +1,5 @@
 package com.splitz.expense.model;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -8,13 +7,10 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -36,6 +32,13 @@ public class Payment {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 20)
+  private PaymentType type;
+
+  @Column(name = "group_id")
+  private Long groupId;
+
   @Column(name = "payer_id", nullable = false)
   private Long payerId;
 
@@ -48,6 +51,9 @@ public class Payment {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private SettlementStatus status;
+
+  @Column(length = 255)
+  private String notes;
 
   @CreationTimestamp
   @Column(name = "created_at", updatable = false)
@@ -65,21 +71,11 @@ public class Payment {
   @Column(name = "settled_at")
   private LocalDateTime settledAt;
 
-  @OneToMany(
-      mappedBy = "payment",
-      cascade = CascadeType.ALL,
-      orphanRemoval = true,
-      fetch = jakarta.persistence.FetchType.EAGER)
-  @Builder.Default
-  private List<SettlementAllocation> allocations = new ArrayList<>();
-
-  public void addAllocation(SettlementAllocation allocation) {
-    allocations.add(allocation);
-    allocation.setPayment(this);
+  public boolean isGroupPayment() {
+    return PaymentType.GROUP.equals(this.type);
   }
 
-  public void removeAllocation(SettlementAllocation allocation) {
-    allocations.remove(allocation);
-    allocation.setPayment(null);
+  public boolean isDirectPayment() {
+    return PaymentType.DIRECT.equals(this.type);
   }
 }

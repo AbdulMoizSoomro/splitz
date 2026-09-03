@@ -9,7 +9,7 @@ import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,7 +29,7 @@ public class DefaultGroupGovernanceEngine implements GroupGovernance {
 
   private final GroupRepository groupRepository;
   private final GroupMemberRepository groupMemberRepository;
-  private final SettlementAllocationRepository settlementAllocationRepository;
+  private final PaymentRepository paymentRepository;
   private final FinancialLedgerEngine financialLedgerEngine;
   private final SharedSecurityAuthorizer splitzAuthorizer;
 
@@ -160,7 +160,7 @@ public class DefaultGroupGovernanceEngine implements GroupGovernance {
     }
 
     boolean hasActive =
-        settlementAllocationRepository.hasActiveSettlementsForUserInGroup(
+        paymentRepository.hasActivePaymentsInGroup(
             targetUserId, groupId, List.of(SettlementStatus.PENDING, SettlementStatus.MARKED_PAID));
     if (hasActive) {
       throw new IllegalStateException("Cannot remove member with active settlements");

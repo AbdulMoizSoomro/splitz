@@ -2,10 +2,10 @@ package com.splitz.expense.balancesource;
 
 import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.model.Expense;
-import com.splitz.expense.model.SettlementAllocation;
+import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SimplificationScope;
 import com.splitz.expense.repository.ExpenseRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
+import com.splitz.expense.repository.PaymentRepository;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -18,15 +18,15 @@ import org.springframework.stereotype.Component;
 public class IntraGroupNetBalanceSource implements NetBalanceSource {
 
   private final ExpenseRepository expenseRepository;
-  private final SettlementAllocationRepository settlementAllocationRepository;
+  private final PaymentRepository paymentRepository;
   private final FinancialLedgerEngine financialLedgerEngine;
 
   public IntraGroupNetBalanceSource(
       ExpenseRepository expenseRepository,
-      SettlementAllocationRepository settlementAllocationRepository,
+      PaymentRepository paymentRepository,
       FinancialLedgerEngine financialLedgerEngine) {
     this.expenseRepository = expenseRepository;
-    this.settlementAllocationRepository = settlementAllocationRepository;
+    this.paymentRepository = paymentRepository;
     this.financialLedgerEngine = financialLedgerEngine;
   }
 
@@ -38,12 +38,12 @@ public class IntraGroupNetBalanceSource implements NetBalanceSource {
   @Override
   public NetBalanceResult resolve(Long groupId, List<Long> memberIds) {
     List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-    List<SettlementAllocation> allocations = settlementAllocationRepository.findByGroupId(groupId);
+    List<Payment> payments = paymentRepository.findByGroupId(groupId);
     return NetBalanceResult.builder()
         .netBalances(
             Collections.unmodifiableMap(
                 financialLedgerEngine.calculateGroupBalances(groupId, memberIds)))
-        .originalTransactionCount(expenses.size() + allocations.size())
+        .originalTransactionCount(expenses.size() + payments.size())
         .build();
   }
 }

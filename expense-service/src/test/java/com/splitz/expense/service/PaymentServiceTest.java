@@ -10,18 +10,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.splitz.expense.allocator.AllocationEngine;
+import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.lifecycle.PaymentLifecycle;
 import com.splitz.expense.lifecycle.PaymentLifecycle.InitialState;
 import com.splitz.expense.model.Payment;
-import com.splitz.expense.model.SettlementAllocation;
+import com.splitz.expense.model.PaymentType;
 import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.PaymentRepository;
-import com.splitz.expense.repository.SettlementAllocationRepository;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,10 +29,9 @@ import org.mockito.MockitoAnnotations;
 class PaymentServiceTest {
 
   @Mock private PaymentRepository paymentRepository;
-  @Mock private SettlementAllocationRepository settlementAllocationRepository;
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
-  @Mock private AllocationEngine allocationEngine;
   @Mock private PaymentLifecycle paymentLifecycle;
+  @Mock private GroupGovernance groupGovernance;
 
   private PaymentService paymentService;
 
@@ -42,18 +39,14 @@ class PaymentServiceTest {
   void setUp() {
     MockitoAnnotations.openMocks(this);
     paymentService =
-        new PaymentService(
-            paymentRepository,
-            settlementAllocationRepository,
-            splitzAuthorizer,
-            allocationEngine,
-            paymentLifecycle);
+        new PaymentService(paymentRepository, splitzAuthorizer, paymentLifecycle, groupGovernance);
   }
 
   @Test
-  void createPaymentDelegatesToAllocationEngine() {
+  void createGroupPaymentEnforcesMembershipAndPersistsGroupType() {
     Long payerId = 1L;
     Long payeeId = 2L;
+    Long groupId = 10L;
     BigDecimal amount = new BigDecimal("100.00");
 
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(payerId);
@@ -62,58 +55,41 @@ class PaymentServiceTest {
     when(paymentLifecycle.initialState(any(), any(), any(), any(LocalDateTime.class)))
         .thenReturn(InitialState.builder().status(SettlementStatus.MARKED_PAID).build());
 
-    List<SettlementAllocation> expectedAllocations =
-        List.of(SettlementAllocation.builder().groupId(10L).amount(amount).build());
-    when(allocationEngine.resolveAllocations(payerId, payeeId, amount, null, null))
-        .thenReturn(expectedAllocations);
+    when(paymentRepository.save(any(Payment.class))).thenAnswer(inv -> inv.getArgument(0));
 
-    Payment savedPayment =
-        Payment.builder()
-            .payerId(payerId)
-            .payeeId(payeeId)
-            .amount(amount)
-            .status(SettlementStatus.MARKED_PAID)
-            .build();
-    when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+    Payment result =
+        paymentService.createGroupPayment(groupId, payerId, payeeId, amount, "Dinner split");
 
-    Payment result = paymentService.createPayment(payerId, payeeId, amount, null, null);
-
-    verify(allocationEngine).resolveAllocations(payerId, payeeId, amount, null, null);
+    verify(groupGovernance).assertIsMember(groupId, payerId);
+    verify(groupGovernance).assertIsMember(groupId, payeeId);
     assertThat(result).isNotNull();
+    assertThat(result.getType()).isEqualTo(PaymentType.GROUP);
+    assertThat(result.getGroupId()).isEqualTo(groupId);
+    assertThat(result.getAmount()).isEqualByComparingTo("100.00");
+    assertThat(result.getStatus()).isEqualTo(SettlementStatus.MARKED_PAID);
   }
 
   @Test
-  void updatePaymentDelegatesToAllocationEngine() {
-    Long paymentId = 100L;
+  void createDirectPaymentPersistsDirectTypeWithNullGroup() {
     Long payerId = 1L;
     Long payeeId = 2L;
-    BigDecimal newAmount = new BigDecimal("150.00");
+    BigDecimal amount = new BigDecimal("50.00");
 
-    Payment existingPayment =
-        Payment.builder()
-            .id(paymentId)
-            .payerId(payerId)
-            .payeeId(payeeId)
-            .amount(new BigDecimal("100.00"))
-            .status(SettlementStatus.PENDING)
-            .build();
-
-    when(paymentRepository.findByIdWithLock(paymentId)).thenReturn(Optional.of(existingPayment));
     when(splitzAuthorizer.getCurrentUserId()).thenReturn(payerId);
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
+    when(paymentLifecycle.canCreate(payerId, payerId, payeeId, false)).thenReturn(true);
+    when(paymentLifecycle.initialState(any(), any(), any(), any(LocalDateTime.class)))
+        .thenReturn(InitialState.builder().status(SettlementStatus.MARKED_PAID).build());
 
-    List<SettlementAllocation> expectedAllocations =
-        List.of(SettlementAllocation.builder().groupId(10L).amount(newAmount).build());
-    when(allocationEngine.resolveAllocations(payerId, payeeId, newAmount, null, null))
-        .thenReturn(expectedAllocations);
+    when(paymentRepository.save(any(Payment.class))).thenAnswer(inv -> inv.getArgument(0));
 
-    when(paymentRepository.save(any(Payment.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
+    Payment result =
+        paymentService.createDirectPayment(payerId, payeeId, amount, "Direct transfer");
 
-    Payment result = paymentService.updatePayment(paymentId, newAmount, null);
-
-    verify(allocationEngine).resolveAllocations(payerId, payeeId, newAmount, null, null);
     assertThat(result).isNotNull();
+    assertThat(result.getType()).isEqualTo(PaymentType.DIRECT);
+    assertThat(result.getGroupId()).isNull();
+    assertThat(result.getAmount()).isEqualByComparingTo("50.00");
   }
 
   @Test
@@ -124,6 +100,8 @@ class PaymentServiceTest {
     Payment pending =
         Payment.builder()
             .id(paymentId)
+            .type(PaymentType.GROUP)
+            .groupId(10L)
             .payerId(payerId)
             .payeeId(2L)
             .amount(new BigDecimal("100.00"))
@@ -152,6 +130,7 @@ class PaymentServiceTest {
     Payment markedPaid =
         Payment.builder()
             .id(paymentId)
+            .type(PaymentType.DIRECT)
             .payerId(1L)
             .payeeId(payeeId)
             .amount(new BigDecimal("100.00"))
@@ -177,6 +156,8 @@ class PaymentServiceTest {
     Payment pending =
         Payment.builder()
             .id(paymentId)
+            .type(PaymentType.GROUP)
+            .groupId(10L)
             .payerId(1L)
             .payeeId(2L)
             .amount(new BigDecimal("100.00"))
@@ -205,6 +186,7 @@ class PaymentServiceTest {
     Payment pending =
         Payment.builder()
             .id(paymentId)
+            .type(PaymentType.DIRECT)
             .payerId(1L)
             .payeeId(2L)
             .amount(new BigDecimal("100.00"))

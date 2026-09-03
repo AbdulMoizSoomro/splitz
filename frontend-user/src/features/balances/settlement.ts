@@ -18,16 +18,30 @@ export interface SettlementAllocationLike {
 }
 
 export interface HasAllocations {
+  type?: "GROUP" | "DIRECT";
+  groupId?: number | null;
   allocations?: SettlementAllocationLike[];
 }
 
-/** True when a Payment has no group allocation — it goes to the direct/global balance. */
+/** True when a Payment has no group — it goes to the direct/global balance. */
 export function isGlobalPayment(s: HasAllocations): boolean {
-  return (
-    !s.allocations ||
-    s.allocations.length === 0 ||
-    s.allocations.some((a) => !a.groupId)
-  );
+  if (s.type === "DIRECT") {
+    return true;
+  }
+  if (s.type === "GROUP") {
+    return false;
+  }
+  if ("allocations" in s) {
+    return (
+      !s.allocations ||
+      s.allocations.length === 0 ||
+      s.allocations.some((a) => !a.groupId)
+    );
+  }
+  if (s.groupId !== undefined) {
+    return s.groupId === null || s.groupId === 0;
+  }
+  return true;
 }
 
 /** The low-level operations a Payment lifecycle needs, injected by callers. */

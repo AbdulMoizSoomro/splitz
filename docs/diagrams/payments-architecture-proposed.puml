@@ -1,0 +1,168 @@
+@startuml
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam class {
+    BackgroundColor #F8FAFC
+    ArrowColor #2563EB
+    BorderColor #64748B
+}
+skinparam note {
+    BackgroundColor #ECFDF5
+    BorderColor #10B981
+}
+
+title Proposed Payment Architecture (Splitz) - Two Canonical Types (GROUP vs DIRECT)
+
+package "API / REST Layer" {
+    class PaymentController {
+        +createGroupPayment(groupId, CreateGroupPaymentRequest) : PaymentDTO
+        +createDirectPayment(CreateDirectPaymentRequest) : PaymentDTO
+        +getPayment(id) : PaymentDTO
+        +getGroupPayments(groupId) : List<PaymentDTO>
+        +getDirectPaymentsBetweenUsers(u1, u2) : List<PaymentDTO>
+        +markAsPaid(id) : PaymentDTO
+        +confirmPayment(id) : PaymentDTO
+        -- Compatibility Aliases --
+        +createSettlement(...) -> delegates to PaymentService
+    }
+
+    class PaymentMapper {
+        +toDTO(Payment) : PaymentDTO
+        +toDTOs(List<Payment>) : List<PaymentDTO>
+    }
+
+    class PaymentDTO {
+        +Long id
+        +PaymentType type
+        +Long groupId
+        +Long payerId
+        +Long payeeId
+        +BigDecimal amount
+        +PaymentStatus status
+        +String notes
+        +LocalDateTime createdAt
+        +LocalDateTime markedPaidAt
+        +LocalDateTime settledAt
+    }
+}
+
+package "Core Domain & Service Layer (Deep Modules)" {
+    enum PaymentType {
+        GROUP
+        DIRECT
+    }
+
+    enum PaymentStatus {
+        PENDING
+        MARKED_PAID
+        COMPLETED
+    }
+
+    class PaymentService <<Deep Module>> {
+        -PaymentRepository paymentRepository
+        -PaymentLifecycle paymentLifecycle
+        -GroupGovernance groupGovernance
+        -SharedSecurityAuthorizer authorizer
+        -- High-Leverage Seam --
+        +createGroupPayment(payerId, payeeId, groupId, amount, notes) : Payment
+        +createDirectPayment(payerId, payeeId, amount, notes) : Payment
+        +markAsPaid(paymentId) : Payment
+        +confirmPayment(paymentId) : Payment
+        +getGroupPayments(groupId) : List<Payment>
+        +getDirectPayments(u1, u2) : List<Payment>
+    }
+
+    class PaymentLifecycle <<Deep Stateless State Machine>> {
+        +initialState(actorId, payerId, payeeId, now) : InitialState
+        +markAsPaid(payment, actorId, admin, now) : Payment
+        +confirm(payment, actorId, admin, now) : Payment
+        +canCreate(actorId, payerId, payeeId, admin) : boolean
+        +isParticipant(payment, actorId, admin) : boolean
+        +assertUpdateAllowed(payment, actorId, admin) : void
+    }
+}
+
+package "Persistence / Data Model" {
+    class Payment <<Entity>> {
+        +Long id
+        +PaymentType type
+        +Long groupId <<Nullable, FK to groups>>
+        +Long payerId
+        +Long payeeId
+        +BigDecimal amount
+        +PaymentStatus status
+        +String notes
+        +LocalDateTime createdAt
+        +LocalDateTime markedPaidAt
+        +LocalDateTime settledAt
+        +Integer version
+        -- Domain Predicates --
+        +isGroupPayment() : boolean
+        +isDirectPayment() : boolean
+    }
+
+    interface PaymentRepository {
+        +findByGroupId(groupId) : List<Payment>
+        +findDirectBetweenUsers(u1, u2) : List<Payment>
+        +calculateTotalSettledInGroup(groupId, payerId, payeeId, statuses) : BigDecimal
+        +calculateTotalDirectSettled(u1, u2, statuses) : BigDecimal
+        +hasActivePaymentsInGroup(groupId, userId, statuses) : boolean
+    }
+
+    class DatabaseTable_Payments <<Table Definition>> {
+        id : BIGINT PK
+        type : VARCHAR(20) NOT NULL ['GROUP', 'DIRECT']
+        group_id : BIGINT FK NULLABLE -> groups(id)
+        payer_id : BIGINT NOT NULL
+        payee_id : BIGINT NOT NULL
+        amount : DECIMAL(19, 2) NOT NULL
+        status : VARCHAR(20) NOT NULL
+        notes : VARCHAR(255)
+        .. Constraints ..
+        CHECK (
+          (type = 'GROUP' AND group_id IS NOT NULL) OR
+          (type = 'DIRECT' AND group_id IS NULL)
+        )
+    }
+}
+
+package "Domain Consumers" {
+    class FinancialLedgerEngine <<Deep Module>> {
+        +calculateGroupBalances(groupId, memberIds)
+        +getNetBalanceWithFriend(u1, u2)
+        note bottom: Direct queries to PaymentRepository!\nZero joins through allocations.
+    }
+
+    class GroupGovernanceEngine <<Deep Module>> {
+        +assertCanRemoveMember(groupId, actorId, targetId)
+        note bottom: Evaluates Settled Membership Invariant\ndirectly against PaymentRepository.
+    }
+}
+
+' Relationships
+PaymentController --> PaymentService : delegates
+PaymentController --> PaymentMapper : maps
+PaymentService --> PaymentLifecycle : state transitions
+PaymentService --> PaymentRepository : persists & queries
+PaymentService --> Payment : operates on
+Payment --> PaymentType : discriminator
+Payment --> PaymentStatus : status
+PaymentRepository ..> Payment : loads/saves
+
+FinancialLedgerEngine --> PaymentRepository : queries settled payments
+GroupGovernanceEngine --> PaymentRepository : checks active group payments
+
+note as N2
+  <b>KEY ARCHITECTURAL ADVANTAGES:</b>
+  1. <b>Strict Two-Type Domain:</b> Explicit discriminator (GROUP vs DIRECT). No ambiguity.
+  2. <b>Direct Group Relationship:</b> groupId lives directly on Payment with DB-enforced CHECK constraint.
+  3. <b>Dead Code Elimination:</b> Deleted 'settlement_allocations' table, 'AllocationEngine',
+     and 'ProRataSettlementAutoAllocator' (~800 lines of complex, fragile code removed).
+  4. <b>Query Optimization:</b> Single indexed queries on 'payments' replace multi-table joins.
+  5. <b>Zero Hack Mappings:</b> groupId is directly known; no 'allocations.get(0).getGroupId()' guesswork.
+  6. <b>Unified Ubiquitous Language:</b> Replaces split 'Payment' vs 'Settlement' vocabulary.
+end note
+
+@enduml

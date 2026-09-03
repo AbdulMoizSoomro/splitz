@@ -223,4 +223,34 @@ public class SettlementIntegrationTest {
         .andExpect(jsonPath("$[0].amount").value(30.00))
         .andExpect(jsonPath("$[0].groupId").value(group.getId()));
   }
+
+  @Test
+  void testDirectPaymentLifecycle() throws Exception {
+    CreateSettlementRequest request =
+        CreateSettlementRequest.builder()
+            .payerId(payerId)
+            .payeeId(payeeId)
+            .amount(new BigDecimal("25.00"))
+            .build();
+
+    String response =
+        mockMvc
+            .perform(
+                post("/payments/direct")
+                    .header("Authorization", payerToken)
+                    .contentType(APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.type").value("DIRECT"))
+            .andExpect(jsonPath("$.status").value("MARKED_PAID"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    Long paymentId = objectMapper.readTree(response).get("id").asLong();
+
+    Payment payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getType()).isEqualTo(com.splitz.expense.model.PaymentType.DIRECT);
+    assertThat(payment.getGroupId()).isNull();
+  }
 }
