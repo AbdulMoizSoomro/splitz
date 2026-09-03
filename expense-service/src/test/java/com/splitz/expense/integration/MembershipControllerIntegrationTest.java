@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.AddMemberRequest;
 import com.splitz.expense.dto.UpdateMemberRoleRequest;
@@ -22,7 +23,6 @@ import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
-import com.splitz.expense.service.BalanceService;
 import com.splitz.security.JwtUtil;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -50,7 +50,7 @@ public class MembershipControllerIntegrationTest {
   @Autowired private GroupMemberRepository groupMemberRepository;
 
   @MockBean private UserClient userClient;
-  @MockBean private BalanceService balanceService;
+  @MockBean private FinancialLedgerEngine financialLedgerEngine;
   @MockBean private SettlementAllocationRepository settlementAllocationRepository;
 
   private String tokenFor(long userId) {
@@ -102,7 +102,7 @@ public class MembershipControllerIntegrationTest {
     Group saved = groupRepository.save(g);
 
     // Mock non-zero balance of $5.50
-    when(balanceService.calculateUserBalanceInGroup(200L, saved.getId()))
+    when(financialLedgerEngine.calculateUserBalanceInGroup(200L, saved.getId()))
         .thenReturn(new BigDecimal("5.50"));
 
     mockMvc
@@ -121,7 +121,7 @@ public class MembershipControllerIntegrationTest {
     Group saved = groupRepository.save(g);
 
     // Mock zero balance and no active settlements
-    when(balanceService.calculateUserBalanceInGroup(200L, saved.getId()))
+    when(financialLedgerEngine.calculateUserBalanceInGroup(200L, saved.getId()))
         .thenReturn(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
     when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(
             eq(200L), eq(saved.getId()), any()))

@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.splitz.expense.balance.DebtBalanceEngine;
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.SettlementAllocation;
 import com.splitz.expense.model.SimplificationScope;
@@ -19,17 +19,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests the {@link IntraGroupNetBalanceSource} — the balance-source adapter for the INTRA_GROUP
- * scope. Its home for the "read the group's Expenses + Settlement Allocations and run them through
- * the {@link DebtBalanceEngine}" algorithm, including counting the original transactions the plan's
- * {@code originalTransactionCount} is derived from.
- */
 class IntraGroupNetBalanceSourceTest {
 
   private ExpenseRepository expenseRepository;
   private SettlementAllocationRepository settlementAllocationRepository;
-  private DebtBalanceEngine debtBalanceEngine;
+  private FinancialLedgerEngine financialLedgerEngine;
   private IntraGroupNetBalanceSource source;
 
   private static final Long GROUP_ID = 10L;
@@ -38,10 +32,10 @@ class IntraGroupNetBalanceSourceTest {
   void setUp() {
     expenseRepository = mock(ExpenseRepository.class);
     settlementAllocationRepository = mock(SettlementAllocationRepository.class);
-    debtBalanceEngine = mock(DebtBalanceEngine.class);
+    financialLedgerEngine = mock(FinancialLedgerEngine.class);
     source =
         new IntraGroupNetBalanceSource(
-            expenseRepository, settlementAllocationRepository, debtBalanceEngine);
+            expenseRepository, settlementAllocationRepository, financialLedgerEngine);
   }
 
   @Test
@@ -69,17 +63,15 @@ class IntraGroupNetBalanceSourceTest {
     Map<Long, BigDecimal> balances = new HashMap<>();
     balances.put(1L, new BigDecimal("30.00"));
     balances.put(2L, new BigDecimal("-30.00"));
-    when(debtBalanceEngine.calculateGroupBalances(memberIds, expenses, allocations))
-        .thenReturn(balances);
+    when(financialLedgerEngine.calculateGroupBalances(GROUP_ID, memberIds)).thenReturn(balances);
 
     NetBalanceResult result = source.resolve(GROUP_ID, memberIds);
 
     assertThat(result.getNetBalances()).isEqualTo(balances);
-    // Original transaction count is the raw expenses plus allocations feeding the engine.
     assertThat(result.getOriginalTransactionCount())
         .isEqualTo(expenses.size() + allocations.size());
     verify(expenseRepository).findByGroupId(GROUP_ID);
     verify(settlementAllocationRepository).findByGroupId(GROUP_ID);
-    verify(debtBalanceEngine).calculateGroupBalances(memberIds, expenses, allocations);
+    verify(financialLedgerEngine).calculateGroupBalances(GROUP_ID, memberIds);
   }
 }

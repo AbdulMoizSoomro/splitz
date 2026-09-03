@@ -1,5 +1,6 @@
 package com.splitz.expense.governance;
 
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.model.Group;
@@ -9,7 +10,6 @@ import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
-import com.splitz.expense.service.BalanceService;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.math.BigDecimal;
 import java.util.List;
@@ -30,7 +30,7 @@ public class DefaultGroupGovernanceEngine implements GroupGovernance {
   private final GroupRepository groupRepository;
   private final GroupMemberRepository groupMemberRepository;
   private final SettlementAllocationRepository settlementAllocationRepository;
-  private final BalanceService balanceService;
+  private final FinancialLedgerEngine financialLedgerEngine;
   private final SharedSecurityAuthorizer splitzAuthorizer;
 
   @Override
@@ -154,7 +154,7 @@ public class DefaultGroupGovernanceEngine implements GroupGovernance {
     }
 
     // Settled Membership Invariant check
-    BigDecimal balance = balanceService.calculateUserBalanceInGroup(targetUserId, groupId);
+    BigDecimal balance = financialLedgerEngine.calculateUserBalanceInGroup(targetUserId, groupId);
     if (balance != null && balance.compareTo(BigDecimal.ZERO) != 0) {
       throw new IllegalStateException("Cannot remove member with non-zero balance");
     }

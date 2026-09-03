@@ -3,6 +3,7 @@ package com.splitz.expense.governance;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.splitz.expense.balance.FinancialLedgerEngine;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.exception.UnauthorizedException;
 import com.splitz.expense.model.Group;
@@ -11,7 +12,6 @@ import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import com.splitz.expense.repository.SettlementAllocationRepository;
-import com.splitz.expense.service.BalanceService;
 import com.splitz.security.authorization.SharedSecurityAuthorizer;
 import java.util.Optional;
 import java.util.Set;
@@ -28,7 +28,7 @@ class GroupGovernanceTest {
   @Mock private GroupRepository groupRepository;
   @Mock private GroupMemberRepository groupMemberRepository;
   @Mock private SettlementAllocationRepository settlementAllocationRepository;
-  @Mock private BalanceService balanceService;
+  @Mock private FinancialLedgerEngine financialLedgerEngine;
   @Mock private SharedSecurityAuthorizer splitzAuthorizer;
 
   @InjectMocks private DefaultGroupGovernanceEngine groupGovernance;
@@ -401,7 +401,7 @@ class GroupGovernanceTest {
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
-    when(balanceService.calculateUserBalanceInGroup(100L, 1L))
+    when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(java.math.BigDecimal.ZERO);
     when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(100L), eq(1L), any()))
         .thenReturn(false);
@@ -415,7 +415,7 @@ class GroupGovernanceTest {
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 200L)).thenReturn(Optional.of(admin));
-    when(balanceService.calculateUserBalanceInGroup(100L, 1L))
+    when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(java.math.BigDecimal.ZERO);
     when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(100L), eq(1L), any()))
         .thenReturn(false);
@@ -428,7 +428,7 @@ class GroupGovernanceTest {
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(splitzAuthorizer.isAdmin()).thenReturn(true);
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
-    when(balanceService.calculateUserBalanceInGroup(100L, 1L))
+    when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(java.math.BigDecimal.ZERO);
     when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(100L), eq(1L), any()))
         .thenReturn(false);
@@ -441,7 +441,7 @@ class GroupGovernanceTest {
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
-    when(balanceService.calculateUserBalanceInGroup(100L, 1L))
+    when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(new java.math.BigDecimal("10.00"));
 
     IllegalStateException exception =
@@ -456,7 +456,7 @@ class GroupGovernanceTest {
     when(groupRepository.findById(1L)).thenReturn(Optional.of(group));
     when(splitzAuthorizer.isAdmin()).thenReturn(false);
     when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
-    when(balanceService.calculateUserBalanceInGroup(100L, 1L))
+    when(financialLedgerEngine.calculateUserBalanceInGroup(100L, 1L))
         .thenReturn(java.math.BigDecimal.ZERO);
     when(settlementAllocationRepository.hasActiveSettlementsForUserInGroup(eq(100L), eq(1L), any()))
         .thenReturn(true);

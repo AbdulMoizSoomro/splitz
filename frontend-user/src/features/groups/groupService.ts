@@ -87,4 +87,26 @@ export const groupService = {
     const response = await expenseApi.get<ActivityLog[]>(`/groups/${groupId}/activity`);
     return response.data;
   },
+
+  getCounterparties: async (userId: number): Promise<CounterpartyResponse[]> => {
+    const response = await expenseApi.get<CounterpartyResponse[]>(
+      `/users/${userId}/counterparties`,
+    );
+    return response.data;
+  },
 };
+
+export interface CounterpartyGroupRef {
+  id: number;
+  name: string;
+}
+
+export interface CounterpartyResponse {
+  userId: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  balance: number;
+  groups: CounterpartyGroupRef[];
+}

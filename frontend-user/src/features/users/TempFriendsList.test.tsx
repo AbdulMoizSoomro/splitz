@@ -39,6 +39,7 @@ describe("TempFriendsList", () => {
       totalBalance: 0,
       groupBalances: [],
     });
+    vi.mocked(groupService.getCounterparties).mockResolvedValue([]);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -75,24 +76,16 @@ describe("TempFriendsList", () => {
       groupBalances: [{ groupId: 10, groupName: "Group A", balance: 10 }],
     });
 
-    // Group 10 has debts: User 3 owes User 1 $10
-    vi.mocked(groupService.getBalances).mockResolvedValue({
-      groupId: 10,
-      balances: [],
-      simplifiedDebts: [
-        {
-          from: 3,
-          fromUsername: "tempfriend",
-          to: 1,
-          toUsername: "testuser",
-          amount: 10,
-        },
-      ],
-    });
-
-    // We also need user 3's details if we want to show their name
-    // The simplifiedDebts should ideally have enough info, or we fetch it.
-    // Let's assume the component shows the username from DebtDTO.
+    vi.mocked(groupService.getCounterparties).mockResolvedValue([
+      {
+        userId: 3,
+        username: "tempfriend",
+        firstName: "Temp",
+        lastName: "Friend",
+        balance: 10,
+        groups: [{ id: 10, name: "Group A" }],
+      },
+    ]);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -120,19 +113,16 @@ describe("TempFriendsList", () => {
       totalBalance: 10,
       groupBalances: [{ groupId: 10, groupName: "Group A", balance: 10 }],
     });
-    vi.mocked(groupService.getBalances).mockResolvedValue({
-      groupId: 10,
-      balances: [],
-      simplifiedDebts: [
-        {
-          from: 3,
-          fromUsername: "tempfriend",
-          to: 1,
-          toUsername: "testuser",
-          amount: 10,
-        },
-      ],
-    });
+    vi.mocked(groupService.getCounterparties).mockResolvedValue([
+      {
+        userId: 3,
+        username: "tempfriend",
+        firstName: "Temp",
+        lastName: "Friend",
+        balance: 10,
+        groups: [{ id: 10, name: "Group A" }],
+      },
+    ]);
 
     // Mock outgoing request to user 3
     vi.mocked(friendService.getFriendRequests).mockResolvedValue([
@@ -170,11 +160,7 @@ describe("TempFriendsList", () => {
       groupBalances: [{ groupId: 10, groupName: "Group A", balance: 0 }],
     });
 
-    vi.mocked(groupService.getBalances).mockResolvedValue({
-      groupId: 10,
-      balances: [],
-      simplifiedDebts: [], // No debts involving user 1
-    });
+    vi.mocked(groupService.getCounterparties).mockResolvedValue([]);
 
     render(
       <QueryClientProvider client={queryClient}>

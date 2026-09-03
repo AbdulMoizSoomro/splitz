@@ -26,25 +26,6 @@ function makeWrapper() {
   );
 }
 
-const MEMBER_ROWS = [
-  {
-    userId: 1,
-    username: "alice",
-    email: "alice@example.com",
-    firstName: "Alice",
-    lastName: "Green",
-    balance: 20,
-  },
-  {
-    userId: 2,
-    username: "bob",
-    email: "bob@example.com",
-    firstName: "Bob",
-    lastName: "Smith",
-    balance: -20,
-  },
-];
-
 describe("useLedger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,14 +39,20 @@ describe("useLedger", () => {
       totalBalance: 50,
       groupBalances: [{ groupId: 10, groupName: "Trip", balance: 20 }],
     });
-    vi.mocked(groupService.getBalances).mockResolvedValue({
-      groupId: 10,
-      balances: MEMBER_ROWS,
-      simplifiedDebts: [{ from: 2, fromUsername: "bob", to: 1, toUsername: "alice", amount: 20 }],
-    });
+    vi.mocked(groupService.getCounterparties).mockResolvedValue([
+      {
+        userId: 2,
+        username: "bob",
+        firstName: "Bob",
+        lastName: "Smith",
+        email: "bob@example.com",
+        balance: 20,
+        groups: [{ id: 10, name: "Trip" }],
+      },
+    ]);
   });
 
-  it("detail: true — hides the group fan-out and derives the ledger", async () => {
+  it("detail: true — queries counterparties in a single request and derives the ledger", async () => {
     const { result } = renderHook(() => useLedger({ detail: true }), {
       wrapper: makeWrapper(),
     });
@@ -77,6 +64,10 @@ describe("useLedger", () => {
           name: "Bob Smith",
           balance: 20,
           groups: [{ id: 10, name: "Trip" }],
+          username: "bob",
+          firstName: "Bob",
+          lastName: "Smith",
+          email: "bob@example.com",
         },
       ]);
     });
@@ -87,11 +78,11 @@ describe("useLedger", () => {
       direct: 30,
     });
     expect(result.current.ledger?.memberNames[2]).toBe("Bob Smith");
-    // The N+1 lives here, not in the consumer.
-    expect(groupService.getBalances).toHaveBeenCalledWith(10);
+    expect(groupService.getCounterparties).toHaveBeenCalledWith(1);
+    expect(groupService.getBalances).not.toHaveBeenCalled();
   });
 
-  it("detail: false exposes the overall position without the group fan-out", async () => {
+  it("detail: false exposes the overall position without fetching counterparties", async () => {
     const { result } = renderHook(() => useLedger(), {
       wrapper: makeWrapper(),
     });
@@ -105,7 +96,7 @@ describe("useLedger", () => {
       { groupId: 10, groupName: "Trip", balance: 20 },
     ]);
     expect(result.current.friends).toBeUndefined();
-    expect(groupService.getBalances).not.toHaveBeenCalled();
+    expect(groupService.getCounterparties).not.toHaveBeenCalled();
   });
 
   it("leaves the ledger empty for an anonymous viewer", async () => {
@@ -116,6 +107,6 @@ describe("useLedger", () => {
     });
 
     expect(result.current.ledger).toBeUndefined();
-    expect(groupService.getBalances).not.toHaveBeenCalled();
+    expect(groupService.getCounterparties).not.toHaveBeenCalled();
   });
 });
