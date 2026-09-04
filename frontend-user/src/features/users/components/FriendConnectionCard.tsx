@@ -206,50 +206,37 @@ export const FriendConnectionCard: React.FC<FriendConnectionCardProps> = ({
             </>
           )}
 
-          {/* Confirmed friend: Quick remove button with title + 3-dot dropdown */}
+          {/* Confirmed friend: 3-dot dropdown menu containing View Details and Remove Friend */}
           {isFriend && (
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 h-8 w-8 p-0"
-                onClick={() => onRemoveFriend(connection)}
-                disabled={isRemoveFriendPending}
-                title="Remove Friend"
-                aria-label="Remove Friend"
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                aria-label="More options"
               >
-                <UserMinus size={15} />
-              </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-                  aria-label="More options"
+                <MoreVertical size={16} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  onClick={() => {
+                    window.location.href = `/friends/${userId}`;
+                  }}
+                  className="flex items-center gap-2 cursor-pointer text-xs"
                 >
-                  <MoreVertical size={16} />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      window.location.href = `/friends/${userId}`;
-                    }}
-                    className="flex items-center gap-2 cursor-pointer text-xs"
-                  >
-                    <ExternalLink size={14} />
-                    <span>View Details</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onRemoveFriend(connection)}
-                    disabled={isRemoveFriendPending}
-                    variant="destructive"
-                    className="flex items-center gap-2 cursor-pointer text-xs"
-                  >
-                    <UserMinus size={14} />
-                    <span>Remove Friend</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  <ExternalLink size={14} />
+                  <span>View Details</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onRemoveFriend(connection)}
+                  disabled={isRemoveFriendPending}
+                  variant="destructive"
+                  title="Remove Friend"
+                  className="flex items-center gap-2 cursor-pointer text-xs"
+                >
+                  <UserMinus size={14} />
+                  <span>Remove Friend</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
