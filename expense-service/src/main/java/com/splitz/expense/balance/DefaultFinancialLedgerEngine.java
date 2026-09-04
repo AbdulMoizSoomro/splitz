@@ -11,8 +11,6 @@ import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.model.DebtSimplificationPlan;
-import com.splitz.expense.model.Expense;
-import com.splitz.expense.model.ExpenseSplit;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupSimplificationSettings;
@@ -23,7 +21,9 @@ import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import com.splitz.expense.repository.LedgerRepository;
 import com.splitz.expense.repository.PaymentRepository;
+import com.splitz.expense.repository.UserBalanceAggregate;
 import com.splitz.expense.repository.UserGroupAggregate;
 import com.splitz.expense.service.GroupSimplificationSettingsService;
 import java.math.BigDecimal;
@@ -66,6 +66,7 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
   private final UserClient userClient;
   private final DebtNettingEngine debtNettingEngine;
   private final GroupSimplificationSettingsService settingsService;
+  private final LedgerRepository ledgerRepository;
 
   @Override
   public List<CounterpartyResponseDTO> getCounterparties(Long userId) {
@@ -151,10 +152,7 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
     List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
     List<Long> memberIds = members.stream().map(GroupMember::getUserId).toList();
 
-    List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-    List<Payment> payments = paymentRepository.findByGroupId(groupId);
-
-    Map<Long, BigDecimal> netBalances = calculateGroupBalances(memberIds, expenses, payments);
+    Map<Long, BigDecimal> netBalances = calculateGroupBalances(groupId, memberIds);
 
     List<UserResponse> userResponses = userClient.getUsersByIds(memberIds);
     Map<Long, UserResponse> userMap =
@@ -184,15 +182,20 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
 
     List<DebtDTO> debtDTOs;
     if (!settings.isSimplificationEnabled()) {
-      debtDTOs = calculateRawDebts(memberIds, expenses, payments, userMap);
+      debtDTOs = calculateRawDebts(groupId, memberIds, userMap);
     } else {
+      int rawTransactionCount =
+          (int)
+              (expenseRepository.countByGroupId(groupId)
+                  + paymentRepository.countByGroupId(groupId));
+
       DebtSimplificationPlan plan =
           debtNettingEngine.simplifyDebts(
               groupId,
               netBalances,
               settings.getOptOutUserIds(),
               Collections.emptyMap(),
-              expenses.size() + payments.size());
+              rawTransactionCount);
 
       debtDTOs =
           plan != null && plan.getTransactions() != null
@@ -213,7 +216,7 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
               : new ArrayList<>();
 
       if (settings.getOptOutUserIds() != null && !settings.getOptOutUserIds().isEmpty()) {
-        List<DebtDTO> rawDebts = calculateRawDebts(memberIds, expenses, payments, userMap);
+        List<DebtDTO> rawDebts = calculateRawDebts(groupId, memberIds, userMap);
         for (DebtDTO rawDebt : rawDebts) {
           if (settings.getOptOutUserIds().contains(rawDebt.getFrom())
               || settings.getOptOutUserIds().contains(rawDebt.getTo())) {
@@ -231,10 +234,7 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
   }
 
   private List<DebtDTO> calculateRawDebts(
-      List<Long> memberIds,
-      List<Expense> expenses,
-      List<Payment> payments,
-      Map<Long, UserResponse> userMap) {
+      Long groupId, List<Long> memberIds, Map<Long, UserResponse> userMap) {
     List<DebtDTO> debts = new ArrayList<>();
     if (memberIds == null || memberIds.size() < 2) {
       return debts;
@@ -248,8 +248,8 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
       for (int j = i + 1; j < sortedMemberIds.size(); j++) {
         Long userB = sortedMemberIds.get(j);
 
-        BigDecimal net = calculateNetBalanceInGroup(userA, userB, expenses, payments);
-        if (net.compareTo(BALANCE_TOLERANCE) >= 0) {
+        BigDecimal net = ledgerRepository.calculatePairwiseBalanceInGroup(userA, userB, groupId);
+        if (net != null && net.compareTo(BALANCE_TOLERANCE) >= 0) {
           UserResponse fromUser = userMap.get(userB);
           UserResponse toUser = userMap.get(userA);
           debts.add(
@@ -260,7 +260,7 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
                   .toUsername(toUser != null ? toUser.getUsername() : null)
                   .amount(net.setScale(2, RoundingMode.HALF_UP))
                   .build());
-        } else if (net.negate().compareTo(BALANCE_TOLERANCE) >= 0) {
+        } else if (net != null && net.negate().compareTo(BALANCE_TOLERANCE) >= 0) {
           UserResponse fromUser = userMap.get(userA);
           UserResponse toUser = userMap.get(userB);
           debts.add(
@@ -286,17 +286,15 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
       List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
       List<Long> memberIds = members.stream().map(GroupMember::getUserId).toList();
 
-      List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-      List<Payment> payments = paymentRepository.findByGroupId(groupId);
-
       GroupSimplificationSettings settings = settingsService.readSettings(groupId);
 
       if (!settings.isSimplificationEnabled()) {
         for (Long memberId : memberIds) {
           if (!memberId.equals(userId)) {
             BigDecimal pairwiseBalance =
-                calculateNetBalanceInGroup(userId, memberId, expenses, payments);
-            if (pairwiseBalance.abs().compareTo(BALANCE_TOLERANCE) >= 0) {
+                ledgerRepository.calculatePairwiseBalanceInGroup(userId, memberId, groupId);
+            if (pairwiseBalance != null
+                && pairwiseBalance.abs().compareTo(BALANCE_TOLERANCE) >= 0) {
               counterpartyBalances.put(
                   memberId,
                   counterpartyBalances
@@ -307,8 +305,11 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
           }
         }
       } else {
-        Map<Long, BigDecimal> groupNetBalances =
-            calculateGroupBalances(memberIds, expenses, payments);
+        Map<Long, BigDecimal> groupNetBalances = calculateGroupBalances(groupId, memberIds);
+        int rawTxCount =
+            (int)
+                (expenseRepository.countByGroupId(groupId)
+                    + paymentRepository.countByGroupId(groupId));
 
         DebtSimplificationPlan plan =
             debtNettingEngine.simplifyDebts(
@@ -316,7 +317,7 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
                 groupNetBalances,
                 settings.getOptOutUserIds(),
                 Collections.emptyMap(),
-                expenses.size() + payments.size());
+                rawTxCount);
 
         if (plan != null && plan.getTransactions() != null) {
           for (SimplifiedDebtTransaction tx : plan.getTransactions()) {
@@ -349,8 +350,9 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
               if (settings.getOptOutUserIds().contains(userId)
                   || settings.getOptOutUserIds().contains(memberId)) {
                 BigDecimal pairwiseBalance =
-                    calculateNetBalanceInGroup(userId, memberId, expenses, payments);
-                if (pairwiseBalance.abs().compareTo(BALANCE_TOLERANCE) >= 0) {
+                    ledgerRepository.calculatePairwiseBalanceInGroup(userId, memberId, groupId);
+                if (pairwiseBalance != null
+                    && pairwiseBalance.abs().compareTo(BALANCE_TOLERANCE) >= 0) {
                   counterpartyBalances.put(
                       memberId,
                       counterpartyBalances
@@ -449,10 +451,10 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
     List<FriendGroupBalanceDTO> groupBalances = new ArrayList<>();
 
     for (Long groupId : sharedGroupIds) {
-      List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-      List<Payment> payments = paymentRepository.findByGroupId(groupId);
-
-      BigDecimal groupNetBalance = calculateNetBalanceInGroup(userId, friendId, expenses, payments);
+      BigDecimal groupNetBalance =
+          ledgerRepository
+              .calculatePairwiseBalanceInGroup(userId, friendId, groupId)
+              .setScale(2, RoundingMode.HALF_UP);
       totalNetBalance = totalNetBalance.add(groupNetBalance);
 
       String groupName =
@@ -492,105 +494,21 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
 
   @Override
   public Map<Long, BigDecimal> calculateGroupBalances(Long groupId, List<Long> memberIds) {
-    List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-    List<Payment> payments = paymentRepository.findByGroupId(groupId);
-    return calculateGroupBalances(memberIds, expenses, payments);
-  }
-
-  Map<Long, BigDecimal> calculateGroupBalances(
-      List<Long> memberIds, List<Expense> expenses, List<Payment> payments) {
     Map<Long, BigDecimal> balances = new HashMap<>();
     if (memberIds != null) {
       for (Long memberId : memberIds) {
         balances.put(memberId, BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
       }
     }
-
-    if (expenses != null) {
-      for (Expense expense : expenses) {
-        Long payerId = expense.getPaidBy();
-        BigDecimal amount = expense.getAmount();
-
-        if (payerId != null && amount != null) {
-          balances.put(payerId, balances.getOrDefault(payerId, BigDecimal.ZERO).add(amount));
-        }
-
-        if (expense.getSplits() != null) {
-          for (ExpenseSplit split : expense.getSplits()) {
-            Long splitUserId = split.getUserId();
-            BigDecimal splitAmount = split.getShareAmount();
-
-            if (splitUserId != null && splitAmount != null) {
-              balances.put(
-                  splitUserId,
-                  balances.getOrDefault(splitUserId, BigDecimal.ZERO).subtract(splitAmount));
-            }
-          }
+    List<UserBalanceAggregate> aggregates = ledgerRepository.calculateGroupBalances(groupId);
+    if (aggregates != null) {
+      for (UserBalanceAggregate agg : aggregates) {
+        if (agg.getUserId() != null && agg.getBalance() != null) {
+          balances.put(agg.getUserId(), agg.getBalance().setScale(2, RoundingMode.HALF_UP));
         }
       }
     }
-
-    if (payments != null) {
-      for (Payment payment : payments) {
-        if (payment.getStatus() != null && SETTLEMENT_STATUSES.contains(payment.getStatus())) {
-          Long payerId = payment.getPayerId();
-          Long payeeId = payment.getPayeeId();
-          BigDecimal amount = payment.getAmount();
-
-          if (payerId != null && payeeId != null && amount != null) {
-            balances.put(payerId, balances.getOrDefault(payerId, BigDecimal.ZERO).add(amount));
-            balances.put(payeeId, balances.getOrDefault(payeeId, BigDecimal.ZERO).subtract(amount));
-          }
-        }
-      }
-    }
-
     return balances;
-  }
-
-  BigDecimal calculateNetBalanceInGroup(
-      Long userId, Long friendId, List<Expense> expenses, List<Payment> payments) {
-    BigDecimal netBalance = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-
-    if (expenses != null) {
-      for (Expense expense : expenses) {
-        Long payerId = expense.getPaidBy();
-        if (payerId != null && expense.getSplits() != null) {
-          if (payerId.equals(userId)) {
-            for (ExpenseSplit split : expense.getSplits()) {
-              if (friendId.equals(split.getUserId()) && split.getShareAmount() != null) {
-                netBalance = netBalance.add(split.getShareAmount());
-              }
-            }
-          } else if (payerId.equals(friendId)) {
-            for (ExpenseSplit split : expense.getSplits()) {
-              if (userId.equals(split.getUserId()) && split.getShareAmount() != null) {
-                netBalance = netBalance.subtract(split.getShareAmount());
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (payments != null) {
-      for (Payment payment : payments) {
-        if (payment.getStatus() != null && SETTLEMENT_STATUSES.contains(payment.getStatus())) {
-          Long payerId = payment.getPayerId();
-          Long payeeId = payment.getPayeeId();
-          BigDecimal amount = payment.getAmount();
-          if (payerId != null && payeeId != null && amount != null) {
-            if (payerId.equals(userId) && payeeId.equals(friendId)) {
-              netBalance = netBalance.add(amount);
-            } else if (payerId.equals(friendId) && payeeId.equals(userId)) {
-              netBalance = netBalance.subtract(amount);
-            }
-          }
-        }
-      }
-    }
-
-    return netBalance;
   }
 
   @Override

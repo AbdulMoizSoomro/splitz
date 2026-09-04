@@ -12,6 +12,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 
   List<Expense> findByGroupId(Long groupId);
 
+  long countByGroupId(Long groupId);
+
   List<Expense> findByGroupIdIn(Collection<Long> groupIds);
 
   @Query(
