@@ -16,7 +16,6 @@ import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.model.DebtSimplificationPlan;
-import com.splitz.expense.model.Expense;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupSimplificationSettings;
@@ -28,7 +27,9 @@ import com.splitz.expense.netting.DebtNettingEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import com.splitz.expense.repository.LedgerRepository;
 import com.splitz.expense.repository.PaymentRepository;
+import com.splitz.expense.repository.UserBalanceAggregate;
 import com.splitz.expense.repository.UserGroupAggregate;
 import com.splitz.expense.service.GroupSimplificationSettingsService;
 import java.math.BigDecimal;
@@ -49,6 +50,7 @@ class FinancialLedgerEngineTest {
   private UserClient userClient;
   private DebtNettingEngine debtNettingEngine;
   private GroupSimplificationSettingsService settingsService;
+  private LedgerRepository ledgerRepository;
 
   private FinancialLedgerEngine engine;
 
@@ -61,8 +63,12 @@ class FinancialLedgerEngineTest {
     userClient = mock(UserClient.class);
     debtNettingEngine = mock(DebtNettingEngine.class);
     settingsService = mock(GroupSimplificationSettingsService.class);
+    ledgerRepository = mock(LedgerRepository.class);
     when(settingsService.readSettings(anyLong()))
         .thenAnswer(inv -> GroupSimplificationSettings.defaults(inv.getArgument(0)));
+    when(ledgerRepository.calculateGroupBalances(anyLong())).thenReturn(Collections.emptyList());
+    when(ledgerRepository.calculatePairwiseBalanceInGroup(anyLong(), anyLong(), anyLong()))
+        .thenReturn(BigDecimal.ZERO);
 
     engine =
         new DefaultFinancialLedgerEngine(
@@ -72,7 +78,8 @@ class FinancialLedgerEngineTest {
             paymentRepository,
             userClient,
             debtNettingEngine,
-            settingsService);
+            settingsService,
+            ledgerRepository);
   }
 
   @Nested
@@ -230,24 +237,8 @@ class FinancialLedgerEngineTest {
       GroupMember member2 = GroupMember.builder().userId(2L).group(group).build();
       when(groupMemberRepository.findByGroupId(groupId)).thenReturn(List.of(member1, member2));
 
-      List<Expense> expenses =
-          List.of(
-              Expense.builder()
-                  .paidBy(1L)
-                  .amount(new BigDecimal("10.00"))
-                  .splits(
-                      List.of(
-                          com.splitz.expense.model.ExpenseSplit.builder()
-                              .userId(1L)
-                              .shareAmount(new BigDecimal("5.00"))
-                              .build(),
-                          com.splitz.expense.model.ExpenseSplit.builder()
-                              .userId(2L)
-                              .shareAmount(new BigDecimal("5.00"))
-                              .build()))
-                  .build());
-      when(expenseRepository.findByGroupId(groupId)).thenReturn(expenses);
-      when(paymentRepository.findByGroupId(groupId)).thenReturn(Collections.emptyList());
+      when(ledgerRepository.calculateGroupBalances(groupId))
+          .thenReturn(List.of(userBalance(1L, "5.00"), userBalance(2L, "-5.00")));
 
       UserResponse user1 =
           UserResponse.builder().id(1L).username("user1").email("user1@example.com").build();
@@ -296,48 +287,16 @@ class FinancialLedgerEngineTest {
       GroupMember m3 = GroupMember.builder().userId(3L).group(group).build();
       when(groupMemberRepository.findByGroupId(groupId)).thenReturn(List.of(m1, m2, m3));
 
-      // 1 paid 60 (20 each for 1, 2, 3)
-      // 2 paid 30 (10 each for 1, 2, 3)
-      Expense exp1 =
-          Expense.builder()
-              .paidBy(1L)
-              .amount(new BigDecimal("60.00"))
-              .splits(
-                  List.of(
-                      com.splitz.expense.model.ExpenseSplit.builder()
-                          .userId(1L)
-                          .shareAmount(new BigDecimal("20.00"))
-                          .build(),
-                      com.splitz.expense.model.ExpenseSplit.builder()
-                          .userId(2L)
-                          .shareAmount(new BigDecimal("20.00"))
-                          .build(),
-                      com.splitz.expense.model.ExpenseSplit.builder()
-                          .userId(3L)
-                          .shareAmount(new BigDecimal("20.00"))
-                          .build()))
-              .build();
-      Expense exp2 =
-          Expense.builder()
-              .paidBy(2L)
-              .amount(new BigDecimal("30.00"))
-              .splits(
-                  List.of(
-                      com.splitz.expense.model.ExpenseSplit.builder()
-                          .userId(1L)
-                          .shareAmount(new BigDecimal("10.00"))
-                          .build(),
-                      com.splitz.expense.model.ExpenseSplit.builder()
-                          .userId(2L)
-                          .shareAmount(new BigDecimal("10.00"))
-                          .build(),
-                      com.splitz.expense.model.ExpenseSplit.builder()
-                          .userId(3L)
-                          .shareAmount(new BigDecimal("10.00"))
-                          .build()))
-              .build();
-      when(expenseRepository.findByGroupId(groupId)).thenReturn(List.of(exp1, exp2));
-      when(paymentRepository.findByGroupId(groupId)).thenReturn(Collections.emptyList());
+      when(ledgerRepository.calculateGroupBalances(groupId))
+          .thenReturn(
+              List.of(
+                  userBalance(1L, "30.00"), userBalance(2L, "0.00"), userBalance(3L, "-30.00")));
+      when(ledgerRepository.calculatePairwiseBalanceInGroup(1L, 2L, groupId))
+          .thenReturn(new BigDecimal("10.00"));
+      when(ledgerRepository.calculatePairwiseBalanceInGroup(1L, 3L, groupId))
+          .thenReturn(new BigDecimal("20.00"));
+      when(ledgerRepository.calculatePairwiseBalanceInGroup(2L, 3L, groupId))
+          .thenReturn(new BigDecimal("10.00"));
 
       UserResponse u1 = UserResponse.builder().id(1L).username("alice").build();
       UserResponse u2 = UserResponse.builder().id(2L).username("bob").build();
@@ -402,21 +361,8 @@ class FinancialLedgerEngineTest {
       when(groupMemberRepository.findByUserId(friendId)).thenReturn(List.of(memberFriend));
       when(groupRepository.findAllById(any())).thenReturn(List.of(group));
 
-      List<Expense> expenses =
-          List.of(
-              Expense.builder()
-                  .group(group)
-                  .paidBy(userId)
-                  .amount(new BigDecimal("20.00"))
-                  .splits(
-                      List.of(
-                          com.splitz.expense.model.ExpenseSplit.builder()
-                              .userId(friendId)
-                              .shareAmount(new BigDecimal("10.00"))
-                              .build()))
-                  .build());
-      when(expenseRepository.findByGroupId(10L)).thenReturn(expenses);
-      when(paymentRepository.findByGroupId(10L)).thenReturn(Collections.emptyList());
+      when(ledgerRepository.calculatePairwiseBalanceInGroup(userId, friendId, 10L))
+          .thenReturn(new BigDecimal("10.00"));
 
       FriendBalanceResponseDTO result = engine.getNetBalanceWithFriend(userId, friendId);
 
@@ -495,5 +441,19 @@ class FinancialLedgerEngineTest {
         }
       };
     }
+  }
+
+  private static UserBalanceAggregate userBalance(Long userId, String balance) {
+    return new UserBalanceAggregate() {
+      @Override
+      public Long getUserId() {
+        return userId;
+      }
+
+      @Override
+      public BigDecimal getBalance() {
+        return new BigDecimal(balance);
+      }
+    };
   }
 }

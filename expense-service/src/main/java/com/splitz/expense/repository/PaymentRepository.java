@@ -26,6 +26,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
   List<Payment> findByGroupId(Long groupId);
 
+  long countByGroupId(Long groupId);
+
   List<Payment> findByGroupIdAndStatusIn(Long groupId, Collection<SettlementStatus> statuses);
 
   @Query(
