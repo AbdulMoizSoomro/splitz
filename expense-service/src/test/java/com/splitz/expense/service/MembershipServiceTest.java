@@ -157,4 +157,93 @@ class MembershipServiceTest {
     verify(groupRepository).save(any(Group.class));
     assertEquals(GroupRole.MEMBER, adminMember.getRole());
   }
+
+  // --- initializeGroupMembers Tests ---
+
+  @Test
+  void initializeGroupMembers_AddsCreatorAsAdminAndReturnsDTO() {
+    Group freshGroup = Group.builder().id(20L).name("Trip").createdBy(1L).active(true).build();
+    when(groupRepository.findById(20L)).thenReturn(Optional.of(freshGroup));
+    when(userClient.existsById(2L)).thenReturn(true);
+    when(groupRepository.save(any(Group.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(groupMapper.toDTO(any(Group.class))).thenReturn(GroupDTO.builder().id(20L).build());
+
+    GroupDTO result = membershipService.initializeGroupMembers(20L, 1L, List.of(2L));
+
+    org.junit.jupiter.api.Assertions.assertNotNull(result);
+    assertEquals(20L, result.getId());
+    assertEquals(2, freshGroup.getMembers().size());
+    org.junit.jupiter.api.Assertions.assertTrue(
+        freshGroup.getMembers().stream()
+            .anyMatch(m -> m.getUserId().equals(1L) && m.getRole() == GroupRole.ADMIN));
+    org.junit.jupiter.api.Assertions.assertTrue(
+        freshGroup.getMembers().stream()
+            .anyMatch(m -> m.getUserId().equals(2L) && m.getRole() == GroupRole.MEMBER));
+  }
+
+  @Test
+  void initializeGroupMembers_WhenNullOrEmptyMembers_ShouldAddOnlyCreator() {
+    Group freshGroup = Group.builder().id(20L).name("Trip").createdBy(1L).active(true).build();
+    when(groupRepository.findById(20L)).thenReturn(Optional.of(freshGroup));
+    when(groupRepository.save(any(Group.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(groupMapper.toDTO(any(Group.class))).thenReturn(GroupDTO.builder().id(20L).build());
+
+    GroupDTO result = membershipService.initializeGroupMembers(20L, 1L, null);
+
+    org.junit.jupiter.api.Assertions.assertNotNull(result);
+    assertEquals(1, freshGroup.getMembers().size());
+    GroupMember creator = freshGroup.getMembers().iterator().next();
+    assertEquals(1L, creator.getUserId());
+    assertEquals(GroupRole.ADMIN, creator.getRole());
+  }
+
+  @Test
+  void initializeGroupMembers_WithCreatorAndDuplicates_ShouldDeduplicate() {
+    Group freshGroup = Group.builder().id(20L).name("Trip").createdBy(1L).active(true).build();
+    when(groupRepository.findById(20L)).thenReturn(Optional.of(freshGroup));
+    when(userClient.existsById(2L)).thenReturn(true);
+    when(groupRepository.save(any(Group.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(groupMapper.toDTO(any(Group.class))).thenReturn(GroupDTO.builder().id(20L).build());
+
+    GroupDTO result = membershipService.initializeGroupMembers(20L, 1L, List.of(1L, 2L, 2L));
+
+    org.junit.jupiter.api.Assertions.assertNotNull(result);
+    assertEquals(2, freshGroup.getMembers().size());
+    org.junit.jupiter.api.Assertions.assertTrue(
+        freshGroup.getMembers().stream()
+            .anyMatch(m -> m.getUserId().equals(1L) && m.getRole() == GroupRole.ADMIN));
+    org.junit.jupiter.api.Assertions.assertTrue(
+        freshGroup.getMembers().stream()
+            .anyMatch(m -> m.getUserId().equals(2L) && m.getRole() == GroupRole.MEMBER));
+    verify(userClient, times(1)).existsById(2L);
+    verify(userClient, never()).existsById(1L);
+  }
+
+  @Test
+  void initializeGroupMembers_WhenUserNotFound_ShouldThrowResourceNotFoundException() {
+    Group freshGroup = Group.builder().id(20L).name("Trip").createdBy(1L).active(true).build();
+    when(groupRepository.findById(20L)).thenReturn(Optional.of(freshGroup));
+    when(userClient.existsById(999L)).thenReturn(false);
+
+    assertThrows(
+        com.splitz.expense.exception.ResourceNotFoundException.class,
+        () -> membershipService.initializeGroupMembers(20L, 1L, List.of(999L)));
+    verify(groupRepository, never()).save(any(Group.class));
+  }
+
+  @Test
+  void initializeGroupMembers_WhenExceeds50Members_ShouldThrowIllegalArgumentException() {
+    List<Long> memberIds = new ArrayList<>();
+    for (long i = 100L; i < 155L; i++) {
+      memberIds.add(i);
+    }
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> membershipService.initializeGroupMembers(20L, 1L, memberIds));
+    verify(groupRepository, never()).save(any(Group.class));
+  }
 }

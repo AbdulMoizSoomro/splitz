@@ -1,7 +1,7 @@
 # ADR 0002: Membership Lifecycle Module
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 Membership logic (roles, removals, authorization) was previously scattered throughout `GroupService.java`. This led to shallow methods, duplicated checks, and inconsistent enforcement of domain invariants (e.g., "admin wars" protections and "zero balance" requirements for leaving).
@@ -16,6 +16,7 @@ We will extract a **Membership Module** within the `expense-service`. This modul
 
 ### Interface
 The module will provide a high-leverage interface for all membership changes:
+- `initializeGroupMembers(...)`
 - `addMember(...)`
 - `updateRole(...)`
 - `transferOwnership(...)`
@@ -24,5 +25,5 @@ The module will provide a high-leverage interface for all membership changes:
 
 ## Consequences
 - **Locality**: All membership rules are now in one place, making them easier to audit and test.
-- **Leverage**: `GroupService` is simplified to managing group metadata and initial creation.
+- **Leverage**: `GroupService` is simplified to managing group metadata and delegates initial membership creation and validation to `MembershipService`.
 - **Dependency**: The Membership Module depends on the `BalanceService` (or a future Debt Module) to verify the Settlement Invariant.

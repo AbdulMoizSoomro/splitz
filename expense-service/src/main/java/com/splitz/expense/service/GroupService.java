@@ -1,6 +1,5 @@
 package com.splitz.expense.service;
 
-import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
@@ -8,8 +7,6 @@ import com.splitz.expense.exception.ResourceNotFoundException;
 import com.splitz.expense.governance.GroupGovernance;
 import com.splitz.expense.mapper.GroupMapper;
 import com.splitz.expense.model.Group;
-import com.splitz.expense.model.GroupMember;
-import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +20,7 @@ public class GroupService {
 
   private final GroupRepository groupRepository;
   private final GroupMapper groupMapper;
-  private final UserClient userClient;
+  private final MembershipService membershipService;
   private final GroupGovernance groupGovernance;
 
   public GroupDTO createGroup(CreateGroupRequest request, Long currentUserId) {
@@ -36,24 +33,9 @@ public class GroupService {
             .active(true)
             .build();
 
-    GroupMember creatorMembership =
-        GroupMember.builder().userId(currentUserId).role(GroupRole.ADMIN).build();
-    group.addMember(creatorMembership);
-
-    if (request.getMemberUserIds() != null) {
-      for (Long memberUserId : request.getMemberUserIds()) {
-        if (!memberUserId.equals(currentUserId)) {
-          if (!userClient.existsById(memberUserId)) {
-            throw new ResourceNotFoundException("User not found with id: " + memberUserId);
-          }
-          group.addMember(
-              GroupMember.builder().userId(memberUserId).role(GroupRole.MEMBER).build());
-        }
-      }
-    }
-
     Group saved = groupRepository.save(group);
-    return groupMapper.toDTO(saved);
+    return membershipService.initializeGroupMembers(
+        saved.getId(), currentUserId, request.getMemberUserIds());
   }
 
   @Transactional(readOnly = true)

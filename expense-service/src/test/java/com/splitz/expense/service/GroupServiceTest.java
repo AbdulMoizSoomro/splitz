@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.CreateGroupRequest;
 import com.splitz.expense.dto.GroupDTO;
 import com.splitz.expense.dto.UpdateGroupRequest;
@@ -30,7 +29,7 @@ class GroupServiceTest {
 
   @Mock private GroupRepository groupRepository;
   @Mock private GroupMapper groupMapper;
-  @Mock private UserClient userClient;
+  @Mock private MembershipService membershipService;
   @Mock private GroupGovernance groupGovernance;
 
   @InjectMocks private GroupService groupService;
@@ -51,28 +50,24 @@ class GroupServiceTest {
   }
 
   @Test
-  void createGroup_ShouldAddCreatorAsAdmin() {
+  void createGroup_ShouldSaveGroupAndDelegateToMembershipService() {
     CreateGroupRequest request = new CreateGroupRequest();
     request.setName("Roommates");
     request.setDescription("desc");
+    request.setMemberUserIds(java.util.List.of(2L));
 
-    Group saved =
-        Group.builder()
-            .id(1L)
-            .name("Roommates")
-            .active(true)
-            .members(Set.of(GroupMember.builder().userId(99L).role(GroupRole.ADMIN).build()))
-            .build();
+    Group saved = Group.builder().id(1L).name("Roommates").active(true).build();
 
     GroupDTO dto = GroupDTO.builder().id(1L).name("Roommates").build();
 
     when(groupRepository.save(any(Group.class))).thenReturn(saved);
-    when(groupMapper.toDTO(saved)).thenReturn(dto);
+    when(membershipService.initializeGroupMembers(1L, 99L, java.util.List.of(2L))).thenReturn(dto);
 
     GroupDTO result = groupService.createGroup(request, 99L);
 
     assertEquals(1L, result.getId());
     verify(groupRepository).save(any(Group.class));
+    verify(membershipService).initializeGroupMembers(1L, 99L, java.util.List.of(2L));
   }
 
   @Test

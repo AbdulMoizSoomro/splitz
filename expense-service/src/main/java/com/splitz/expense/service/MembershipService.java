@@ -15,6 +15,7 @@ import com.splitz.expense.model.GroupRole;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -74,6 +75,35 @@ public class MembershipService {
         if (groupMemberRepository.existsByGroupIdAndUserId(groupId, memberUserId)) {
           continue;
         }
+        if (!userClient.existsById(memberUserId)) {
+          throw new ResourceNotFoundException("User not found with id: " + memberUserId);
+        }
+        GroupMember member =
+            GroupMember.builder().userId(memberUserId).role(GroupRole.MEMBER).build();
+        group.addMember(member);
+      }
+    }
+
+    Group saved = groupRepository.save(group);
+    return groupMapper.toDTO(saved);
+  }
+
+  public GroupDTO initializeGroupMembers(Long groupId, Long creatorId, List<Long> memberIds) {
+    if (memberIds != null && memberIds.size() > 50) {
+      throw new IllegalArgumentException("Maximum 50 users can be added at once");
+    }
+
+    Group group = getGroupWithMembers(groupId);
+
+    GroupMember creatorMembership =
+        GroupMember.builder().userId(creatorId).role(GroupRole.ADMIN).build();
+    group.addMember(creatorMembership);
+
+    if (memberIds != null) {
+      Set<Long> uniqueMemberIds = new LinkedHashSet<>(memberIds);
+      uniqueMemberIds.remove(creatorId);
+
+      for (Long memberUserId : uniqueMemberIds) {
         if (!userClient.existsById(memberUserId)) {
           throw new ResourceNotFoundException("User not found with id: " + memberUserId);
         }
