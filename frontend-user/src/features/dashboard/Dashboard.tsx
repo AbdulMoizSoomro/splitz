@@ -7,9 +7,8 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import UserSearch from "../users/UserSearch";
-import FriendRequestsList from "../users/FriendRequestsList";
-import FriendsList from "../users/FriendsList";
+import { Plus } from "lucide-react";
+import GroupList from "../groups/GroupList";
 import CreateGroupModal from "../groups/CreateGroupModal";
 
 function Dashboard() {
@@ -17,56 +16,35 @@ function Dashboard() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: "Dashboard" }]}>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Welcome to Splitz</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Start by adding your friends or creating a group to split
-                expenses.
+      <div className="space-y-8">
+        {/* Welcome Card */}
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row justify-between items-center">
+            <div>
+              <CardTitle className="text-2xl font-bold">Welcome to Splitz</CardTitle>
+              <p className="text-muted-foreground mt-1">
+                Track shared expenses, manage groups, and settle balances easily.
               </p>
-              <div className="flex gap-2">
-                <Button onClick={() => setIsModalOpen(true)}>
-                  Create Group
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus size={18} />
+              <span>Create Group</span>
+            </Button>
+          </CardHeader>
+        </Card>
 
-          <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>Find Friends</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <UserSearch />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Friend Requests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FriendRequestsList />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Friends</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FriendsList />
-            </CardContent>
-          </Card>
-        </div>
+        {/* Your Groups */}
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Your Groups</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GroupList />
+          </CardContent>
+        </Card>
       </div>
 
       <CreateGroupModal
