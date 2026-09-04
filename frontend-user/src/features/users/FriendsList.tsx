@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Loader2, Search, X } from "lucide-react";
+import { Users, Loader2, Search, X, Filter, ChevronDown } from "lucide-react";
 import api from "../../lib/axios";
 import type { User, Friendship } from "../../types/user";
 import { useAuthStore } from "../../store/authStore";
@@ -19,6 +19,12 @@ import FriendshipSettlementModal from "./FriendshipSettlementModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { MONEY_TOLERANCE } from "../balances/ledger";
 
 const FriendsList = () => {
@@ -166,62 +172,120 @@ const FriendsList = () => {
     { id: "SETTLED", label: "Settled", count: counts.settled },
   ];
 
+  const activeFilterOption =
+    filterOptions.find((o) => o.id === filter) || filterOptions[0];
+
   return (
     <div className="space-y-6">
       {/* 3-Metric Summary Banner */}
       <FriendsSummaryBanner summary={summary} />
 
       {/* Filter and In-List Search Controls */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {filterOptions.map((opt) => {
-            const isActive = filter === opt.id;
-            return (
-              <button
-                key={opt.id}
-                onClick={() => setFilter(opt.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <span>{opt.label}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    isActive
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "bg-background text-muted-foreground"
+      <div className="space-y-2 pt-2">
+        {/* Mobile: Filter dropdown button + Search input in one tidy row */}
+        <div className="flex sm:hidden items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="h-9 px-2.5 border border-border rounded-lg bg-card hover:bg-muted text-xs font-medium flex items-center gap-1.5 shrink-0 shadow-xs transition-colors"
+              aria-label="Filter connections"
+            >
+              <Filter size={14} className="text-muted-foreground" />
+              <span>{activeFilterOption.label}</span>
+              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground font-semibold">
+                {activeFilterOption.count}
+              </span>
+              <ChevronDown size={12} className="text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              {filterOptions.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.id}
+                  onClick={() => setFilter(opt.id)}
+                  className={`flex items-center justify-between text-xs cursor-pointer ${
+                    filter === opt.id ? "font-semibold bg-muted" : ""
                   }`}
                 >
-                  {opt.count}
-                </span>
+                  <span>{opt.label}</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    ({opt.count})
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="relative flex-1">
+            <Search
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+              size={15}
+            />
+            <Input
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 pr-8 h-9 text-xs"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={14} />
               </button>
-            );
-          })}
+            )}
+          </div>
         </div>
 
-        {/* Real-time In-List Search */}
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-            size={16}
-          />
-          <Input
-            placeholder="Search connections or groups..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 pr-8 h-9 text-xs"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X size={14} />
-            </button>
-          )}
+        {/* Desktop: Filter Pills + Search input */}
+        <div className="hidden sm:flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
+            {filterOptions.map((opt) => {
+              const isActive = filter === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setFilter(opt.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      isActive
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-background text-muted-foreground"
+                    }`}
+                  >
+                    {opt.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="relative flex-1 max-w-xs">
+            <Search
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+              size={16}
+            />
+            <Input
+              placeholder="Search connections or groups..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 pr-8 h-9 text-xs"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
