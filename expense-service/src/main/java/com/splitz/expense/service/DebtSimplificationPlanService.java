@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class DebtSimplificationPlanService {
   private final GroupRepository groupRepository;
   private final GroupMemberRepository groupMemberRepository;
   private final GroupSimplificationSettingsService settingsService;
+  private final UserSimplificationPreferenceService preferenceService;
   private final UserClient userClient;
   private final DebtNettingEngine debtNettingEngine;
   private final IntraGroupNetBalanceSource intraGroupNetBalanceSource;
@@ -54,13 +56,18 @@ public class DebtSimplificationPlanService {
 
     GroupSimplificationSettings settings = settingsService.readSettings(groupId);
 
-    if (!settings.isSimplificationEnabled()) {
-      return emptyPlan(groupId, settings);
-    }
-
     List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
     List<Long> memberIds =
         members.stream().map(GroupMember::getUserId).collect(Collectors.toList());
+
+    // The account-level opt-out is a hard override, so it must be resolved into the plan even when
+    // the group has netting switched off: optedOutUserIds means the same thing on every plan.
+    Set<Long> effectiveOptOutUserIds =
+        preferenceService.effectiveOptOutUserIds(settings.getOptOutUserIds(), memberIds);
+
+    if (!settings.isSimplificationEnabled()) {
+      return emptyPlan(groupId, settings, effectiveOptOutUserIds);
+    }
 
     NetBalanceSource source =
         switch (settings.getSimplificationScope()) {
@@ -75,11 +82,11 @@ public class DebtSimplificationPlanService {
         debtNettingEngine.simplifyDebts(
             groupId,
             balanceResult.getNetBalances(),
-            settings.getOptOutUserIds(),
+            effectiveOptOutUserIds,
             usernames,
             balanceResult.getOriginalTransactionCount());
 
-    return toDTO(plan, settings);
+    return toDTO(plan, settings, effectiveOptOutUserIds);
   }
 
   private Map<Long, String> resolveUsernames(List<Long> memberIds) {
@@ -91,13 +98,8 @@ public class DebtSimplificationPlanService {
     return usernames;
   }
 
-  private static HashSet<Long> safeCopyOptOutIds(GroupSimplificationSettings settings) {
-    return settings.getOptOutUserIds() != null
-        ? new HashSet<>(settings.getOptOutUserIds())
-        : new HashSet<>();
-  }
-
-  private DebtSimplificationPlanDTO emptyPlan(Long groupId, GroupSimplificationSettings settings) {
+  private DebtSimplificationPlanDTO emptyPlan(
+      Long groupId, GroupSimplificationSettings settings, Set<Long> effectiveOptOutUserIds) {
     return DebtSimplificationPlanDTO.builder()
         .groupId(groupId)
         .scope(settings.getSimplificationScope().name())
@@ -106,13 +108,15 @@ public class DebtSimplificationPlanService {
         .originalTransactionCount(0)
         .simplifiedTransactionCount(0)
         .totalDebtVolume(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
-        .optedOutUserIds(safeCopyOptOutIds(settings))
+        .optedOutUserIds(new HashSet<>(effectiveOptOutUserIds))
         .transactions(Collections.emptyList())
         .build();
   }
 
   private DebtSimplificationPlanDTO toDTO(
-      DebtSimplificationPlan plan, GroupSimplificationSettings settings) {
+      DebtSimplificationPlan plan,
+      GroupSimplificationSettings settings,
+      Set<Long> effectiveOptOutUserIds) {
     List<SimplifiedDebtTransactionDTO> transactionDTOs =
         plan.getTransactions().stream()
             .map(
@@ -135,7 +139,7 @@ public class DebtSimplificationPlanService {
         .originalTransactionCount(plan.getOriginalTransactionCount())
         .simplifiedTransactionCount(plan.getSimplifiedTransactionCount())
         .totalDebtVolume(plan.getTotalDebtVolume())
-        .optedOutUserIds(safeCopyOptOutIds(settings))
+        .optedOutUserIds(new HashSet<>(effectiveOptOutUserIds))
         .transactions(transactionDTOs)
         .build();
   }

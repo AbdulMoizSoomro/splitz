@@ -26,6 +26,11 @@ export const SimplificationSettingsCard = ({
     queryFn: () => simplificationService.getSimplificationSettings(groupId),
   });
 
+  const { data: accountPreference } = useQuery({
+    queryKey: ["simplification-preference", "me"],
+    queryFn: () => simplificationService.getAccountPreference(),
+  });
+
   const updateSettingsMutation = useMutation({
     mutationFn: (
       data: UpdateSimplificationSettingsRequest,
@@ -72,7 +77,12 @@ export const SimplificationSettingsCard = ({
 
   if (!settings) return null;
 
-  const isOptedOut = settings.optOutUserIds?.includes(currentUserId) ?? false;
+  // An account-level opt-out is a hard override, so it makes the user opted out here regardless of
+  // what this group configured. The group toggle still reports this group's own setting so the user
+  // can see where the exclusion actually came from.
+  const isOptedOutInGroup = settings.optOutUserIds?.includes(currentUserId) ?? false;
+  const isOptedOutAccountWide = accountPreference?.accountOptOut ?? false;
+  const isOptedOut = isOptedOutInGroup || isOptedOutAccountWide;
 
   return (
     <Card className="border-border shadow-sm">
@@ -192,7 +202,18 @@ export const SimplificationSettingsCard = ({
         {isOptedOut && (
           <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-700 dark:text-amber-400 text-xs">
             <p className="font-semibold mb-1">Opt-Out Active</p>
-            You are currently excluded from automated debt transfers. You will settle payments directly with original counterparties.
+            {isOptedOutAccountWide && !isOptedOutInGroup ? (
+              <>
+                You opted out account-wide in Settings, so you are excluded from netting in this
+                group too. Opting back in per group requires turning the account-wide opt-out off
+                first.
+              </>
+            ) : (
+              <>
+                You are currently excluded from automated debt transfers in this group. You will
+                settle payments directly with original counterparties.
+              </>
+            )}
           </div>
         )}
       </CardContent>

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,6 +49,7 @@ class DebtSimplificationPlanServiceTest {
   @Mock private GroupRepository groupRepository;
   @Mock private GroupMemberRepository groupMemberRepository;
   @Mock private GroupSimplificationSettingsService settingsService;
+  @Mock private UserSimplificationPreferenceService preferenceService;
   @Mock private UserClient userClient;
   @Mock private DebtNettingEngine debtNettingEngine;
   @Mock private IntraGroupNetBalanceSource intraGroupNetBalanceSource;
@@ -65,11 +67,16 @@ class DebtSimplificationPlanServiceTest {
             groupRepository,
             groupMemberRepository,
             settingsService,
+            preferenceService,
             userClient,
             debtNettingEngine,
             intraGroupNetBalanceSource,
             crossGroupNetBalanceSource);
     when(groupRepository.existsById(GROUP_ID)).thenReturn(true);
+    // Default: no member holds an account-level override, so the effective set is the group's own.
+    // Individual tests override this to exercise the hard-override invariant.
+    when(preferenceService.effectiveOptOutUserIds(anySet(), any()))
+        .thenAnswer(invocation -> new HashSet<>(invocation.getArgument(0)));
   }
 
   private GroupMember member(Long userId) {
@@ -185,6 +192,63 @@ class DebtSimplificationPlanServiceTest {
     assertThat(result.getTransactions()).isEmpty();
     verify(debtNettingEngine, never()).simplifyDebts(anyLong(), any(), any(), any(), anyInt());
     verify(intraGroupNetBalanceSource, never()).resolve(any(), any());
+  }
+
+  @Test
+  @DisplayName(
+      "computePlan nets with the account-level override even when the group opted nobody out")
+  void computePlan_accountOverride_appliesAsHardOverride() {
+    when(settingsService.readSettings(GROUP_ID))
+        .thenReturn(enabledSettings(SimplificationScope.INTRA_GROUP, new HashSet<>()));
+    when(groupMemberRepository.findByGroupId(GROUP_ID)).thenReturn(List.of(member(1L), member(2L)));
+
+    // Bob opted out account-wide after this group was already configured.
+    when(preferenceService.effectiveOptOutUserIds(anySet(), any())).thenReturn(Set.of(2L));
+
+    Map<Long, BigDecimal> netBalances = new HashMap<>();
+    netBalances.put(1L, new BigDecimal("-50.00"));
+    netBalances.put(2L, new BigDecimal("50.00"));
+    when(intraGroupNetBalanceSource.resolve(eq(GROUP_ID), any()))
+        .thenReturn(
+            NetBalanceResult.builder()
+                .netBalances(netBalances)
+                .originalTransactionCount(2)
+                .build());
+    when(userClient.getUsersByIds(any()))
+        .thenReturn(
+            List.of(
+                UserResponse.builder().id(1L).username("alice").build(),
+                UserResponse.builder().id(2L).username("bob").build()));
+    when(debtNettingEngine.simplifyDebts(
+            eq(GROUP_ID), eq(netBalances), eq(Set.of(2L)), any(), anyInt()))
+        .thenReturn(plan(0, Collections.emptyList()));
+
+    DebtSimplificationPlanDTO result = planService.computePlan(GROUP_ID);
+
+    // The netting engine must be handed the overridden set, not the group's empty one.
+    verify(debtNettingEngine)
+        .simplifyDebts(eq(GROUP_ID), eq(netBalances), eq(Set.of(2L)), any(), eq(2));
+    assertThat(result.getOptedOutUserIds()).containsExactly(2L);
+  }
+
+  @Test
+  @DisplayName("computePlan reports the account override even when the group has netting disabled")
+  void computePlan_accountOverride_reportedOnDisabledPlan() {
+    GroupSimplificationSettings disabled =
+        GroupSimplificationSettings.builder()
+            .groupId(GROUP_ID)
+            .simplificationEnabled(false)
+            .simplificationScope(SimplificationScope.INTRA_GROUP)
+            .optOutUserIds(new HashSet<>())
+            .build();
+    when(settingsService.readSettings(GROUP_ID)).thenReturn(disabled);
+    when(groupMemberRepository.findByGroupId(GROUP_ID)).thenReturn(List.of(member(1L), member(2L)));
+    when(preferenceService.effectiveOptOutUserIds(anySet(), any())).thenReturn(Set.of(2L));
+
+    DebtSimplificationPlanDTO result = planService.computePlan(GROUP_ID);
+
+    // optedOutUserIds means the same thing whether or not netting is on.
+    assertThat(result.getOptedOutUserIds()).containsExactly(2L);
   }
 
   @Test
