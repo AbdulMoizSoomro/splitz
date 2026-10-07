@@ -7,6 +7,14 @@ export default defineConfig({
   testDir: "./src/test/e2e",
   /* Run tests in files in parallel */
   fullyParallel: true,
+  /**
+   * Per-test budget. These specs register two or three users and wait on a RabbitMQ-mediated
+   * friendship round trip before they can assert anything, which does not fit Playwright's 30s
+   * default. Specs should not carry their own setTimeout; raise it here so there is one source of
+   * truth.
+   */
+  timeout: 180_000,
+  expect: { timeout: 15_000 },
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
@@ -17,7 +25,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://localhost:5173",
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:5173",
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",

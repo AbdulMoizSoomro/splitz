@@ -142,10 +142,12 @@ test.describe("[E2E] Social Discovery and Group Exit", () => {
       await expect(pageOwner.getByText(`@${memberName}`)).toBeVisible({
         timeout: 10000,
       });
+      // Remove Friend now lives inside each connection card's three-dot menu.
+      await pageOwner.getByLabel("More options").first().click();
       await pageOwner.getByTitle("Remove Friend").click();
-      await expect(pageOwner.getByText(/no friends added yet/i)).toBeVisible({
-        timeout: 5000,
-      });
+      // The member still shares the group, so they remain listed as a temporary connection
+      // rather than dropping out of the list entirely.
+      await expect(pageOwner.getByText(/no friends added yet/i)).toHaveCount(0);
 
       // 8. Navigate back to the group — member is now a non-friend → Temp Friend badge
       await pageOwner.goto(groupUrl);

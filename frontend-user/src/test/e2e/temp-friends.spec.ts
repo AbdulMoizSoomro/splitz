@@ -137,16 +137,22 @@ test.describe("[E2E] Temporary Friends List", () => {
       await pageAlice.goto("/friends");
       await expect(pageAlice.getByText(`@${bobName}`)).toBeVisible();
       pageAlice.once("dialog", (dialog) => dialog.accept());
+      // Remove Friend now lives inside each connection card's three-dot menu.
+      await pageAlice.getByLabel("More options").first().click();
       await pageAlice.getByTitle("Remove Friend").click();
-      await expect(pageAlice.getByText(/no friends added yet/i)).toBeVisible();
+      // Bob still shares a group, so he stays visible in the unified connections list as a
+      // temporary friend. The list is therefore NOT empty, and the "no friends added yet"
+      // empty state correctly does not appear.
+      await expect(pageAlice.getByText(/no friends added yet/i)).toHaveCount(0);
 
-      // 7. Alice should now see Bob in the "Temporary Friends" list
-      // Reload to trigger fresh fetch of user-balances and temp-friends data
+      // 7. Alice should now see Bob flagged as a temporary friend.
+      // Reload to trigger a fresh fetch of the unified connections ledger.
       await pageAlice.reload();
       await pageAlice.waitForLoadState('networkidle');
-      await expect(pageAlice.getByText("Temporary Friends")).toBeVisible({ timeout: 15000 });
+      await expect(pageAlice.getByTitle("Temporary Friends")).toBeVisible({ timeout: 15000 });
       const tempFriendCard = pageAlice.locator(".bg-orange-50\\/30");
-      await expect(tempFriendCard.getByText(new RegExp(`${bobName}|Bob`, "i"))).toBeVisible();
+      // "@<username>" is unique per user; a /name|Bob/ alternation would match several ancestors.
+      await expect(tempFriendCard.getByText(`@${bobName}`, { exact: true })).toBeVisible();
 
       // 8. Verify the group badge is visible
       await expect(tempFriendCard.getByText(groupName)).toBeVisible();
@@ -211,18 +217,36 @@ test.describe("[E2E] Temporary Friends List", () => {
       await pageAlice.goto("/friends");
       await expect(pageAlice.getByText(`@${bobName}`)).toBeVisible();
       pageAlice.once("dialog", (dialog) => dialog.accept());
+      // Remove Friend now lives inside each connection card's three-dot menu.
+      await pageAlice.getByLabel("More options").first().click();
       await pageAlice.getByTitle("Remove Friend").click();
-      await expect(pageAlice.getByText(/no friends added yet/i)).toBeVisible();
+      // Bob still shares groups, so he remains listed as a temporary connection.
+      await expect(pageAlice.getByText(/no friends added yet/i)).toHaveCount(0);
 
-      // 6. Listen for the /counterparties endpoint call and verify payload
-      const counterpartiesPromise = pageAlice.waitForResponse(
-        (res) => res.url().includes("/counterparties") && res.status() === 200,
+      // 6. Prove the UI calls /counterparties (single aggregated endpoint, not per-group fan-out).
+      const counterpartiesCalled = pageAlice.waitForRequest(
+        (req) => req.url().includes("/counterparties"),
+        { timeout: 20000 },
       );
 
       // 7. Reload /friends page to trigger useLedger({ detail: true })
       await pageAlice.reload();
-      const cpResponse = await counterpartiesPromise;
-      const cpData = await cpResponse.json();
+      await counterpartiesCalled;
+      await pageAlice.waitForLoadState("networkidle");
+
+      // Read the payload directly. The response body is discarded once the reload navigates away,
+      // so reading it off the intercepted response is inherently racy; an in-page fetch with the
+      // live session token is deterministic.
+      const cpData: any = await pageAlice.evaluate(async () => {
+        const raw = localStorage.getItem("splitz-auth") ?? "";
+        const parsed = raw ? JSON.parse(raw) : {};
+        const token = parsed?.state?.token ?? parsed?.token;
+        const userId = parsed?.state?.user?.id ?? parsed?.user?.id;
+        const res = await fetch(`/api/expense/users/${userId}/counterparties`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        return res.json();
+      });
 
       // 8. Assert backend payload contains hydrated user details and multi-group references
       const bobCounterparty = cpData.find((cp: any) => cp.username === bobName);
@@ -233,11 +257,11 @@ test.describe("[E2E] Temporary Friends List", () => {
       expect(bobCounterparty.groups).toHaveLength(2);
 
       // 9. Assert UI renders both group badges and the netted balance ($15.00)
-      await expect(pageAlice.getByText("Temporary Friends")).toBeVisible({
+      await expect(pageAlice.getByTitle("Temporary Friends")).toBeVisible({
         timeout: 15000,
       });
       const tempCard = pageAlice.locator(".bg-orange-50\\/30");
-      await expect(tempCard.getByText(bobName)).toBeVisible();
+      await expect(tempCard.getByText(`@${bobName}`, { exact: true })).toBeVisible();
       await expect(tempCard.getByText(group1Name)).toBeVisible();
       await expect(tempCard.getByText(group2Name)).toBeVisible();
       await expect(tempCard.getByText(/15\.00/)).toBeVisible();

@@ -210,10 +210,10 @@ test.describe("Expense Management", () => {
       await pageBob.getByRole("button", { name: /login/i }).click();
       await expect(pageBob).toHaveURL(/\/$/);
 
-      // 3. Alice adds Bob as a friend
-      await pageAlice.goto("/");
+      // 3. Alice adds Bob as a friend (search lives on /friends)
+      await pageAlice.goto("/friends");
       await pageAlice.getByPlaceholder(/search by name or email/i).fill(bobName);
-      await pageAlice.getByRole("button", { name: /add friend/i }).click();
+      await pageAlice.getByRole("button", { name: /add friend/i }).first().click();
 
       // 4. Bob accepts friend request
       await pageBob.goto("/friends");

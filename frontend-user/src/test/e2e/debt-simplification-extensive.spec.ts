@@ -92,7 +92,6 @@ async function toggleSwitch(locator: Locator) {
 }
 
 test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
-  test.setTimeout(180000);
 
   test("Scenario 1: Single-Group Transitive Netting, Governance Toggles & Opt-Out Invariants", async ({ browser }) => {
     const ts = Date.now();
