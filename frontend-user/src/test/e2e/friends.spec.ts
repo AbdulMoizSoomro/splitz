@@ -67,8 +67,10 @@ test.describe("Friend Request Management", () => {
     await pageA.getByPlaceholder(/search by name or email/i).fill(usernameB);
     await expect(pageA.getByText(/friends/i).first()).toBeVisible();
 
-    // 9. User A removes User B
+    // 9. User A removes User B.
+    // Remove Friend now lives inside each connection card's three-dot menu, so open it first.
     pageA.on("dialog", (dialog) => dialog.accept());
+    await pageA.getByLabel("More options").first().click();
     await pageA.getByTitle("Remove Friend").click();
     await expect(pageA.getByText(/no friends added yet/i)).toBeVisible();
 

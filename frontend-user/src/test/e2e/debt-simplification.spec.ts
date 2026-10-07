@@ -29,10 +29,11 @@ async function loginUser(page: Page, username: string) {
 }
 
 async function sendFriendRequest(page: Page, friendUsername: string) {
-  await page.goto("/");
+  // UserSearch lives on /friends, not the dashboard.
+  await page.goto("/friends");
   const searchInput = page.getByPlaceholder(/search by name or email/i);
   await searchInput.fill(friendUsername);
-  await page.getByRole("button", { name: /add friend/i }).click();
+  await page.getByRole("button", { name: /add friend/i }).first().click();
 }
 
 async function acceptFriendRequest(page: Page, requesterName: string) {
@@ -47,7 +48,6 @@ async function toggleSwitch(locator: Locator) {
 }
 
 test.describe("[E2E] Debt Simplification & Opt-Out Governance", () => {
-  test.setTimeout(180000);
 
   test("Group Debt Simplification flow with opt-out and settlement", async ({ browser }) => {
     const ts = Date.now();

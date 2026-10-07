@@ -82,7 +82,6 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
   test("should allow manual allocation of settlement amount to specific group debts", async ({
     browser,
   }) => {
-    test.setTimeout(180000); // Higher timeout for slow CI/container environment
     const ts = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
     const aliceName = `alice_51_${ts}`;
     const bobName = `bob_51_${ts}`;

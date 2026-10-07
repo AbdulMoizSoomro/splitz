@@ -94,7 +94,6 @@ async function addEqualExpense(
 }
 
 test.describe("[E2E] Unified Payment Auto-Allocation", () => {
-  test.setTimeout(180000);
 
   // Helper setup to create 2 groups, 50/50 split of $100 total ($50 each group owed by Bob to Alice)
   async function setupAliceAndBobWithDebts(browser: any) {

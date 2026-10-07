@@ -20,10 +20,11 @@ async function registerAndLogin(page: Page, username: string, firstName: string)
 }
 
 async function sendFriendRequest(page: Page, friendUsername: string) {
-  await page.goto("/");
+  // UserSearch lives on /friends, not the dashboard.
+  await page.goto("/friends");
   const searchInput = page.getByPlaceholder(/search by name or email/i);
   await searchInput.fill(friendUsername);
-  await page.getByRole("button", { name: /add friend/i }).click();
+  await page.getByRole("button", { name: /add friend/i }).first().click();
 }
 
 async function acceptFriendRequest(page: Page, requesterName: string) {
@@ -35,7 +36,6 @@ async function acceptFriendRequest(page: Page, requesterName: string) {
 
 test.describe("[E2E] Settlement Lifecycle", () => {
   test("Alice pays Bob and Bob confirms", async ({ browser }) => {
-    test.setTimeout(60000);
     const ts = Date.now();
     const aliceName = `alice_${ts}`;
     const bobName = `bob_${ts}`;
