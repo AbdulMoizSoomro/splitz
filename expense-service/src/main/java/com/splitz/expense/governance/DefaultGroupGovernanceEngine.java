@@ -186,14 +186,10 @@ public class DefaultGroupGovernanceEngine implements GroupGovernance {
 
   @Override
   public boolean isMember(Long groupId, Long userId) {
-    try {
-      if (!groupRepository.existsById(groupId)) {
-        return false;
-      }
-      return groupMemberRepository.existsByGroupIdAndUserId(groupId, userId);
-    } catch (Exception e) {
+    if (!groupRepository.existsById(groupId)) {
       return false;
     }
+    return groupMemberRepository.existsByGroupIdAndUserId(groupId, userId);
   }
 
   private Group getGroupWithMembers(Long groupId) {

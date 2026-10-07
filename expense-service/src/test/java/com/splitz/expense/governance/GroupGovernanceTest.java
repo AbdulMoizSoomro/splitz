@@ -115,6 +115,15 @@ class GroupGovernanceTest {
     assertFalse(groupGovernance.isMember(1L, 100L));
   }
 
+  @Test
+  void isMember_WhenRepositoryFails_ShouldPropagateFailure() {
+    RuntimeException failure = new RuntimeException("database unavailable");
+    when(groupRepository.existsById(1L)).thenThrow(failure);
+
+    assertSame(
+        failure, assertThrows(RuntimeException.class, () -> groupGovernance.isMember(1L, 100L)));
+  }
+
   // --- Slice 2: Member Management (assertCanManageMembers) ---
 
   @Test

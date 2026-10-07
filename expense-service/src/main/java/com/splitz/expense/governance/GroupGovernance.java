@@ -45,6 +45,9 @@ public interface GroupGovernance {
    */
   void assertCanManageGroup(Long groupId, Long actorUserId);
 
-  /** Query checks if a user is a member of the group. Does not throw exceptions. */
+  /**
+   * Query checks if a user is a member of the group. Returns false when the group does not exist;
+   * repository failures are propagated rather than treated as an authorization result.
+   */
   boolean isMember(Long groupId, Long userId);
 }
