@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Home, Users, UsersRound, Activity, LogOut } from "lucide-react"
+import { Home, Users, UsersRound, Activity, Settings, LogOut } from "lucide-react"
 import { useAuthStore } from "../store/authStore"
 
 import {
@@ -39,6 +39,11 @@ const navItems = [
         title: "Activity",
         url: "/activity",
         icon: Activity,
+      },
+      {
+        title: "Settings",
+        url: "/settings",
+        icon: Settings,
       },
     ],
   },

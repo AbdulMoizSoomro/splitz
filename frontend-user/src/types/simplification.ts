@@ -34,3 +34,12 @@ export interface UpdateSimplificationSettingsRequest {
 export interface UserOptOutRequest {
   optOut: boolean;
 }
+
+/**
+ * Account-level debt simplification preference. An opt-out here is a hard override: the user is
+ * excluded from netting in every group, including groups configured before the opt-out.
+ */
+export interface UserSimplificationPreference {
+  userId: number;
+  accountOptOut: boolean;
+}

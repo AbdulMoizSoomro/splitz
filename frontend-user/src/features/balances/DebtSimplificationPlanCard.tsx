@@ -54,7 +54,7 @@ export const DebtSimplificationPlanCard = ({
   const reductionPercent = origCount > 0 ? Math.round((savedCount / origCount) * 100) : 0;
 
   return (
-    <Card className="border-blue-500/20 bg-card shadow-sm">
+    <Card className="border-blue-500/20 bg-card shadow-sm" data-testid="simplification-plan-card">
       <CardHeader className="pb-3">
         <CardTitle className="text-foreground flex items-center justify-between text-lg">
           <div className="flex items-center gap-2">

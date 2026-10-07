@@ -4,6 +4,7 @@ import type {
   GroupSimplificationSettings,
   UpdateSimplificationSettingsRequest,
   UserOptOutRequest,
+  UserSimplificationPreference,
 } from "../../types/simplification";
 
 export const simplificationService = {
@@ -42,6 +43,23 @@ export const simplificationService = {
   ): Promise<GroupSimplificationSettings> => {
     const response = await expenseApi.post<GroupSimplificationSettings>(
       `/groups/${groupId}/simplification-settings/opt-out`,
+      data,
+    );
+    return response.data;
+  },
+
+  getAccountPreference: async (): Promise<UserSimplificationPreference> => {
+    const response = await expenseApi.get<UserSimplificationPreference>(
+      "/simplification-preferences/me",
+    );
+    return response.data;
+  },
+
+  toggleAccountOptOut: async (
+    data: UserOptOutRequest,
+  ): Promise<UserSimplificationPreference> => {
+    const response = await expenseApi.post<UserSimplificationPreference>(
+      "/simplification-preferences/me/opt-out",
       data,
     );
     return response.data;

@@ -54,6 +54,7 @@ export const queryKeys = {
     ["group-simplification-plan", groupId] as const,
   simplificationSettings: (groupId: Id) =>
     ["group-simplification-settings", groupId] as const,
+  simplificationPreference: ["simplification-preference", "me"] as const,
 } as const;
 
 /** The minimal `queryClient.invalidateQueries` surface this module needs. */

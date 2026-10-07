@@ -8,6 +8,7 @@ import GroupDetails from "./features/groups/GroupDetails";
 import FriendsPage from "./features/users/FriendsPage";
 import FriendDetailPage from "./features/users/FriendDetailPage";
 import ActivityPage from "./features/activity/ActivityPage";
+import SettingsPage from "./features/settings/SettingsPage";
 import { Toaster } from "@/components/ui/sonner";
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
           <Route path="/groups" element={<GroupsPage />} />
           <Route path="/groups/:id" element={<GroupDetails />} />
           <Route path="/activity" element={<ActivityPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>
       <Toaster />
