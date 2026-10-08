@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page } from "@playwright/test";
 
 const PASSWORD = "Password123!";
@@ -80,7 +81,7 @@ async function addEqualExpense(
   amount: string,
 ) {
   await pageOwner.goto("/groups");
-  await pageOwner.getByText(groupName).click();
+  await openGroupDetails(pageOwner, groupName);
   await pageOwner.getByRole("button", { name: /add expense/i }).first().click();
   await pageOwner.locator('#description').fill(description);
   await pageOwner.locator('#amount').fill(amount);
@@ -407,14 +408,14 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
 
       // Verify Group A balance is updated (Bob owed $50, paid $20, so he still owes $30)
       await pageAlice.goto("/groups");
-      await pageAlice.getByText(groupAName).click();
+      await openGroupDetails(pageAlice, groupAName);
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText(bobName).first()).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText("$30.00").first()).toBeVisible({ timeout: 10000 });
 
       // Verify Group B balance remains untouched (Alice owes Bob $30.00)
       await pageAlice.goto("/groups");
-      await pageAlice.getByText(groupBName).click();
+      await openGroupDetails(pageAlice, groupBName);
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
       await expect(pageAlice.getByText("You owe").first()).toBeVisible({ timeout: 10000 });
       await expect(pageAlice.getByText("$30.00").first()).toBeVisible({ timeout: 10000 });
@@ -471,7 +472,7 @@ test.describe("[E2E] Unified Payment Auto-Allocation", () => {
       // Bob's group balance is now temporarily $0.00 because of the pending payment.
       // Bob goes to Group Page to leave group
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       
       // Bob clicks "Leave Group" button in the action card
       await pageBob.getByRole("tab", { name: "Members" }).click();

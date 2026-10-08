@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect } from "@playwright/test";
 
 test.describe("Expense Management", () => {
@@ -230,7 +231,7 @@ test.describe("Expense Management", () => {
       await expect(pageAlice.getByText(groupName)).toBeVisible();
 
       // 6. Alice opens Add Expense Modal
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
 
       const expenseModal = pageAlice.getByRole("dialog", { name: /add new expense/i });

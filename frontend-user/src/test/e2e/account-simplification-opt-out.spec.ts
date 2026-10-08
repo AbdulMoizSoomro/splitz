@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 
 const PASSWORD = "Password123!";
@@ -93,7 +94,7 @@ test.describe("[E2E] Account-Level Debt Simplification Opt-Out", () => {
       await expect(groupModal).not.toBeVisible({ timeout: 10000 });
 
       // Open the group so the expense form is reachable.
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await expect(pageAlice.getByRole("tab", { name: /balances/i })).toBeVisible({
         timeout: 20000,
       });
@@ -149,7 +150,7 @@ test.describe("[E2E] Account-Level Debt Simplification Opt-Out", () => {
 
       console.log("Verifying Bob's group view explains the exclusion came from Settings...");
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       await pageBob.getByRole("tab", { name: /balances/i }).click();
       await expect(pageBob.getByText(/opted out account-wide in Settings/i)).toBeVisible({
         timeout: 15000,
@@ -163,7 +164,7 @@ test.describe("[E2E] Account-Level Debt Simplification Opt-Out", () => {
       });
 
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       await pageBob.getByRole("tab", { name: /balances/i }).click();
       const planCardBack = pageBob.getByTestId("simplification-plan-card");
       await expect(planCardBack).toBeVisible({ timeout: 20000 });

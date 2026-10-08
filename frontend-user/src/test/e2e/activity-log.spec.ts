@@ -1,3 +1,4 @@
+import { waitForGroupDetails } from "./helpers/navigation";
 import { test, expect } from '@playwright/test';
 
 test.describe('Activity Logging', () => {
@@ -48,6 +49,7 @@ test.describe('Activity Logging', () => {
     await modal.getByRole('button', { name: /create/i }).click();
     await expect(modal).not.toBeVisible();
     await page.getByRole('heading', { name: groupName }).click();
+    await waitForGroupDetails(page);
   });
 
   test('should log creation and deletion of expenses', async ({ page }) => {

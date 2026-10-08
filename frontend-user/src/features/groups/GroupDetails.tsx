@@ -70,6 +70,8 @@ const GroupDetails = () => {
         { label: group.name },
       ]}
     >
+      {/* Signals that this route's lazy chunk has loaded and its content is interactive. */}
+      <div data-testid="group-details" hidden />
       <div className="flex flex-col h-[calc(100vh-112px)] overflow-hidden space-y-4 pb-2">
         <GroupHeader group={group} />
 
