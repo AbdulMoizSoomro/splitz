@@ -17,7 +17,6 @@ explicit, enforced control over whether their debts are ever simplified at all.
 |----------|---------|
 | [`CONTEXT.md`](./CONTEXT.md) | Domain language and architecture — the source of truth for terminology |
 | [`docs/adr/`](./docs/adr/) | Architecture Decision Records — why the design is what it is |
-| [`docs/IMPLEMENTATION_ROADMAP.md`](./docs/IMPLEMENTATION_ROADMAP.md) | Historical roadmap (retained for context; not current) |
 
 Read `CONTEXT.md` before changing behaviour. Terms like *Temp Friend*, *Settlement Allocation* and
 *Effective Opt-Out Set* have precise meanings that the code depends on.
@@ -106,7 +105,7 @@ splitz/
 ├── frontend-user/                 # React SPA
 ├── conductor/                     # Agent tooling and product guidelines
 ├── config/init-db/                # Database bootstrap for the integrated environment
-├── docs/                          # ADRs, roadmaps, diagrams
+├── docs/                          # ADRs, architecture analysis, diagrams
 ├── docker-compose.yml             # Integrated environment
 └── CONTEXT.md                     # Domain language (source of truth)
 ```

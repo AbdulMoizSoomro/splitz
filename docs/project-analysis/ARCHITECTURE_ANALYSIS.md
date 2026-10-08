@@ -88,7 +88,7 @@ The User Service handles authentication, user management, and friendship relatio
 1. **No Pagination on `getAllUsers()` Endpoint**
    - **Risk:** O(n) memory consumption, potential OOM errors
    - **Impact:** Cannot scale beyond ~10,000 users
-   - **Evidence:** [UserController.java:76](../user-service/src/main/java/com/splitz/user/controller/UserController.java#L76)
+   - **Evidence:** [UserController.java:76](../../user-service/src/main/java/com/splitz/user/controller/UserController.java#L76)
 
    ```java
    public ResponseEntity<List<UserDTO>> getAllUsers() {
@@ -101,7 +101,7 @@ The User Service handles authentication, user management, and friendship relatio
 
 2. **Eager Fetching of Roles**
    - **Risk:** N+1 query problem if role relationships grow
-   - **Evidence:** [User.java:69](../user-service/src/main/java/com/splitz/user/model/User.java#L69)
+   - **Evidence:** [User.java:69](../../user-service/src/main/java/com/splitz/user/model/User.java#L69)
 
    ```java
    @ManyToMany(fetch = FetchType.EAGER)
@@ -110,12 +110,6 @@ The User Service handles authentication, user management, and friendship relatio
 
    - **Explanation:** While acceptable for small role sets (2-3 roles), this becomes a performance bottleneck if users have complex permission structures
    - **Recommendation:** Use LAZY fetching + `@EntityGraph` for specific queries
-
-3. **Hardcoded Security Expressions**
-   - **Evidence:** [SecurityExpressions.java](../user-service/src/main/java/com/splitz/user/security/SecurityExpressions.java)
-   - **Issue:** Method `isOwnerOrAdmin()` attempts to cast Principal to `User`, with fallback to DB query
-   - **Risk:** Silent failures mask configuration issues; unnecessary DB calls reduce performance
-   - **Recommendation:** Implement consistent `UserDetails` handling or use `@AuthenticationPrincipal`
 
 **Moderate Issues:**
 
@@ -138,7 +132,7 @@ The User Service handles authentication, user management, and friendship relatio
 **Minor Issues:**
 
 1. **Redundant `@Autowired` Annotations**
-   - **Evidence:** [UserService.java:26-29](../user-service/src/main/java/com/splitz/user/service/UserService.java#L26-L29)
+   - **Evidence:** [UserService.java:26-29](../../user-service/src/main/java/com/splitz/user/service/UserService.java#L26-L29)
    - Constructor injection is used (good), but fields also have `@Autowired` (redundant)
    - Modern Spring Boot only requires constructor injection
 
@@ -239,7 +233,7 @@ The Expense Service manages groups, expenses, splits, and settlements. It orches
 **Critical Issues:**
 
 1. **Blocking WebClient Usage**
-   - **Evidence:** [WebClientUserClient.java:30](../expense-service/src/main/java/com/splitz/expense/client/WebClientUserClient.java#L30)
+   - **Evidence:** [WebClientUserClient.java:30](../../expense-service/src/main/java/com/splitz/expense/client/WebClientUserClient.java#L30)
 
    ```java
    return userWebClient.get().uri("/users/{id}", id)
@@ -259,7 +253,7 @@ The Expense Service manages groups, expenses, splits, and settlements. It orches
    - **Recommendation:** Add validation before persisting group memberships
 
 3. **Naive Authentication Context Extraction**
-   - **Evidence:** [GroupController.java:76](../expense-service/src/main/java/com/splitz/expense/controller/GroupController.java#L76)
+   - **Evidence:** [GroupController.java:76](../../expense-service/src/main/java/com/splitz/expense/controller/GroupController.java#L76)
 
    ```java
    private Long currentUserId() {
@@ -386,7 +380,7 @@ Shared security module providing JWT utilities and request filtering for authent
 **Critical Issues:**
 
 1. **Overly Broad Exception Handling**
-   - **Evidence:** [JwtRequestFilter.java:63](../common-security/src/main/java/com/splitz/security/JwtRequestFilter.java#L63)
+   - **Evidence:** [JwtRequestFilter.java:63](../../common-security/src/main/java/com/splitz/security/JwtRequestFilter.java#L63)
 
    ```java
    } catch (Exception e) {
