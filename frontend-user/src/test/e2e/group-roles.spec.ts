@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page } from "@playwright/test";
 
 const PASSWORD = "Password123!";
@@ -77,7 +78,7 @@ async function createGroupWithMember(
 
   // Navigate to the created group
   await expect(pageOwner.getByText(groupName)).toBeVisible({ timeout: 10000 });
-  await pageOwner.getByText(groupName).click();
+  await openGroupDetails(pageOwner, groupName);
   await expect(pageOwner).toHaveURL(/\/groups\/\d+/, { timeout: 10000 });
 
   return pageOwner.url();

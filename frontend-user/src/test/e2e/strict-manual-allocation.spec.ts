@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page } from "@playwright/test";
 
 const PASSWORD = "Password123!";
@@ -110,7 +111,7 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
       await pageAlice.goto("/groups");
       
       // Group 1
-      await pageAlice.getByText(groupDinner).click();
+      await openGroupDetails(pageAlice, groupDinner);
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
       await pageAlice.locator('#description').fill("Dinner");
       await pageAlice.locator('#amount').fill("40.00");
@@ -121,7 +122,7 @@ test.describe("[E2E] Strict Manual Debt Allocation", () => {
 
       // Group 2
       await pageAlice.goto("/groups");
-      await pageAlice.getByText(groupTravel).click();
+      await openGroupDetails(pageAlice, groupTravel);
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
       await pageAlice.locator('#description').fill("Flight");
       await pageAlice.locator('#amount').fill("100.00");

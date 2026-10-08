@@ -1,3 +1,4 @@
+import { waitForGroupDetails } from "./helpers/navigation";
 import { test, expect } from "@playwright/test";
 
 test.describe("Global Activity Dashboard Page", () => {
@@ -41,6 +42,7 @@ test.describe("Global Activity Dashboard Page", () => {
     await modal.getByRole("button", { name: /create/i }).click();
     await expect(modal).not.toBeVisible();
     await page.getByText(groupName).click();
+    await waitForGroupDetails(page);
   });
 
   test("should render the activity list with full details, operational sidebar, and links back to the group", async ({ page }) => {

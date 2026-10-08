@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page } from "@playwright/test";
 
 const PASSWORD = "Password123!";
@@ -100,7 +101,7 @@ test.describe("Leave Group", () => {
       await expect(pageMember.getByText(groupName)).toBeVisible({
         timeout: 10000,
       });
-      await pageMember.getByText(groupName).click();
+      await openGroupDetails(pageMember, groupName);
       await expect(pageMember).toHaveURL(/\/groups\/\d+/);
 
       // 5. Member clicks "Leave Group"

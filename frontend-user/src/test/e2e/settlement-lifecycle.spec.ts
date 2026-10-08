@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page } from "@playwright/test";
 
 async function registerAndLogin(page: Page, username: string, firstName: string) {
@@ -68,7 +69,7 @@ test.describe("[E2E] Settlement Lifecycle", () => {
       await expect(groupModal).not.toBeVisible();
 
       console.log("Alice adding expense...");
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
       const expenseModal = pageAlice.getByRole("dialog");
       await expenseModal.locator('#description').fill("Dinner");
@@ -83,7 +84,7 @@ test.describe("[E2E] Settlement Lifecycle", () => {
 
       console.log("Bob paying Alice...");
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       await pageBob.getByRole("tab", { name: /balances/i }).click();
       
       await expect(pageBob.getByText(/you owe/i).first()).toBeVisible();

@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 
 const PASSWORD = "Password123!";
@@ -77,7 +78,7 @@ async function addEqualExpense(
   amount: string,
 ) {
   await pagePayer.goto("/groups");
-  await pagePayer.getByText(groupName).click();
+  await openGroupDetails(pagePayer, groupName);
   await pagePayer.getByRole("button", { name: /add expense/i }).first().click();
   await pagePayer.locator("#description").fill(description);
   await pagePayer.locator("#amount").fill(amount);
@@ -134,7 +135,7 @@ test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
 
       console.log("Verifying Suggested Settlement Plan on Alice's Balances tab...");
       await pageAlice.goto("/groups");
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
 
       await expect(pageAlice.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 15000 });
@@ -158,7 +159,7 @@ test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
 
       console.log("Testing Member Self-Service Opt-Out...");
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       await pageBob.getByRole("tab", { name: /balances/i }).click();
 
       const optOutSwitch = pageBob.getByTestId("user-opt-out-switch");
@@ -221,7 +222,7 @@ test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
 
       console.log("Alice enabling Global Cross-Group Netting in Group 1...");
       await pageAlice.goto("/groups");
-      await pageAlice.getByText(group1Name).click();
+      await openGroupDetails(pageAlice, group1Name);
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
 
       const globalScopeBtn = pageAlice.locator('[aria-label="Select Global Cross-Group Scope"]');
@@ -234,7 +235,7 @@ test.describe("[E2E] Extensive Debt Simplification & Governance Suite", () => {
 
       console.log("Bob paying net balance from suggested plan...");
       await pageBob.goto("/groups");
-      await pageBob.getByText(group1Name).click();
+      await openGroupDetails(pageBob, group1Name);
       await pageBob.getByRole("tab", { name: /balances/i }).click();
 
       await expect(pageBob.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 15000 });
