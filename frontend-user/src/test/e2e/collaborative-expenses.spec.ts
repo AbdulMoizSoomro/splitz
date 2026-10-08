@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page } from "@playwright/test";
 
 async function registerAndLogin(page: Page, username: string, firstName: string) {
@@ -61,7 +62,7 @@ test.describe("[E2E] Collaborative Expenses", () => {
       await expect(pageAlice.getByText(groupName)).toBeVisible();
 
       // 3. Alice adds expense
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
       await pageAlice.locator('#description').fill("Initial Lunch");
       await pageAlice.locator('#amount').fill("30.00");
@@ -70,7 +71,7 @@ test.describe("[E2E] Collaborative Expenses", () => {
 
       // 4. Bob edits Alice's expense
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       await pageBob.getByRole("tab", { name: /expenses/i }).click();
       
       // Bob opens dropdown and clicks edit

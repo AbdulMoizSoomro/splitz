@@ -86,7 +86,7 @@ Read `CONTEXT.md` before changing behaviour. Terms like *Temp Friend*, *Settleme
 |-------|------------|
 | Framework | React 19 |
 | Language | TypeScript 6 |
-| Build | Vite 8 |
+| Build | Vite 8 (routes code-split via `React.lazy`) |
 | Styling | Tailwind CSS 4 + shadcn/ui (Base UI) |
 | Server state | TanStack Query 5 |
 | Client state | Zustand 5 |
@@ -360,18 +360,17 @@ its reads local without weakening service boundaries.
 
 ## ⚠️ Known issues
 
-- **`npm run build` passes, but editing an expense loses its original split type.** `GET /groups/{id}/expenses`
-  does not return `splitType` — the field exists only on the create and update requests — and
-  `ExpenseSplit` carries no type information either. So when an existing expense is loaded into the
-  form, the split type falls back to `EQUAL`, even if it was created as `EXACT` or `PERCENTAGE`. Per-member
-  *amounts* still round-trip because they come from `splits[].shareAmount`. The correct fix is to add
-  `splitType` to `ExpenseDTO` and type it on the client `Expense`.
+- **Editing an expense loses its original split type.** `GET /groups/{id}/expenses` does not return
+  `splitType` — the field exists only on the create and update requests — and `ExpenseSplit` carries no
+  type information either. So when an existing expense is loaded into the form, the split type falls
+  back to `EQUAL`, even if it was created as `EXACT` or `PERCENTAGE`. Per-member *amounts* still
+  round-trip because they come from `splits[].shareAmount`. Tracked in
+  [#77](https://github.com/AbdulMoizSoomro/splitz/issues/77). Note the data is already persisted — this
+  is a read-path gap, not a storage problem.
 - **JWTs are held in browser storage.** The token is persisted to `localStorage`, so it is readable by
   any script running on the page. Moving to `HttpOnly` cookies is documented but not implemented — see
+  [#78](https://github.com/AbdulMoizSoomro/splitz/issues/78) and
   [`docs/future-improvements/secure-auth-implementation.md`](./docs/future-improvements/secure-auth-implementation.md).
-- **The `LICENSE` file is absent.** The project states MIT, but no licence text is committed.
-- **The frontend bundle is a single ~800 kB chunk.** Vite warns about this at build time. Code-splitting
-  by route has not been done.
 
 ---
 
@@ -394,8 +393,7 @@ Record any decision that changes the domain model or a service boundary as an AD
 
 ## 📝 License
 
-MIT. Note: no `LICENSE` file is present in the repository yet, so this is a stated intent rather than
-a committed licence text.
+MIT — see [LICENSE](LICENSE).
 
 ---
 

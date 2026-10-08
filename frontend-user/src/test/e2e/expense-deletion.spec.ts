@@ -1,3 +1,4 @@
+import { waitForGroupDetails } from "./helpers/navigation";
 import { test, expect } from '@playwright/test';
 
 test.describe('Expense Deletion', () => {
@@ -39,6 +40,7 @@ test.describe('Expense Deletion', () => {
 
     await expect(modal).not.toBeVisible({ timeout: 5000 });
     await page.getByText(groupName).click();
+    await waitForGroupDetails(page);
     });
 
     test('should allow a user to delete their own expense', async ({ page }) => {
