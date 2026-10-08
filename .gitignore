@@ -104,6 +104,7 @@ ci-compile.log
 ci-test.log
 progress.txt
 ralph_prompt.md
+tests/
 
 **/application-local.properties
 **/application-dev-local.properties
