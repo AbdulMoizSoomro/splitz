@@ -1,17 +1,52 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { openGroupDetails } from "./helpers/navigation";
+import type { SplitType } from "../../types/expense";
 
 /**
  * Editing an expense must reopen it on the split type it was created with.
  *
  * The split type and each member's split value are persisted per split, but the read path used to
  * omit them. The edit form therefore had nothing to restore from and fell back to EQUAL, so saving
- * an untouched EXACT expense silently re-split it evenly. These specs drive the real UI: create an
- * expense on a non-equal mode, reopen it, and assert both the visible form state and the outgoing
- * PUT payload still carry the original mode.
+ * an untouched EXACT expense silently re-split it evenly.
+ *
+ * Expenses are seeded through the API rather than the UI on purpose: the behaviour under test is
+ * what the *edit* form restores, and driving creation through the form would spend the spec on radio
+ * and input plumbing that the create path already covers elsewhere. Only the edit form is exercised
+ * through the UI.
  */
 
 const PASSWORD = "Password123!";
+
+interface Member {
+  userId: number;
+}
+
+interface SeededExpense {
+  id: number;
+  description: string;
+}
+
+async function register(request: APIRequestContext, username: string, firstName: string) {
+  const res = await request.post("/api/user/users", {
+    data: {
+      username,
+      email: `${username}@example.com`,
+      password: PASSWORD,
+      firstName,
+      lastName: "User",
+    },
+  });
+  expect(res.ok(), `register ${username}`).toBeTruthy();
+  return (await res.json()) as { id: number; username: string };
+}
+
+async function authenticate(request: APIRequestContext, username: string): Promise<string> {
+  const res = await request.post("/api/user/authenticate", {
+    data: { username, password: PASSWORD },
+  });
+  expect(res.ok(), `authenticate ${username}`).toBeTruthy();
+  return ((await res.json()) as { token: string }).token;
+}
 
 /** Per-member split inputs, keyed by their accessible label so tests need not know member ids. */
 async function splitValueInputs(dialog: Locator): Promise<Map<string, Locator>> {
@@ -24,160 +59,168 @@ async function splitValueInputs(dialog: Locator): Promise<Map<string, Locator>> 
   return byLabel;
 }
 
-/** True when the given split-type radio is the selected one. */
-async function isSplitTypeSelected(
-  dialog: Locator,
-  splitType: string,
-): Promise<boolean> {
-  return dialog
-    .locator(`#split-type-${splitType}`)
-    .getAttribute("aria-checked")
-    .then((checked) => checked === "true");
+/**
+ * The visible radio for a split type.
+ *
+ * Located by ARIA role and accessible name, not by id. base-ui renders two elements per radio: the
+ * visible `span[role=radio]` carrying `aria-checked`, and a visually hidden
+ * `input[aria-hidden=true]` that owns the `split-type-${type}` id. The id therefore resolves to the
+ * hidden input, which has no `aria-checked` and sits under the dialog overlay, so clicking or
+ * reading state from it fails. The accessible name comes from the label's text, which
+ * `splitTypeLabel` renders lowercase ("exact"), hence the case-insensitive match.
+ */
+function splitTypeRadio(dialog: Locator, splitType: SplitType): Locator {
+  return dialog.getByRole("radio", { name: new RegExp(`^${splitType}$`, "i") });
 }
 
-async function registerAndLogin(
-  page: Page,
-  firstName: string,
-  lastName: string,
-  username: string,
-): Promise<void> {
-  await page.goto("/register");
-  await page.locator("#firstName").fill(firstName);
-  await page.locator("#lastName").fill(lastName);
-  await page.locator("#username").fill(username);
-  await page.locator("#email").fill(`${username}@example.com`);
-  await page.locator("#password").fill(PASSWORD);
-  await page.getByRole("button", { name: /register/i }).click();
-
-  await expect(page).toHaveURL(/\/login/);
-  await page.locator("#username").fill(username);
-  await page.locator("#password").fill(PASSWORD);
-  await page.getByRole("button", { name: /login/i }).click();
-  await expect(page).toHaveURL(/\/$/);
+async function isSplitTypeSelected(dialog: Locator, splitType: SplitType): Promise<boolean> {
+  return (await splitTypeRadio(dialog, splitType).getAttribute("aria-checked")) === "true";
 }
-
-test.describe.configure({ mode: "serial" });
 
 test.describe("Expense split type survives a round trip through the edit form", () => {
-  const ts = Date.now();
-  const alice = `alice_split_${ts}`;
-  const bob = `bob_split_${ts}`;
-  const groupName = `Split Type Group ${ts}`;
-
   let alicePage: Page;
-  let bobPage: Page;
+  let request: APIRequestContext;
+  let token: string;
+  let groupId: number;
+  let aliceId: number;
+  let bobId: number;
+  let groupName: string;
 
-  test.beforeAll(async ({ browser }) => {
+  // `beforeAll` runs once per worker, and the suite is fullyParallel, so each worker needs its own
+  // users and group or the registrations collide. A per-invocation nonce keeps them independent.
+  test.beforeAll(async ({ browser, playwright, baseURL }) => {
+    const nonce = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+    const alice = `alice_rt_${nonce}`;
+    const bob = `bob_rt_${nonce}`;
+    groupName = `Round Trip Group ${nonce}`;
+
+    // A hand-made context rather than the `request` fixture: Playwright forbids reusing a
+    // beforeAll fixture inside a test, and these helpers are called from test bodies.
+    request = await playwright.request.newContext({ baseURL });
+
+    const aliceUser = await register(request, alice, "Alice");
+    const bobUser = await register(request, bob, "Bob");
+    aliceId = aliceUser.id;
+    bobId = bobUser.id;
+    token = await authenticate(request, alice);
+
+    // Group members do not have to be friends, so this skips the RabbitMQ-mediated friendship
+    // round trip entirely — that round trip was the slowest and flakiest part of the setup.
+    const groupRes = await request.post("/api/expense/groups", {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { name: groupName, memberUserIds: [bobId] },
+    });
+    expect(groupRes.ok(), "create group").toBeTruthy();
+    const group = (await groupRes.json()) as { id: number; members: Member[] };
+    groupId = group.id;
+    expect(group.members.map((m) => m.userId).sort()).toEqual([aliceId, bobId].sort());
+
     alicePage = await browser.newPage();
-    bobPage = await browser.newPage();
-
-    await registerAndLogin(alicePage, "Alice", "User", alice);
-    await registerAndLogin(bobPage, "Bob", "User", bob);
-
-    // Alice befriends Bob and Bob accepts, so both can be group members. The friendship round trip
-    // goes through RabbitMQ, which is why setup lives in beforeAll rather than in every test.
-    await alicePage.goto("/friends");
-    await alicePage
-      .getByPlaceholder(/search by name or email/i)
-      .fill(bob);
-    await alicePage.getByRole("button", { name: /add friend/i }).first().click();
-
-    await bobPage.goto("/friends");
-    await bobPage.getByText(/Alice User/i).waitFor({ state: "visible" });
-    await bobPage.getByTitle("Accept").last().click();
-
-    await alicePage.goto("/groups");
-    await alicePage.getByRole("button", { name: /create group/i }).first().click();
-    await alicePage.locator("#group-name").fill(groupName);
-    await alicePage.getByText("Bob User").click();
-    await alicePage.getByRole("button", { name: /create group/i }).last().click();
-    await expect(alicePage.getByText(groupName)).toBeVisible();
+    await alicePage.goto("/login");
+    await alicePage.locator("#username").fill(alice);
+    await alicePage.locator("#password").fill(PASSWORD);
+    await alicePage.getByRole("button", { name: /login/i }).click();
+    await expect(alicePage).toHaveURL(/\/$/);
   });
 
   test.afterAll(async () => {
     await alicePage?.close();
-    await bobPage?.close();
+    await request?.dispose();
   });
 
-  /** Creates an expense on `splitType`, allocating `values` across the two members in order. */
-  async function createExpense(
-    description: string,
-    amount: string,
-    splitType: string,
-    values: string[],
-  ): Promise<Map<string, string>> {
+  /** Navigates to the group's expenses tab from a known route. */
+  async function gotoGroup(): Promise<void> {
+    // Always start from the groups list. `openGroupDetails` clicks the first element matching the
+    // group name, and on the group page that is the (disabled) breadcrumb rather than a link.
+    await alicePage.goto("/groups");
     await openGroupDetails(alicePage, groupName);
-    await alicePage.getByRole("button", { name: /add expense/i }).first().click();
-
-    const modal = alicePage.getByRole("dialog", { name: /add new expense/i });
-    await expect(modal).toBeVisible();
-    await modal.locator("#description").fill(description);
-    await modal.locator("#amount").fill(amount);
-    await modal.getByLabel(splitType, { exact: true }).click();
-
-    const inputs = await splitValueInputs(modal);
-    const labels = [...inputs.keys()];
-    expect(
-      labels.length,
-      `expected one split input per member for ${splitType}`,
-    ).toBe(values.length);
-
-    const filled = new Map<string, string>();
-    for (const [index, label] of labels.entries()) {
-      await inputs.get(label)!.fill(values[index]);
-      filled.set(label, values[index]);
-    }
-
-    await modal.getByRole("button", { name: /add expense/i }).click();
-    await expect(modal).not.toBeVisible();
-    await expect(alicePage.getByText(description).first()).toBeVisible();
-
-    return filled;
+    await expect(alicePage.getByTestId("group-details")).toBeAttached();
   }
 
-  /** Opens the edit modal for an expense and returns it. */
+  /** Creates an expense directly through the API, on the given split type. */
+  async function seedExpense(
+    description: string,
+    amount: string,
+    splitType: SplitType,
+    splitValues: (number | null)[],
+  ): Promise<SeededExpense> {
+    const res = await request.post(`/api/expense/groups/${groupId}/expenses`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        description,
+        amount: Number(amount),
+        paidBy: aliceId,
+        splitType,
+        splits: [
+          { userId: aliceId, splitValue: splitValues[0] ?? undefined },
+          { userId: bobId, splitValue: splitValues[1] ?? undefined },
+        ],
+      },
+    });
+    expect(res.ok(), `seed ${description}`).toBeTruthy();
+    return (await res.json()) as SeededExpense;
+  }
+
+  /** Opens the edit modal for a seeded expense. */
   async function openEditModal(description: string): Promise<Locator> {
-    await alicePage.getByLabel(new RegExp(`Actions for ${description}`, "i")).first().click();
-    await alicePage.getByRole("menuitem", { name: /Edit/i }).click();
+    await gotoGroup();
+
+    // Scope to the expense card specifically. The group page mounts the expenses list and the
+    // activity log at the same time, and the activity entry for this expense repeats its
+    // description (in quotes) inside its own card with an identically labelled dropdown trigger, so
+    // matching on the description alone matches two cards.
+    const card = alicePage
+      .locator("[data-slot='card']")
+      .filter({ hasText: description })
+      .filter({ hasNotText: `"${description}"` });
+    await expect(card).toHaveCount(1);
+    await card.locator("[data-slot='dropdown-menu-trigger']").click();
+    await alicePage.getByRole("menuitem", { name: /^Edit$/i }).click();
 
     const modal = alicePage.getByRole("dialog", { name: /edit expense/i });
     await expect(modal).toBeVisible();
     return modal;
   }
 
+  /** Clicks Save Changes and returns the PUT payload. */
+  async function saveAndCapturePayload(modal: Locator): Promise<Record<string, unknown>> {
+    const updatePromise = alicePage.waitForRequest(
+      (r) => r.url().includes("/expenses/") && r.method() === "PUT",
+    );
+    await modal.getByRole("button", { name: /save changes/i }).click();
+    const payload = (await updatePromise).postDataJSON() as Record<string, unknown>;
+    await expect(modal).not.toBeVisible();
+    return payload;
+  }
+
   test("the read path reports splitType and splitValue per split", async () => {
-    await createExpense("Read Path Check", "60", "EXACT", ["20", "40"]);
+    await seedExpense("Read Path Check", "60", "EXACT", [20, 40]);
 
     const responsePromise = alicePage.waitForResponse(
       (response) =>
         response.request().method() === "GET" &&
         /\/groups\/\d+\/expenses$/.test(new URL(response.url()).pathname),
     );
-
-    await alicePage.reload();
+    await gotoGroup();
     const response = await responsePromise;
     expect(response.ok()).toBe(true);
 
-    const body = await response.json();
-    const expense = body.find(
-      (e: { description: string }) => e.description === "Read Path Check",
-    );
+    const body = (await response.json()) as Array<{
+      description: string;
+      splits: Array<{ splitType: string; splitValue: number | null; shareAmount: number }>;
+    }>;
+    const expense = body.find((e) => e.description === "Read Path Check");
     expect(expense).toBeDefined();
-    expect(expense.splits).toHaveLength(2);
+    expect(expense!.splits).toHaveLength(2);
     // Without these the edit form has nothing to restore from and defaults to EQUAL.
-    expect(expense.splits.every((s: { splitType: string }) => s.splitType === "EXACT")).toBe(true);
-    expect(
-      expense.splits
-        .map((s: { splitValue: number }) => s.splitValue)
-        .sort((a: number, b: number) => a - b),
-    ).toEqual([20, 40]);
+    expect(expense!.splits.every((s) => s.splitType === "EXACT")).toBe(true);
+    expect(expense!.splits.map((s) => s.splitValue).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
+      20, 40,
+    ]);
   });
 
   test("an EXACT expense reopens as EXACT with its amounts intact", async () => {
-    const filled = await createExpense("Exact Round Trip", "60", "EXACT", [
-      "20",
-      "40",
-    ]);
+    await seedExpense("Exact Round Trip", "60", "EXACT", [20, 40]);
 
     const modal = await openEditModal("Exact Round Trip");
 
@@ -186,125 +229,93 @@ test.describe("Expense split type survives a round trip through the edit form", 
     // Restored amounts still sum to the total, so the form reports a valid split.
     await expect(modal.getByText(/fully allocated/i)).toBeVisible();
 
-    const reopened = await splitValueInputs(modal);
-    expect([...reopened.keys()].sort()).toEqual([...filled.keys()].sort());
-    for (const [label, value] of filled) {
-      await expect(reopened.get(label)!).toHaveValue(value);
+    const inputs = await splitValueInputs(modal);
+    expect(inputs.size).toBe(2);
+    for (const input of inputs.values()) {
+      await expect(input).toHaveValue(/^(20|40)(\.0+)?$/);
     }
 
-    const updatePromise = alicePage.waitForRequest(
-      (request) =>
-        request.url().includes("/expenses/") && request.method() === "PUT",
-    );
-    await modal.getByRole("button", { name: /save changes/i }).click();
-
-    const payload = (await updatePromise).postDataJSON();
+    const payload = await saveAndCapturePayload(modal);
     expect(payload.splitType).toBe("EXACT");
     expect(
-      payload.splits
-        .map((s: { splitValue: number }) => s.splitValue)
-        .sort((a: number, b: number) => a - b),
+      (payload.splits as Array<{ splitValue: number }>)
+        .map((s) => s.splitValue)
+        .sort((a, b) => a - b),
     ).toEqual([20, 40]);
-    await expect(modal).not.toBeVisible();
   });
 
   test("a PERCENTAGE expense reopens as PERCENTAGE with its percentages intact", async () => {
-    const filled = await createExpense("Percentage Round Trip", "80", "percentage", [
-      "25",
-      "75",
-    ]);
+    await seedExpense("Percentage Round Trip", "80", "PERCENTAGE", [25, 75]);
 
     const modal = await openEditModal("Percentage Round Trip");
 
     expect(await isSplitTypeSelected(modal, "PERCENTAGE")).toBe(true);
     await expect(modal.getByText(/100% allocated/i)).toBeVisible();
 
-    const reopened = await splitValueInputs(modal);
-    for (const [label, value] of filled) {
-      await expect(reopened.get(label)!).toHaveValue(value);
+    const inputs = await splitValueInputs(modal);
+    for (const input of inputs.values()) {
+      await expect(input).toHaveValue(/^(25|75)(\.0+)?$/);
     }
 
-    const updatePromise = alicePage.waitForRequest(
-      (request) =>
-        request.url().includes("/expenses/") && request.method() === "PUT",
-    );
-    await modal.getByRole("button", { name: /save changes/i }).click();
-
-    const payload = (await updatePromise).postDataJSON();
+    const payload = await saveAndCapturePayload(modal);
     expect(payload.splitType).toBe("PERCENTAGE");
     // Percentages, not the amounts they were converted into.
     expect(
-      payload.splits
-        .map((s: { splitValue: number }) => s.splitValue)
-        .sort((a: number, b: number) => a - b),
+      (payload.splits as Array<{ splitValue: number }>)
+        .map((s) => s.splitValue)
+        .sort((a, b) => a - b),
     ).toEqual([25, 75]);
-    await expect(modal).not.toBeVisible();
   });
 
   test("a SHARES expense reopens as SHARES with its share counts intact", async () => {
-    const filled = await createExpense("Shares Round Trip", "40", "shares", [
-      "1",
-      "3",
-    ]);
+    await seedExpense("Shares Round Trip", "40", "SHARES", [1, 3]);
 
     const modal = await openEditModal("Shares Round Trip");
 
     expect(await isSplitTypeSelected(modal, "SHARES")).toBe(true);
     await expect(modal.getByText(/total shares: 4/i)).toBeVisible();
 
-    const reopened = await splitValueInputs(modal);
-    for (const [label, value] of filled) {
-      await expect(reopened.get(label)!).toHaveValue(value);
+    const inputs = await splitValueInputs(modal);
+    for (const input of inputs.values()) {
+      await expect(input).toHaveValue(/^(1|3)(\.0+)?$/);
     }
 
-    const updatePromise = alicePage.waitForRequest(
-      (request) =>
-        request.url().includes("/expenses/") && request.method() === "PUT",
-    );
-    await modal.getByRole("button", { name: /save changes/i }).click();
-
-    const payload = (await updatePromise).postDataJSON();
+    const payload = await saveAndCapturePayload(modal);
     expect(payload.splitType).toBe("SHARES");
     // Share counts, not the amounts they were converted into.
     expect(
-      payload.splits
-        .map((s: { splitValue: number }) => s.splitValue)
-        .sort((a: number, b: number) => a - b),
+      (payload.splits as Array<{ splitValue: number }>)
+        .map((s) => s.splitValue)
+        .sort((a, b) => a - b),
     ).toEqual([1, 3]);
-    await expect(modal).not.toBeVisible();
   });
 
   test("an EQUAL expense still reopens as EQUAL with no per-member inputs", async () => {
-    await createExpense("Equal Round Trip", "45", "equal", []);
+    await seedExpense("Equal Round Trip", "45", "EQUAL", [null, null]);
 
     const modal = await openEditModal("Equal Round Trip");
 
     expect(await isSplitTypeSelected(modal, "EQUAL")).toBe(true);
     // EQUAL has no per-member input, so the form shows the even-share summary instead.
     await expect(modal.getByText(/each person pays: \$22\.50/i)).toBeVisible();
-    expect(await splitValueInputs(modal)).toHaveLength(0);
+    expect((await splitValueInputs(modal)).size).toBe(0);
 
-    const updatePromise = alicePage.waitForRequest(
-      (request) =>
-        request.url().includes("/expenses/") && request.method() === "PUT",
-    );
-    await modal.getByRole("button", { name: /save changes/i }).click();
-
-    const payload = (await updatePromise).postDataJSON();
+    const payload = await saveAndCapturePayload(modal);
     expect(payload.splitType).toBe("EQUAL");
-    await expect(modal).not.toBeVisible();
   });
 
   test("switching split type in the editor still clears the previous inputs", async () => {
-    const modal = await openEditModal("Exact Round Trip");
+    // Seed its own expense: the suite is fullyParallel, so a fixture created by a sibling test
+    // would live in that worker's group and not be visible here.
+    await seedExpense("Mode Switch Check", "60", "EXACT", [20, 40]);
+    const modal = await openEditModal("Mode Switch Check");
 
     expect(await isSplitTypeSelected(modal, "EXACT")).toBe(true);
-    await modal.getByLabel("percentage", { exact: true }).click();
+    await splitTypeRadio(modal, "PERCENTAGE").click();
 
     expect(await isSplitTypeSelected(modal, "PERCENTAGE")).toBe(true);
     // Changing mode starts from a clean slate, so stale EXACT amounts are not carried over.
-    const reopened = await splitValueInputs(modal);
-    for (const input of reopened.values()) {
+    for (const input of (await splitValueInputs(modal)).values()) {
       await expect(input).toHaveValue("");
     }
     await expect(modal.getByText(/total: 0\.0%/i)).toBeVisible();
