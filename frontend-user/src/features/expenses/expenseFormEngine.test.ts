@@ -15,6 +15,7 @@ import {
   type SplitFormValues,
 } from "./expenseFormEngine";
 import type { Group } from "../../types/group";
+import type { Expense, ExpenseSplit } from "../../types/expense";
 
 const mockGroup: Group = {
   id: 1,
@@ -41,6 +42,23 @@ function buildTestForm(over: Partial<SplitFormValues> = {}): SplitFormValues {
     splitValues: { 1: "10", 2: "10", 3: "10" },
     selectedMembers: [1, 2, 3],
     ...over,
+  };
+}
+
+/** Builds an expense shaped exactly like the API returns it on read. */
+function buildExistingExpense(splits: ExpenseSplit[]): Expense {
+  return {
+    id: 10,
+    groupId: 1,
+    description: "Dinner",
+    amount: 60,
+    currency: "USD",
+    paidBy: 2,
+    categoryId: 5,
+    expenseDate: "2026-08-01T12:00:00Z",
+    splits,
+    createdAt: "2026-08-01",
+    updatedAt: "2026-08-01",
   };
 }
 
@@ -236,27 +254,13 @@ describe("expenseFormEngine — Reducer & Initializer", () => {
     expect(initial.splitValues).toEqual({});
   });
 
-  it("initializes form state from existing expense", () => {
-    // Mirrors what GET /groups/{id}/expenses actually returns. Note the absence of `splitType`:
-    // ExpenseDTO omits it (it exists only on the Create/Update requests), so the form cannot know
-    // how the original expense was split and falls back to EQUAL. Split *amounts* still round-trip,
-    // because those come from `splits[].shareAmount`.
-    const existingExpense = {
-      id: 10,
-      groupId: 1,
-      description: "Dinner",
-      amount: 60,
-      currency: "USD",
-      paidBy: 2,
-      categoryId: 5,
-      expenseDate: "2026-08-01T12:00:00Z",
-      splits: [
-        { id: 1, userId: 1, shareAmount: 20 },
-        { id: 2, userId: 2, shareAmount: 40 },
-      ],
-      createdAt: "2026-08-01",
-      updatedAt: "2026-08-01",
-    };
+  it("restores an EXACT split from an existing expense", () => {
+    // Mirrors what GET /groups/{id}/expenses returns: the split type and the value the user typed
+    // both round-trip, so the form reopens on the original mode with its inputs intact.
+    const existingExpense = buildExistingExpense([
+      { id: 1, userId: 1, splitType: "EXACT", splitValue: 20, shareAmount: 20 },
+      { id: 2, userId: 2, splitType: "EXACT", splitValue: 40, shareAmount: 40 },
+    ]);
 
     const initial = createInitialExpenseFormState(mockGroup, 1, existingExpense);
     expect(initial.description).toBe("Dinner");
@@ -264,11 +268,81 @@ describe("expenseFormEngine — Reducer & Initializer", () => {
     expect(initial.paidBy).toBe(2);
     expect(initial.categoryId).toBe(5);
     expect(initial.expenseDate).toBe("2026-08-01");
-    // Falls back to EQUAL because the API does not report the original split type.
+    expect(initial.splitType).toBe("EXACT");
+    expect(initial.selectedMembers).toEqual([1, 2]);
+    expect(initial.splitValues).toEqual({ 1: "20", 2: "40" });
+  });
+
+  it("restores a PERCENTAGE split from splitValue, not the computed share", () => {
+    const initial = createInitialExpenseFormState(
+      mockGroup,
+      1,
+      buildExistingExpense([
+        { id: 1, userId: 1, splitType: "PERCENTAGE", splitValue: 25, shareAmount: 15 },
+        { id: 2, userId: 2, splitType: "PERCENTAGE", splitValue: 75, shareAmount: 45 },
+      ]),
+    );
+
+    expect(initial.splitType).toBe("PERCENTAGE");
+    expect(initial.splitValues).toEqual({ 1: "25", 2: "75" });
+  });
+
+  it("restores a SHARES split from splitValue, not the computed share", () => {
+    const initial = createInitialExpenseFormState(
+      mockGroup,
+      1,
+      buildExistingExpense([
+        { id: 1, userId: 1, splitType: "SHARES", splitValue: 1, shareAmount: 10 },
+        { id: 2, userId: 2, splitType: "SHARES", splitValue: 3, shareAmount: 30 },
+      ]),
+    );
+
+    expect(initial.splitType).toBe("SHARES");
+    expect(initial.splitValues).toEqual({ 1: "1", 2: "3" });
+  });
+
+  it("restores an ADJUSTMENT split including its negative deltas", () => {
+    const initial = createInitialExpenseFormState(
+      mockGroup,
+      1,
+      buildExistingExpense([
+        { id: 1, userId: 1, splitType: "ADJUSTMENT", splitValue: 5, shareAmount: 35 },
+        { id: 2, userId: 2, splitType: "ADJUSTMENT", splitValue: -5, shareAmount: 25 },
+      ]),
+    );
+
+    expect(initial.splitType).toBe("ADJUSTMENT");
+    expect(initial.splitValues).toEqual({ 1: "5", 2: "-5" });
+  });
+
+  it("restores an EQUAL split without per-member inputs", () => {
+    const initial = createInitialExpenseFormState(
+      mockGroup,
+      1,
+      buildExistingExpense([
+        { id: 1, userId: 1, splitType: "EQUAL", splitValue: null, shareAmount: 30 },
+        { id: 2, userId: 2, splitType: "EQUAL", splitValue: null, shareAmount: 30 },
+      ]),
+    );
+
     expect(initial.splitType).toBe("EQUAL");
     expect(initial.selectedMembers).toEqual([1, 2]);
-    // Per-member amounts are only seeded for non-EQUAL split types, so this stays empty.
+    // EQUAL has no per-member input, so nothing is seeded.
     expect(initial.splitValues).toEqual({});
+  });
+
+  it("falls back to shareAmount when a split carries no splitValue", () => {
+    const initial = createInitialExpenseFormState(
+      mockGroup,
+      1,
+      buildExistingExpense([
+        { id: 1, userId: 1, splitType: "EXACT", shareAmount: 20 },
+        { id: 2, userId: 2, splitType: "EXACT", shareAmount: 40 },
+      ]),
+    );
+
+    expect(initial.splitType).toBe("EXACT");
+    expect(initial.splitValues).toEqual({ 1: "20", 2: "40" });
   });
 
   it("resets splitValues when changing splitType", () => {
@@ -360,5 +434,46 @@ describe("useExpenseForm Hook", () => {
     // 40 + 50 + 10 = 100 === 100
     expect(result.current.validation.isValid).toBe(true);
     expect(result.current.isReadyToSubmit).toBe(true);
+  });
+
+  it("submits an untouched EXACT expense back as EXACT", () => {
+    // The regression this guards: an expense created as EXACT used to reopen as EQUAL, so saving it
+    // without edits silently re-split it evenly.
+    const existingExpense = buildExistingExpense([
+      { id: 1, userId: 1, splitType: "EXACT", splitValue: 20, shareAmount: 20 },
+      { id: 2, userId: 2, splitType: "EXACT", splitValue: 40, shareAmount: 40 },
+    ]);
+
+    const { result } = renderHook(() =>
+      useExpenseForm({ group: mockGroup, currentUserId: 1, expense: existingExpense }),
+    );
+
+    expect(result.current.state.splitType).toBe("EXACT");
+    expect(result.current.isReadyToSubmit).toBe(true);
+
+    const payload = result.current.getUpdatePayload();
+    expect(payload.splitType).toBe("EXACT");
+    expect(payload.splits).toEqual([
+      { userId: 1, splitType: "EXACT", splitValue: 20, shareAmount: 20 },
+      { userId: 2, splitType: "EXACT", splitValue: 40, shareAmount: 40 },
+    ]);
+  });
+
+  it("submits an untouched SHARES expense back as SHARES with its share counts", () => {
+    const existingExpense = buildExistingExpense([
+      { id: 1, userId: 1, splitType: "SHARES", splitValue: 1, shareAmount: 10 },
+      { id: 2, userId: 2, splitType: "SHARES", splitValue: 3, shareAmount: 30 },
+    ]);
+
+    const { result } = renderHook(() =>
+      useExpenseForm({ group: mockGroup, currentUserId: 1, expense: existingExpense }),
+    );
+
+    const payload = result.current.getUpdatePayload();
+    expect(payload.splitType).toBe("SHARES");
+    expect(payload.splits).toEqual([
+      { userId: 1, splitType: "SHARES", splitValue: 1, shareAmount: undefined },
+      { userId: 2, splitType: "SHARES", splitValue: 3, shareAmount: undefined },
+    ]);
   });
 });

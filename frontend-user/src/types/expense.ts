@@ -8,6 +8,14 @@ export type SplitType =
 export interface ExpenseSplit {
   id: number;
   userId: number;
+  /** How the expense was split. Lets an edit form restore the original split inputs. */
+  splitType: SplitType;
+  /**
+   * The per-member input the split was computed from: an amount for `EXACT`, a percentage for
+   * `PERCENTAGE`, a share count for `SHARES`, a delta for `ADJUSTMENT`. Null for `EQUAL`, which has
+   * no per-member input.
+   */
+  splitValue?: number | null;
   shareAmount: number;
 }
 

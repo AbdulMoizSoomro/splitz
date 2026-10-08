@@ -189,16 +189,15 @@ export function createInitialExpenseFormState(
   expense?: Expense,
 ): ExpenseFormState {
   if (expense) {
+    // Every split carries the type it was written with, so the first one names the expense's mode.
+    // Seed the inputs from `splitValue` (what the user originally typed); fall back to the computed
+    // `shareAmount` when a split has no value of its own, as EQUAL splits do.
+    const splitType: SplitType = expense.splits?.[0]?.splitType ?? "EQUAL";
+
     const splitsMap: Record<number, string> = {};
     expense.splits?.forEach((s) => {
-      splitsMap[s.userId] = s.shareAmount.toString();
+      splitsMap[s.userId] = (s.splitValue ?? s.shareAmount).toString();
     });
-
-    // The backend does not return `splitType` on read: ExpenseDTO omits it (it exists only on the
-    // Create/Update requests), and ExpenseSplit carries no type information either. So this always
-    // resolved to "EQUAL" at runtime behind an unsound cast. Defaulting honestly instead of casting;
-    // see the note in README Known issues.
-    const inferredSplitType: SplitType = "EQUAL";
 
     return {
       description: expense.description || "",
@@ -210,8 +209,8 @@ export function createInitialExpenseFormState(
         new Date().toISOString().split("T")[0],
       selectedMembers:
         expense.splits?.map((s) => s.userId) || group.members.map((m) => m.userId),
-      splitType: inferredSplitType,
-      splitValues: inferredSplitType !== "EQUAL" ? splitsMap : {},
+      splitType,
+      splitValues: splitType !== "EQUAL" ? splitsMap : {},
     };
   }
 

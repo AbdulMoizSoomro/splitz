@@ -151,13 +151,10 @@ jobs:
         working-directory: frontend-user
         run: npx playwright install --with-deps chromium
 
-      # The suite drives three real containers (postgres, rabbitmq, two Spring services) and a Vite
-      # dev server, exercising the genuine RabbitMQ-mediated friendship round trip. H2 is not enough:
-      # these tests depend on cross-service event delivery.
+      # Real containers rather than H2: the suite needs the RabbitMQ-mediated friendship round trip.
       #
-      # Started in two phases rather than one `up`: both Spring services run `mvn spring-boot:run` at
-      # container start, so bringing them up together against one shared Maven repository races.
-      # Each now has its own cache volume, and the phase split keeps the ordering explicit.
+      # Services start in two phases because both mount this source tree at /build and build
+      # common-security into a shared target, which they would race on.
       - name: Start databases and broker
         run: docker compose up -d db rabbitmq
 
