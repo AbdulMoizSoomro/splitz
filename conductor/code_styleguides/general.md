@@ -26,3 +26,9 @@ This document outlines general coding principles that apply across all languages
 
 - Document *why* something is done, not just *what*.
 - Keep documentation up-to-date with code changes.
+
+## Commits
+
+- Subject in the imperative mood, scoped by area: `fix(expense): ...`, `refactor(frontend): ...`.
+- Body explains the reasoning and what was left out. Reference issue numbers where relevant.
+- Never add attribution trailers (`Co-Authored-By`, `Generated with`, or similar). This history is single-author.
