@@ -2,43 +2,96 @@
 
 [![CI](https://github.com/AbdulMoizSoomro/splitz/actions/workflows/ci.yml/badge.svg)](https://github.com/AbdulMoizSoomro/splitz/actions/workflows/ci.yml)
 
-A **Splitwise-like expense splitting application** for friends and roommates, built with microservices architecture using Spring Boot 3.2 and Java 21.
+A **Splitwise-like expense splitting application** for friends, roommates and groups — a Spring Boot
+microservice backend with a React single-page frontend.
+
+Splitz goes beyond recording who owes what. It computes a **Suggested Settlement Plan** by netting
+mutual debts, so a group of four can settle in two transfers instead of six, and it gives users
+explicit, enforced control over whether their debts are ever simplified at all.
+
+---
+
+## 📖 Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [`CONTEXT.md`](./CONTEXT.md) | Domain language and architecture — the source of truth for terminology |
+| [`docs/adr/`](./docs/adr/) | Architecture Decision Records — why the design is what it is |
+| [`docs/IMPLEMENTATION_ROADMAP.md`](./docs/IMPLEMENTATION_ROADMAP.md) | Historical roadmap (retained for context; not current) |
+
+Read `CONTEXT.md` before changing behaviour. Terms like *Temp Friend*, *Settlement Allocation* and
+*Effective Opt-Out Set* have precise meanings that the code depends on.
 
 ---
 
 ## 🚀 Features
 
-### Current (MVP 0.0.1)
+### Identity & social graph
+- Registration and JWT authentication (BCrypt hashing, stateless bearer tokens)
+- Roles (`ADMIN`, `USER`) with method-level security
+- User search by username, email or name, plus bulk lookup
+- Friend requests: send, accept, reject, cancel; remove friend
+- User profiles and activity history
 
-- **User Management**: Registration, authentication, profile management
-- **JWT Authentication**: Stateless, secure token-based auth with BCrypt password hashing
-- **Role-Based Access Control**: ADMIN and USER roles with method-level security
-- **User Search**: Paginated search by username, email, or name
-- **Friend Management**: Send, accept, reject friend requests
+### Groups & membership
+- Group creation, update and deletion
+- Membership lifecycle with role management (`OWNER` / `ADMIN` / `MEMBER`)
+- Governance: only an `OWNER` can demote an `ADMIN`; `ADMIN`s hold peer-removal authority; the owner
+  is untouchable
+- **Settled Membership Invariant** — a user cannot leave while holding a non-zero balance or a pending
+  settlement
 
-### Planned
+### Expenses
+- Five split types: `EQUAL`, `EXACT`, `PERCENTAGE`, `SHARES`, `ADJUSTMENT`
+- Currency-aware precision handling with remainder distribution
+- Collaborative editing with an activity log capturing field-level diffs
+- Categories and bulk fetch
 
-- **Expense Tracking**: Create, update, delete expenses with multiple split types
-- **Groups**: Manage expense groups with members
-- **Settlements**: Track and settle balances between users
-- **Analytics**: Expense reports and insights
-- **Multi-currency Support**: Handle expenses in different currencies
+### Payments & balances
+- Two canonical payment types: **group** and **direct** (friend-to-friend)
+- Full lifecycle: `PENDING` → `MARKED_PAID` → `COMPLETED`
+- Automatic multi-group settlement allocation
+- Ledger aggregation pushed down to the database
+- Unified activity stream across groups and friendships
+
+### Smart Debt Reduction
+- **Greedy net-balance matching** (O(N log N)) guaranteeing at most N−1 transactions for N participants
+- Read-only **Suggested Settlement Plan** — never mutates expenses or splits, so the audit trail stays intact
+- Two scopes: intra-group, or global cross-group aggregation
+- Group governance toggle (Admin/Owner)
+- **Dual-level opt-out** — per group, and an account-level opt-out that acts as a hard override across
+  every group (see [ADR 0003](./docs/adr/0003-account-level-simplification-opt-out.md))
 
 ---
 
 ## 🛠️ Technology Stack
 
+### Backend
+
 | Layer | Technology |
 |-------|------------|
 | Language | Java 21 |
-| Framework | Spring Boot 3.2.0 |
-| Security | Spring Security + JWT |
-| Database | PostgreSQL (H2 for dev) |
+| Framework | Spring Boot 3.2.12 |
+| Security | Spring Security + JWT (jjwt), shared `common-security` library |
+| Database | PostgreSQL (H2 for unit tests) |
 | ORM | Spring Data JPA / Hibernate |
-| Build | Maven |
-| Mapping | MapStruct |
 | Migrations | Flyway |
-| Code Generation | Lombok |
+| Mapping | MapStruct |
+| Messaging | RabbitMQ — transactional outbox for cross-service event delivery |
+| Build | Maven |
+
+### Frontend
+
+| Layer | Technology |
+|-------|------------|
+| Framework | React 19 |
+| Language | TypeScript 6 |
+| Build | Vite 8 |
+| Styling | Tailwind CSS 4 + shadcn/ui (Base UI) |
+| Server state | TanStack Query 5 |
+| Client state | Zustand 5 |
+| Routing | React Router 7 |
+| Tests | Vitest 4 (unit) · Playwright 1.59 (end-to-end) |
 
 ---
 
@@ -46,27 +99,28 @@ A **Splitwise-like expense splitting application** for friends and roommates, bu
 
 ```
 splitz/
-├── pom.xml                          # Parent POM with dependency management
-├── user-service/                    # User & authentication microservice
-│   ├── src/main/java/com/splitz/user/
-│   │   ├── config/                  # Security & app configuration
-│   │   ├── controller/              # REST controllers
-│   │   ├── dto/                     # Data transfer objects
-│   │   ├── exception/               # Custom exceptions & handlers
-│   │   ├── mapper/                  # MapStruct mappers
-│   │   ├── model/                   # JPA entities
-│   │   ├── repository/              # Spring Data repositories
-│   │   ├── security/                # JWT & auth components
-│   │   └── service/                 # Business logic
-│   └── src/main/resources/
-│       ├── application.properties   # Main config
-│       ├── application-dev.properties
-│       ├── application-prod.properties
-│       └── db/migration/            # Flyway migrations
-├── expense-service/                 # Expense management (in development)
-├── IMPLEMENTATION_ROADMAP.md        # Detailed implementation plan
-└── PROJECT_ANALYSIS_REPORT.md       # Architecture & analysis docs
+├── pom.xml                        # Parent POM
+├── user-service/                  # Identity, profiles, friendships, roles  (:8080)
+├── expense-service/               # Groups, expenses, payments, balances, netting  (:8081)
+├── common-security/               # Shared security library (authorizer, JWT, filters)
+├── frontend-user/                 # React SPA
+├── conductor/                     # Agent tooling and product guidelines
+├── config/init-db/                # Database bootstrap for the integrated environment
+├── docs/                          # ADRs, roadmaps, diagrams
+├── docker-compose.yml             # Integrated environment
+└── CONTEXT.md                     # Domain language (source of truth)
 ```
+
+### Services
+
+| Service | Port | Responsibility |
+|---------|------|----------------|
+| `user-service` | 8080 | Users, authentication, roles, friendships |
+| `expense-service` | 8081 | Groups, membership, expenses, payments, balances, debt simplification |
+
+They are separate databases with separate schemas. Cross-service consistency is maintained by
+publishing domain events through a transactional outbox to RabbitMQ, which `expense-service` consumes
+to replicate the user and friendship data it needs.
 
 ---
 
@@ -74,209 +128,274 @@ splitz/
 
 ### Prerequisites
 
-- **Java 21** or later
+- **Java 21**
 - **Maven 3.8+**
-- **PostgreSQL** (optional, H2 used for development)
+- **Node.js 22**
+- **Docker** + Docker Compose — required for the integrated environment and the end-to-end tests
 
-### Build
+### Option 1 — Integrated environment (recommended)
+
+Brings up PostgreSQL, RabbitMQ, both services and the frontend. This is the only configuration the
+end-to-end suite exercises, because the tests depend on genuine cross-service event delivery that H2
+cannot provide.
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/splitz.git
+git clone https://github.com/AbdulMoizSoomro/splitz.git
 cd splitz
 
-# Build all modules
-mvn clean install
+docker compose up -d --build
 ```
 
-### Run User Service
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| User service | http://localhost:8080 |
+| Expense service | http://localhost:8081 |
+| RabbitMQ management | http://localhost:15672 (`guest` / `guest`) |
+
+The Vite dev server proxies `/api/user` and `/api/expense` to the two backends, so the frontend needs
+no CORS configuration.
 
 ```bash
-# Development mode (H2 in-memory database)
-mvn -pl user-service spring-boot:run
+docker compose down -v      # stop and discard the database volume
+```
 
-# Or with specific profile
+### Option 2 — Running services individually (H2)
+
+Fast for backend work. Cross-service features that rely on replicated data will not function.
+
+```bash
 mvn -pl user-service spring-boot:run -Dspring-boot.run.profiles=dev
-```
+mvn -pl expense-service spring-boot:run -Dspring-boot.run.profiles=dev
 
-The service starts at `http://localhost:8080`
-
-### Run Tests
-
-```bash
-# Run all tests
-mvn -pl user-service test
-
-# Run specific test class
-mvn -pl user-service test -Dtest=UserControllerTest
+cd frontend-user && npm ci && npm run dev
 ```
 
 ---
 
-## 🔑 API Endpoints
+## 🧪 Testing
 
-### Authentication
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/authenticate` | Login and get JWT token | Public |
-| POST | `/users` | Register new user | Public |
-
-### Users
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/users` | Get all users | ADMIN |
-| GET | `/users/{id}` | Get user by ID | Authenticated |
-| PUT | `/users/{id}` | Update user | Owner/ADMIN |
-| DELETE | `/users/{id}` | Delete user | Owner/ADMIN |
-| GET | `/users/search?query=` | Search users | Authenticated |
-
-### Example Requests
-
-**Register a new user:**
+| Suite | Command | Count |
+|-------|---------|-------|
+| Backend (all modules) | `mvn verify` | 492 tests |
+| Frontend unit | `cd frontend-user && npx vitest run` | 232 tests |
+| End-to-end | `cd frontend-user && npx playwright test` | 41 tests |
 
 ```bash
+# Backend, single module
+mvn -pl expense-service test
+
+# Backend with coverage
+mvn verify
+# reports land in */target/site/jacoco/
+
+# Frontend, single file
+cd frontend-user && npx vitest run src/features/balances
+
+# End-to-end — use workers=1, matching CI
+cd frontend-user && npx playwright test --workers=1
+```
+
+### ⚠️ A note on running the end-to-end suite
+
+Run it with **`--workers=1`**. The default parallel mode is harsher than CI and produces a shifting
+handful of failures — a different subset on each run — that all pass in isolation. This is resource
+contention, not product behaviour: CI pins `workers: 1` with `retries: 2` for exactly this reason.
+
+The suite requires the integrated Docker stack to be running.
+
+### Continuous integration
+
+Four jobs, in dependency order:
+
+| Job | Command | Purpose |
+|-----|---------|---------|
+| `lint` | `mvn validate` | Checkstyle + Spotless |
+| `build` | `mvn package -DskipTests` | Compile all modules |
+| `test` | `mvn verify` | Backend suite with JaCoCo coverage |
+| `e2e` | Playwright | Full stack in Docker, then the end-to-end suite |
+
+---
+
+## 🔑 API
+
+Base URLs: `http://localhost:8080` (user) · `http://localhost:8081` (expense).
+
+All endpoints except registration and login require `Authorization: Bearer <token>`.
+
+### Authentication & users — `user-service`
+
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| POST | `/authenticate` | Public |
+| POST | `/users` | Public |
+| GET | `/users/me` | Self |
+| GET | `/users/{id}` | Authenticated |
+| GET | `/users` · `/users/bulk` | Authenticated |
+| GET | `/users/search?query=` | Authenticated |
+| PUT · DELETE | `/users/{id}` | Owner / ADMIN |
+| GET · POST | `/roles` · `/roles/id/{id}` · `/roles/search` | Varies |
+
+### Friendships — `user-service`
+
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET · POST | `/users/{userId}/friends` | Authenticated |
+| GET | `/users/{userId}/friends/requests` | Self |
+| PUT | `/users/{userId}/friends/{id}/accept` · `/reject` | Recipient |
+| DELETE | `/users/{userId}/friends/{friendId}` | Authenticated |
+
+### Groups & membership — `expense-service`
+
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET · POST | `/groups` | Authenticated / ADMIN |
+| GET · PUT · DELETE | `/groups/{groupId}` | Member / Admin |
+| GET | `/groups/{groupId}/activity` | Member |
+| POST | `/groups/{groupId}/members` · `/members/bulk` | Admin (per governance) |
+| GET | `/groups/{groupId}/potential-members` | Member |
+| PUT | `/groups/{groupId}/members/{userId}/role` | Owner / ADMIN |
+| DELETE | `/groups/{groupId}/members/{userId}` | Self / Admin |
+
+### Expenses — `expense-service`
+
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| POST | `/groups/{groupId}/expenses` | Member |
+| GET | `/groups/{groupId}/expenses` · `/groups/expenses/bulk` | Member |
+| PUT · DELETE | `/expenses/{id}` | Per collaborative-editing policy |
+| GET · PUT · DELETE | `/expenses/{id}` | Member |
+| GET · POST · PUT · DELETE | `/categories` · `/categories/{id}` | Member / Admin |
+
+### Payments & balances — `expense-service`
+
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| POST | `/settlements` · `/payments` | Authenticated |
+| POST | `/groups/{groupId}/payments` | Group member |
+| POST | `/payments/direct` | Authenticated |
+| GET | `/settlements/{id}` · `/groups/{groupId}/settlements` · `/users/{a}/friendships/{b}/settlements` | Party to the payment |
+| PUT | `/settlements/{id}` | Payer |
+| PUT | `/settlements/{id}/mark-paid` · `/confirm` | Payer / payee |
+| GET | `/groups/{id}/balances` · `/users/{id}/balances` | Member / self |
+| GET | `/users/{userId}/balances/with/{friendId}` · `/users/{id}/counterparties` | Self |
+| GET | `/activity` | Authenticated |
+
+> `/payments` and `/settlements` are interchangeable aliases. Both are live; `/payments` is canonical.
+
+### Debt simplification — `expense-service`
+
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET | `/groups/{groupId}/simplification-plan` | Group member |
+| GET | `/groups/{groupId}/simplification-settings` | Group member |
+| PUT | `/groups/{groupId}/simplification-settings` | Group **admin** |
+| POST | `/groups/{groupId}/simplification-settings/opt-out` | Group member |
+| GET | `/simplification-preferences/me` | Authenticated |
+| POST | `/simplification-preferences/me/opt-out` | Authenticated |
+
+The last two are deliberately scoped to the caller with **no group in the path and no admin gate**. An
+account-level opt-out is a consent decision about one's own debts, so no role — not even a group owner
+— can read or change another user's preference.
+
+### Example
+
+```bash
+# Register
 curl -X POST http://localhost:8080/users \
   -H "Content-Type: application/json" \
-  -d '{
-    "username": "john_doe",
-    "email": "john@example.com",
-    "password": "securePassword123",
-    "firstName": "John",
-    "lastName": "Doe"
-  }'
-```
+  -d '{"username":"john_doe","email":"john@example.com",
+       "password":"securePassword123","firstName":"John","lastName":"Doe"}'
 
-**Login:**
-
-```bash
-curl -X POST http://localhost:8080/authenticate \
+# Login
+TOKEN=$(curl -s -X POST http://localhost:8080/authenticate \
   -H "Content-Type: application/json" \
-  -d '{
-    "username": "john_doe",
-    "password": "securePassword123"
-  }'
-```
+  -d '{"username":"john_doe","password":"securePassword123"}' | jq -r .token)
 
-**Access protected endpoint:**
-
-```bash
-curl http://localhost:8080/users/1 \
-  -H "Authorization: Bearer <your-jwt-token>"
+# Authenticated request
+curl http://localhost:8080/users/me -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-### Environment Variables
+| Variable | Used by | Default |
+|----------|---------|---------|
+| `SPRING_PROFILES_ACTIVE` | Both services | `dev` |
+| `POSTGRES_URL` | Both services | — |
+| `POSTGRES_USER` · `POSTGRES_PASSWORD` | Both services | — |
+| `SPRING_RABBITMQ_HOST` · `SPRING_RABBITMQ_PORT` | Both services | — |
+| `CORS_ALLOWED_ORIGINS` | Both services | `http://localhost` |
+| `VITE_USER_SERVICE_URL` · `VITE_EXPENSE_SERVICE_URL` | Frontend | `/api/user`, `/api/expense` |
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `JWT_SECRET` | Base64-encoded JWT signing key | (dev key) |
-| `JWT_EXPIRATION` | Token expiration in ms | 86400000 (24h) |
-| `SPRING_PROFILES_ACTIVE` | Active profile (dev/prod) | dev |
-
-### Database Configuration
-
-**Development (H2):**
-
-```properties
-spring.datasource.url=jdbc:h2:mem:splitzdb
-spring.jpa.hibernate.ddl-auto=create-drop
-```
-
-**Production (PostgreSQL):**
-
-```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/splitz
-spring.datasource.username=${DB_USERNAME}
-spring.datasource.password=${DB_PASSWORD}
-spring.jpa.hibernate.ddl-auto=validate
-```
+See `docker-compose.yml` for the integrated values.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐
-│   API Gateway   │     │  (Future: K8s   │
-│   (Future)      │     │   Ingress)      │
-└────────┬────────┘     └─────────────────┘
-         │
-    ┌────┴────┐
-    │   JWT   │
-    │  Auth   │
-    └────┬────┘
-         │
-┌────────┴────────┬─────────────────┐
-│                 │                 │
-▼                 ▼                 ▼
-┌──────────┐  ┌──────────┐  ┌──────────┐
-│  User    │  │ Expense  │  │ Notifi-  │
-│ Service  │  │ Service  │  │ cation   │
-│  :8080   │  │  :8081   │  │ (Future) │
-└────┬─────┘  └────┬─────┘  └──────────┘
-     │             │
-     ▼             ▼
-┌──────────┐  ┌──────────┐
-│PostgreSQL│  │PostgreSQL│
-│  (users) │  │(expenses)│
-└──────────┘  └──────────┘
+                    ┌──────────────────────────┐
+                    │   frontend-user  :5173   │
+                    │   React SPA (Vite)        │
+                    └───────┬─────────┬────────┘
+                    /api/user│         │/api/expense
+                ┌───────────▼──┐   ┌──▼───────────────┐
+                │ user-service │   │ expense-service  │
+                │    :8080     │   │     :8081        │
+                └───┬───────┬───┘   └───┬─────────┬────┘
+                    │       │           │         │
+          ┌─────────▼─┐  ┌──▼───────────▼──┐  ┌───▼─────────┐
+          │ user_db   │  │   expense_db    │  │  RabbitMQ   │
+          │(PostgreSQL)│  │  (PostgreSQL)   │──│ (outbox bus) │
+          └───────────┘  └─────────────────┘  └─────────────┘
 ```
+
+Each service owns its data exclusively. `user-service` publishes domain events through a transactional
+outbox; `expense-service` consumes them to maintain replicated user and friendship tables, which keeps
+its reads local without weakening service boundaries.
 
 ---
 
-## 📊 Development Status
+## ⚠️ Known issues
 
-| Service | Status | Progress |
-|---------|--------|----------|
-| User Service | ✅ Active | ~80% |
-| Expense Service | 🚧 In Progress | ~10% |
-| API Gateway | 📋 Planned | 0% |
-| Notifications | 📋 Planned | 0% |
-
-See [./docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) for detailed plans. These plans are updated regularly with each development implemenationtation.
-
----
-
-## 🧪 Testing
-
-The project includes:
-
-- **Unit Tests**: Service and controller layer tests with Mockito
-- **Integration Tests**: Full API flow tests with Spring Boot Test
-- **Security Tests**: JWT validation and authorization tests
-
-```bash
-# Run with coverage
-mvn -pl user-service test jacoco:report
-```
+- **`npm run build` currently fails.** There are 36 pre-existing TypeScript errors, concentrated in
+  `src/features/users` and `src/features/expenses` — missing `types/user`, `types/group` and
+  `types/expense` modules, and arithmetic applied to a `string | number`. Because the build script runs
+  `tsc -b`, this fails the build independently of any recent change. The unit test suite and the
+  end-to-end suite are unaffected, as is `mvn verify`.
+- **JWTs are held in browser storage.** The token is persisted to `localStorage`, so it is readable by
+  any script running on the page. Moving to `HttpOnly` cookies is documented but not implemented — see
+  [`docs/future-improvements/secure-auth-implementation.md`](./docs/future-improvements/secure-auth-implementation.md).
+- **The `LICENSE` file is absent.** The project states MIT, but no licence text is committed.
 
 ---
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Read `CONTEXT.md` and any relevant ADR first
+2. Create a feature branch (`git checkout -b feature/<name>`)
+3. Write tests for the behaviour you intend to add — backend and front-end
+4. Make sure the full gate passes before pushing:
+   ```bash
+   mvn verify                                  # backend
+   cd frontend-user && npx vitest run           # front-end unit
+   cd frontend-user && npx playwright test --workers=1   # end-to-end
+   ```
+5. Push and open a pull request
+
+Record any decision that changes the domain model or a service boundary as an ADR in `docs/adr/`.
 
 ---
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT. Note: no `LICENSE` file is present in the repository yet, so this is a stated intent rather than
+a committed licence text.
 
 ---
 
 ## 📬 Contact
 
-Project maintained by **Abdul Moiz Soomro**
-
----
-
-*Built with ❤️ using Spring Boot*
+Maintained by **Abdul Moiz Soomro**
