@@ -19,8 +19,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Was pinned to 1 on CI, making the suite's whole runtime wall clock. Left undefined so Playwright
+     applies its cores/2 heuristic: runners vary, and the suite already shares one Postgres, one
+     RabbitMQ, two JVMs and a Vite server with the browsers. E2E_WORKERS overrides. */
+  workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : undefined,
   reporter: [["list"], ["html", { open: "never" }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
