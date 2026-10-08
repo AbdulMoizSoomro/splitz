@@ -1,4 +1,3 @@
-# --- General ---
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -13,7 +12,6 @@ Thumbs.db
 [Dd]ebug/
 [Rr]elease/
 
-# --- IDEs ---
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json
@@ -34,7 +32,6 @@ out/
 .antigravitycli/
 .agents/
 
-# --- Java / Maven ---
 target/
 **/target/
 pom.xml.tag
@@ -56,7 +53,6 @@ Checkstyle-Report.xml
 *.tar.gz
 *.rar
 
-# --- Node / Frontend ---
 node_modules/
 **/node_modules/
 dist/
@@ -78,24 +74,18 @@ pnpm-debug.log*
 .fusebox/
 .dynamodb/
 
-# --- Testing ---
 test-results/
 **/test-results/
 playwright-report/
 **/playwright-report/
 .playwright-artifacts-*/
 blob-report/
-test-results/
 coverage/
 **/coverage/
 .nyc_output/
 
-# --- Docker ---
 .docker/
-# (Optional) ignore docker-compose override if you want local-only config
-# docker-compose.override.yml
 
-# --- Environment & Secrets ---
 .env
 .env.*
 !.env.example
@@ -104,10 +94,6 @@ coverage/
 .env.test.local
 .env.production.local
 
-# --- Splitz Specific ---
-# Agent tooling and skill installs are per-developer, not project config.
-# `.agents/` already covers the skills; skills-lock.json pins local copies to
-# upstream and has no meaning to anyone else. Both were tracked by accident.
 .agents/
 skills-lock.json
 .gemini/
@@ -119,11 +105,6 @@ ci-test.log
 progress.txt
 ralph_prompt.md
 
-# --- Spring Boot ---
-# Only ignore local/secret properties, keep base ones.
-# src/main/resources/application.properties is tracked: it holds no secrets (every
-# sensitive value reads from an env var with a dev default) and CI needs it, since
-# the e2e job boots the services straight from a checkout.
 **/application-local.properties
 **/application-dev-local.properties
 **/application-prod-local.properties
