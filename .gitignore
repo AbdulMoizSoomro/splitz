@@ -113,8 +113,10 @@ ci-test.log
 progress.txt
 
 # --- Spring Boot ---
-# Only ignore local/secret properties, keep base ones
+# Only ignore local/secret properties, keep base ones.
+# src/main/resources/application.properties is tracked: it holds no secrets (every
+# sensitive value reads from an env var with a dev default) and CI needs it, since
+# the e2e job boots the services straight from a checkout.
 **/application-local.properties
 **/application-dev-local.properties
-# If you explicitly want to ignore ALL application.properties (use with caution)
-**/application.properties
+**/application-prod-local.properties
