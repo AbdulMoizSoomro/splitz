@@ -1,15 +1,20 @@
 package com.splitz.expense.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.CreateExpenseRequest;
 import com.splitz.expense.dto.ExpenseDTO;
+import com.splitz.expense.dto.ExpenseSplitDTO;
 import com.splitz.expense.dto.SplitRequest;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
@@ -113,6 +118,10 @@ public class SplitStrategyIntegrationTest {
     assertThat(response.getSplits().get(0).getShareAmount()).isEqualByComparingTo("10.00");
     assertThat(response.getSplits().get(1).getShareAmount()).isEqualByComparingTo("10.00");
     assertThat(response.getSplits().get(2).getShareAmount()).isEqualByComparingTo("10.00");
+    assertThat(response.getSplits())
+        .extracting(ExpenseSplitDTO::getSplitType)
+        .containsOnly(SplitType.EQUAL);
+    assertThat(response.getSplits()).extracting(ExpenseSplitDTO::getSplitValue).containsOnlyNulls();
   }
 
   @Test
@@ -147,6 +156,11 @@ public class SplitStrategyIntegrationTest {
     assertThat(response.getSplits()).hasSize(2);
     assertThat(response.getSplits().get(0).getShareAmount()).isEqualByComparingTo("20.00");
     assertThat(response.getSplits().get(1).getShareAmount()).isEqualByComparingTo("30.00");
+    assertThat(response.getSplits())
+        .extracting(ExpenseSplitDTO::getSplitType)
+        .containsOnly(SplitType.EXACT);
+    assertThat(response.getSplits().get(0).getSplitValue()).isEqualByComparingTo("20.00");
+    assertThat(response.getSplits().get(1).getSplitValue()).isEqualByComparingTo("30.00");
   }
 
   @Test
@@ -181,6 +195,12 @@ public class SplitStrategyIntegrationTest {
     assertThat(response.getSplits()).hasSize(2);
     assertThat(response.getSplits().get(0).getShareAmount()).isEqualByComparingTo("25.00");
     assertThat(response.getSplits().get(1).getShareAmount()).isEqualByComparingTo("75.00");
+    // The percentages must survive the round trip, not just the derived amounts.
+    assertThat(response.getSplits())
+        .extracting(ExpenseSplitDTO::getSplitType)
+        .containsOnly(SplitType.PERCENTAGE);
+    assertThat(response.getSplits().get(0).getSplitValue()).isEqualByComparingTo("25.00");
+    assertThat(response.getSplits().get(1).getSplitValue()).isEqualByComparingTo("75.00");
   }
 
   @Test
@@ -212,6 +232,11 @@ public class SplitStrategyIntegrationTest {
     assertThat(response.getSplits()).hasSize(2);
     assertThat(response.getSplits().get(0).getShareAmount()).isEqualByComparingTo("10.00");
     assertThat(response.getSplits().get(1).getShareAmount()).isEqualByComparingTo("30.00");
+    assertThat(response.getSplits())
+        .extracting(ExpenseSplitDTO::getSplitType)
+        .containsOnly(SplitType.SHARES);
+    assertThat(response.getSplits().get(0).getSplitValue()).isEqualByComparingTo("1");
+    assertThat(response.getSplits().get(1).getSplitValue()).isEqualByComparingTo("3");
   }
 
   @Test
@@ -249,5 +274,78 @@ public class SplitStrategyIntegrationTest {
     // User 101: 15.00 - 5.00 = 10.00
     assertThat(response.getSplits().get(0).getShareAmount()).isEqualByComparingTo("20.00");
     assertThat(response.getSplits().get(1).getShareAmount()).isEqualByComparingTo("10.00");
+    assertThat(response.getSplits())
+        .extracting(ExpenseSplitDTO::getSplitType)
+        .containsOnly(SplitType.ADJUSTMENT);
+    assertThat(response.getSplits().get(0).getSplitValue()).isEqualByComparingTo("5.00");
+    assertThat(response.getSplits().get(1).getSplitValue()).isEqualByComparingTo("-5.00");
+  }
+
+  @Test
+  void getExpensesByGroup_ReturnsSplitTypeAndSplitValue() throws Exception {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Gas")
+            .amount(new BigDecimal("50.00"))
+            .paidBy(100L)
+            .splitType(SplitType.EXACT)
+            .splits(
+                List.of(
+                    SplitRequest.builder().userId(100L).splitValue(new BigDecimal("20.00")).build(),
+                    SplitRequest.builder()
+                        .userId(101L)
+                        .splitValue(new BigDecimal("30.00"))
+                        .build()))
+            .build();
+
+    mockMvc
+        .perform(
+            post("/groups/" + group.getId() + "/expenses")
+                .header("Authorization", tokenFor(100L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated());
+
+    // The read path must report the split type and the value each member was allocated by, so an
+    // edit form can reopen the expense on its original mode instead of falling back to EQUAL.
+    mockMvc
+        .perform(
+            get("/groups/" + group.getId() + "/expenses").header("Authorization", tokenFor(100L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].description").value("Gas"))
+        .andExpect(jsonPath("$[0].splits", hasSize(2)))
+        .andExpect(jsonPath("$[0].splits[0].splitType").value("EXACT"))
+        .andExpect(jsonPath("$[0].splits[0].splitValue").value(20.00))
+        .andExpect(jsonPath("$[0].splits[0].shareAmount").value(20.00))
+        .andExpect(jsonPath("$[0].splits[1].splitType").value("EXACT"))
+        .andExpect(jsonPath("$[0].splits[1].splitValue").value(30.00))
+        .andExpect(jsonPath("$[0].splits[1].shareAmount").value(30.00));
+  }
+
+  @Test
+  void getExpensesByGroup_EqualSplit_ReportsSplitTypeWithNullSplitValue() throws Exception {
+    CreateExpenseRequest request =
+        CreateExpenseRequest.builder()
+            .description("Lunch")
+            .amount(new BigDecimal("30.00"))
+            .paidBy(100L)
+            .splitType(SplitType.EQUAL)
+            .splits(List.of(SplitRequest.builder().userId(100L).build()))
+            .build();
+
+    mockMvc
+        .perform(
+            post("/groups/" + group.getId() + "/expenses")
+                .header("Authorization", tokenFor(100L))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            get("/groups/" + group.getId() + "/expenses").header("Authorization", tokenFor(100L)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].splits[0].splitType").value("EQUAL"))
+        .andExpect(jsonPath("$[0].splits[0].splitValue").value(nullValue()));
   }
 }

@@ -360,13 +360,6 @@ its reads local without weakening service boundaries.
 
 ## ⚠️ Known issues
 
-- **Editing an expense loses its original split type.** `GET /groups/{id}/expenses` does not return
-  `splitType` — the field exists only on the create and update requests — and `ExpenseSplit` carries no
-  type information either. So when an existing expense is loaded into the form, the split type falls
-  back to `EQUAL`, even if it was created as `EXACT` or `PERCENTAGE`. Per-member *amounts* still
-  round-trip because they come from `splits[].shareAmount`. Tracked in
-  [#77](https://github.com/AbdulMoizSoomro/splitz/issues/77). Note the data is already persisted — this
-  is a read-path gap, not a storage problem.
 - **JWTs are held in browser storage.** The token is persisted to `localStorage`, so it is readable by
   any script running on the page. Moving to `HttpOnly` cookies is documented but not implemented — see
   [#78](https://github.com/AbdulMoizSoomro/splitz/issues/78) and

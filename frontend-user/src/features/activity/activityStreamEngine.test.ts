@@ -214,7 +214,9 @@ describe("buildCardView (expenses)", () => {
       entry(
         expense(1, "2026-01-05T00:00:00.000Z", {
           paidBy: 2,
-          splits: [{ id: 1, userId: 1, shareAmount: 40 }],
+          splits: [
+            { id: 1, userId: 1, splitType: "EQUAL", shareAmount: 40 },
+          ],
         }),
       ),
       1,
