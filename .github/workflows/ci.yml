@@ -7,8 +7,14 @@ name: CI
 on:
   push:
     branches: [ main ]
+    paths-ignore: # docs-only changes; any other file runs the full chain
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 # Cancel in-progress runs of the same workflow on the same ref
 concurrency:
