@@ -148,8 +148,15 @@ jobs:
       # The suite drives three real containers (postgres, rabbitmq, two Spring services) and a Vite
       # dev server, exercising the genuine RabbitMQ-mediated friendship round trip. H2 is not enough:
       # these tests depend on cross-service event delivery.
-      - name: Start the integrated stack
-        run: docker compose up -d --wait db rabbitmq user-service expense-service frontend-user
+      #
+      # Started in two phases rather than one `up`: both Spring services run `mvn spring-boot:run` at
+      # container start, so bringing them up together against one shared Maven repository races.
+      # Each now has its own cache volume, and the phase split keeps the ordering explicit.
+      - name: Start databases and broker
+        run: docker compose up -d db rabbitmq
+
+      - name: Start application services
+        run: docker compose up -d user-service expense-service frontend-user
 
       - name: Wait for the stack
         run: |

@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 
 const PASSWORD = "Password123!";
@@ -83,7 +84,7 @@ test.describe("[E2E] Debt Simplification & Opt-Out Governance", () => {
       await expect(groupModal).not.toBeVisible({ timeout: 10000 });
 
       console.log("Alice adding an expense...");
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
       const expenseModal = pageAlice.getByRole("dialog");
       await expenseModal.locator("#description").fill("Group Outing");
@@ -93,7 +94,7 @@ test.describe("[E2E] Debt Simplification & Opt-Out Governance", () => {
 
       console.log("Navigating Bob to Balances tab...");
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       await pageBob.getByRole("tab", { name: /balances/i }).click();
 
       console.log("Verifying Suggested Settlement Plan & Governance Cards...");
@@ -113,7 +114,7 @@ test.describe("[E2E] Debt Simplification & Opt-Out Governance", () => {
 
       console.log("Alice checking Admin Governance scope buttons...");
       await pageAlice.goto("/groups");
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
 
       const globalScopeBtn = pageAlice.locator('[aria-label="Select Global Cross-Group Scope"]');
@@ -176,7 +177,7 @@ test.describe("[E2E] Debt Simplification & Opt-Out Governance", () => {
 
       // 5. Add expenses creating transitive debt:
       // Alice pays $60 split 3 ways (Bob owes $20, Charlie owes $20)
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await pageAlice.getByRole("button", { name: /add expense/i }).first().click();
       const expenseModal1 = pageAlice.getByRole("dialog");
       await expenseModal1.locator("#description").fill("Dinner");
@@ -186,7 +187,7 @@ test.describe("[E2E] Debt Simplification & Opt-Out Governance", () => {
 
       // Bob pays $30 split 3 ways (Alice owes $10, Charlie owes $10)
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       await pageBob.getByRole("button", { name: /add expense/i }).first().click();
       const expenseModal2 = pageBob.getByRole("dialog");
       await expenseModal2.locator("#description").fill("Snacks");
@@ -198,7 +199,7 @@ test.describe("[E2E] Debt Simplification & Opt-Out Governance", () => {
       // Net balances: Alice +30, Bob 0, Charlie -30.
       // Transitive netting simplifies this to 1 transaction: Charlie owes Alice $30.
       await pageAlice.goto("/groups");
-      await pageAlice.getByText(groupName).click();
+      await openGroupDetails(pageAlice, groupName);
       await pageAlice.getByRole("tab", { name: /balances/i }).click();
 
       await expect(pageAlice.getByText(/Suggested Settlement Plan/i)).toBeVisible({ timeout: 15000 });
@@ -236,7 +237,7 @@ test.describe("[E2E] Debt Simplification & Opt-Out Governance", () => {
 
       // Also on Bob's page: Bob should see direct debts (Bob owes Alice $10)
       await pageBob.goto("/groups");
-      await pageBob.getByText(groupName).click();
+      await openGroupDetails(pageBob, groupName);
       await pageBob.getByRole("tab", { name: /balances/i }).click();
 
       // When unsimplified, Bob owes Alice $10 (Direct), so Bob should NOT see "You don't owe anything directly!"

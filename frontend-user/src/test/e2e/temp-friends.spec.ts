@@ -1,3 +1,4 @@
+import { openGroupDetails } from "./helpers/navigation";
 import { test, expect, type Page } from "@playwright/test";
 
 const PASSWORD = "Password123!";
@@ -66,7 +67,7 @@ async function createGroupWithMember(
   await expect(modal).not.toBeVisible({ timeout: 15000 });
 
   await expect(pageOwner.getByText(groupName)).toBeVisible({ timeout: 15000 });
-  await pageOwner.getByText(groupName).click();
+  await openGroupDetails(pageOwner, groupName);
   await expect(pageOwner).toHaveURL(/\/groups\/\d+/);
 
   return pageOwner.url();
@@ -79,7 +80,7 @@ async function addEqualExpense(
   amount: string,
 ) {
   await pagePayer.goto("/groups");
-  await pagePayer.getByText(groupName).click();
+  await openGroupDetails(pagePayer, groupName);
   await pagePayer.getByRole("button", { name: /add expense/i }).first().click();
   await pagePayer.locator("#description").fill(description);
   await pagePayer.locator("#amount").fill(amount);
