@@ -105,12 +105,19 @@ coverage/
 .env.production.local
 
 # --- Splitz Specific ---
+# Agent tooling and skill installs are per-developer, not project config.
+# `.agents/` already covers the skills; skills-lock.json pins local copies to
+# upstream and has no meaning to anyone else. Both were tracked by accident.
 .agents/
+skills-lock.json
 .gemini/
+conductor/
+test-results/
 ci-lint.log
 ci-compile.log
 ci-test.log
 progress.txt
+ralph_prompt.md
 
 # --- Spring Boot ---
 # Only ignore local/secret properties, keep base ones.
