@@ -23,6 +23,7 @@ describe("interpersonal module", () => {
       addresseeId: 20,
       status: "PENDING",
       createdAt: "2026-08-01T00:00:00Z",
+      updatedAt: "2026-08-01T00:00:00Z",
     };
 
     it("returns CONFIRMED_FRIEND when user is in friend list", () => {

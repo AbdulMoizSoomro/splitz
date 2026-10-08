@@ -25,8 +25,9 @@ describe("useFriendSettlementEditing", () => {
       payerId: 1,
       payeeId: 2,
       amount: 45.5,
-      settlementDate: "2025-01-01T10:00:00Z",
       status: "COMPLETED",
+      createdAt: "2025-01-01T10:00:00Z",
+      updatedAt: "2025-01-01T10:00:00Z",
     };
 
     act(() => {

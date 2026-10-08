@@ -360,15 +360,18 @@ its reads local without weakening service boundaries.
 
 ## ⚠️ Known issues
 
-- **`npm run build` currently fails.** There are 36 pre-existing TypeScript errors, concentrated in
-  `src/features/users` and `src/features/expenses` — missing `types/user`, `types/group` and
-  `types/expense` modules, and arithmetic applied to a `string | number`. Because the build script runs
-  `tsc -b`, this fails the build independently of any recent change. The unit test suite and the
-  end-to-end suite are unaffected, as is `mvn verify`.
+- **`npm run build` passes, but editing an expense loses its original split type.** `GET /groups/{id}/expenses`
+  does not return `splitType` — the field exists only on the create and update requests — and
+  `ExpenseSplit` carries no type information either. So when an existing expense is loaded into the
+  form, the split type falls back to `EQUAL`, even if it was created as `EXACT` or `PERCENTAGE`. Per-member
+  *amounts* still round-trip because they come from `splits[].shareAmount`. The correct fix is to add
+  `splitType` to `ExpenseDTO` and type it on the client `Expense`.
 - **JWTs are held in browser storage.** The token is persisted to `localStorage`, so it is readable by
   any script running on the page. Moving to `HttpOnly` cookies is documented but not implemented — see
   [`docs/future-improvements/secure-auth-implementation.md`](./docs/future-improvements/secure-auth-implementation.md).
 - **The `LICENSE` file is absent.** The project states MIT, but no licence text is committed.
+- **The frontend bundle is a single ~800 kB chunk.** Vite warns about this at build time. Code-splitting
+  by route has not been done.
 
 ---
 

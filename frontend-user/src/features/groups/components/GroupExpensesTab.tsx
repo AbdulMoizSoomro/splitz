@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TabsContent } from "@/components/ui/tabs";
 import { Loader2, Plus, Receipt, Calendar, MoreVertical } from "lucide-react";
-import type { Expense } from "../../types/expense";
-import type { Category } from "../../types/expense";
+import type { Expense } from "../../../types/expense";
+import type { Category } from "../../expenses/categoryService";
 import type { GroupGovernance } from "../membershipGating";
 
 interface GroupExpensesTabProps {

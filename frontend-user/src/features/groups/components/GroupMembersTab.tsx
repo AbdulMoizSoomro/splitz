@@ -11,18 +11,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TabsContent } from "@/components/ui/tabs";
 import { Users, UserPlus, MoreVertical, Settings, LogOut } from "lucide-react";
-import type { Group } from "../../types/group";
+import type { Group } from "../../../types/group";
 import type { GroupGovernance } from "../membershipGating";
-import type { Friend } from "../../types/friend";
-import type { BalancesResponse } from "../groupService";
+import type { User } from "../../../types/user";
+import type { GroupBalanceResponse } from "../../../types/group";
 import type { UseMutationResult } from "@tanstack/react-query";
 
 interface GroupMembersTabProps {
   group: Group;
   userId?: number;
   memberNames: Record<number, string>;
-  friends?: Friend[];
-  balancesResponse?: BalancesResponse;
+  friends?: User[];
+  balancesResponse?: GroupBalanceResponse;
   isBalancesLoading: boolean;
   governance: GroupGovernance;
   onOpenAddMemberModal: () => void;

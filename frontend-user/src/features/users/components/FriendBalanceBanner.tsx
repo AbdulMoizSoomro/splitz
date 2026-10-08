@@ -1,8 +1,8 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, TrendingUp, TrendingDown, Globe } from "lucide-react";
-import type { User } from "../../types/user";
-import type { Group } from "../../types/group";
+import type { User } from "../../../types/user";
+import type { Group } from "../../../types/group";
 
 interface FriendBalanceBannerProps {
   friend: User;

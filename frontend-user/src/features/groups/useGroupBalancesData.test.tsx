@@ -38,10 +38,11 @@ describe("useGroupBalancesData", () => {
       balances: [
         {
           userId: 1,
+          username: "alice",
+          email: "alice@example.com",
+          firstName: "Alice",
+          lastName: "User",
           balance: 50,
-          totalPaid: 100,
-          totalOwed: 50,
-          netBalance: 50,
         },
       ],
       simplifiedDebts: [],

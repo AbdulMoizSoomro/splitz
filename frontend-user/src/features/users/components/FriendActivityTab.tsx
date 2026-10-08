@@ -14,16 +14,11 @@ import {
   Users,
 } from "lucide-react";
 import { isGlobalPayment as isGlobalPaymentFor } from "../../balances/settlement";
-import type { User, FriendshipSettlementDTO } from "../../types/user";
-
-interface UnifiedActivityItem {
-  type: "expense" | "settlement";
-  date: string;
-  data: any;
-}
+import type { User, FriendshipSettlementDTO } from "../../../types/user";
+import type { ActivityItem } from "../unifiedActivity";
 
 interface FriendActivityTabProps {
-  unifiedActivity: UnifiedActivityItem[];
+  unifiedActivity: ActivityItem[];
   currentUserId?: number;
   friend: User;
   friendId: number;
