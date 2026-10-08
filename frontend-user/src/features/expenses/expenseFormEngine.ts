@@ -194,8 +194,11 @@ export function createInitialExpenseFormState(
       splitsMap[s.userId] = s.shareAmount.toString();
     });
 
-    const inferredSplitType: SplitType =
-      (expense as Record<string, unknown>).splitType as SplitType || "EQUAL";
+    // The backend does not return `splitType` on read: ExpenseDTO omits it (it exists only on the
+    // Create/Update requests), and ExpenseSplit carries no type information either. So this always
+    // resolved to "EQUAL" at runtime behind an unsound cast. Defaulting honestly instead of casting;
+    // see the note in README Known issues.
+    const inferredSplitType: SplitType = "EQUAL";
 
     return {
       description: expense.description || "",

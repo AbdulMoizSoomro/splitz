@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Mail } from "lucide-react";
-import type { User } from "../../types/user";
+import type { User } from "../../../types/user";
 
 interface FriendContactCardProps {
   friend: User;

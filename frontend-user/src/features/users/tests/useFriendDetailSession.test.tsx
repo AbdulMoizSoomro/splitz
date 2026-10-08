@@ -37,11 +37,12 @@ describe("useFriendDetailSession", () => {
       user: { id: "1", username: "testuser", email: "test@user.com" },
     });
     vi.mocked(useInterpersonalFriend).mockReturnValue({
+      currentUserId: 1,
       friend: mockFriend,
       relationshipStatus: "CONFIRMED_FRIEND",
       netBalance: 50,
       directBalance: 20,
-      groupBalances: [{ groupId: 1, balance: 30 }],
+      groupBalances: [{ groupId: 1, groupName: "Ski Trip", balance: 30 }],
       sharedGroups: [{ id: 1, name: "Ski Trip", members: [] } as any],
       activityFeed: [],
       isLoading: false,
@@ -50,6 +51,7 @@ describe("useFriendDetailSession", () => {
         cancelFriendRequest: { mutate: vi.fn(), isPending: false } as any,
         confirmSettlement: { mutate: vi.fn(), isPending: false } as any,
         updateSettlement: { mutate: vi.fn(), isPending: false } as any,
+        createSettlement: { mutate: vi.fn(), isPending: false } as any,
       },
     });
   });

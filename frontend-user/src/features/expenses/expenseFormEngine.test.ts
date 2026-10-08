@@ -27,6 +27,8 @@ const mockGroup: Group = {
   ],
   createdBy: 1,
   active: true,
+  allowMembersToManageMembers: false,
+  allowMembersToEditExpenses: false,
   createdAt: "2025-01-01",
   updatedAt: "2025-01-01",
 };
@@ -235,6 +237,10 @@ describe("expenseFormEngine — Reducer & Initializer", () => {
   });
 
   it("initializes form state from existing expense", () => {
+    // Mirrors what GET /groups/{id}/expenses actually returns. Note the absence of `splitType`:
+    // ExpenseDTO omits it (it exists only on the Create/Update requests), so the form cannot know
+    // how the original expense was split and falls back to EQUAL. Split *amounts* still round-trip,
+    // because those come from `splits[].shareAmount`.
     const existingExpense = {
       id: 10,
       groupId: 1,
@@ -244,7 +250,6 @@ describe("expenseFormEngine — Reducer & Initializer", () => {
       paidBy: 2,
       categoryId: 5,
       expenseDate: "2026-08-01T12:00:00Z",
-      splitType: "EXACT" as const,
       splits: [
         { id: 1, userId: 1, shareAmount: 20 },
         { id: 2, userId: 2, shareAmount: 40 },
@@ -259,9 +264,11 @@ describe("expenseFormEngine — Reducer & Initializer", () => {
     expect(initial.paidBy).toBe(2);
     expect(initial.categoryId).toBe(5);
     expect(initial.expenseDate).toBe("2026-08-01");
-    expect(initial.splitType).toBe("EXACT");
+    // Falls back to EQUAL because the API does not report the original split type.
+    expect(initial.splitType).toBe("EQUAL");
     expect(initial.selectedMembers).toEqual([1, 2]);
-    expect(initial.splitValues).toEqual({ 1: "20", 2: "40" });
+    // Per-member amounts are only seeded for non-EQUAL split types, so this stays empty.
+    expect(initial.splitValues).toEqual({});
   });
 
   it("resets splitValues when changing splitType", () => {

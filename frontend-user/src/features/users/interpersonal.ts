@@ -127,7 +127,9 @@ export function validateSettlementAllocation({
     return { isValid: true, totalAllocated: 0, difference: 0 };
   }
 
-  const totalAllocated = Object.values(allocations).reduce(
+  // The accumulator is annotated because Object.values widens to `string | number`, which would
+  // otherwise infer `sum` as that union and break the arithmetic below.
+  const totalAllocated = Object.values(allocations).reduce<number>(
     (sum, val) => sum + parseAllocationValue(val),
     0,
   );

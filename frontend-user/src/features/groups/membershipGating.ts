@@ -326,3 +326,11 @@ export function useGroupGovernance(params: {
     },
   };
 }
+
+/**
+ * The governance capabilities derived for one group and one acting user.
+ *
+ * Derived from the hook's return type rather than hand-written, so it cannot drift from the rules the
+ * hook actually enforces.
+ */
+export type GroupGovernance = ReturnType<typeof useGroupGovernance>;

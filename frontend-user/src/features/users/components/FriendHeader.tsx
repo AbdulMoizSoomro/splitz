@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, User as UserIcon, UserPlus, UserMinus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { User } from "../../types/user";
+import type { User } from "../../../types/user";
 
 interface FriendHeaderProps {
   friend: User;

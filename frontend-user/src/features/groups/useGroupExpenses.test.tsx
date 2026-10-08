@@ -17,9 +17,11 @@ const mockExpenses: Expense[] = [
     amount: 20,
     paidBy: 1,
     groupId: 1,
+    currency: "USD",
     expenseDate: "2025-01-01T12:00:00Z",
     splits: [],
-    splitType: "EQUAL",
+    createdAt: "2025-01-01T12:00:00Z",
+    updatedAt: "2025-01-01T12:00:00Z",
   },
   {
     id: 2,
@@ -27,9 +29,11 @@ const mockExpenses: Expense[] = [
     amount: 40,
     paidBy: 1,
     groupId: 1,
+    currency: "USD",
     expenseDate: "2025-01-02T12:00:00Z",
     splits: [],
-    splitType: "EQUAL",
+    createdAt: "2025-01-02T12:00:00Z",
+    updatedAt: "2025-01-02T12:00:00Z",
   },
 ];
 
