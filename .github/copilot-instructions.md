@@ -1,186 +1,192 @@
 # Splitz – AI Coding Guide
 
-> **Last Updated:** December 31, 2025  
-> **Project Status:** User Service ~80% complete, Expense Service not started
+> **Last Updated:** October 9, 2026
+> **Project Status:** user-service, expense-service, common-security and frontend-user all implemented and tested
+
+---
+
+## Read This First
+
+`CONTEXT.md` is the source of truth for domain language. Read it before changing behaviour — terms
+like *Temp Friend*, *Settlement Allocation*, *Effective Opt-Out Set* and *Settled Membership Invariant*
+carry precise meanings that the code depends on.
+
+Three documents supersede anything you may remember about this codebase:
+
+- A phased story-by-story build plan existed and has been deleted. Do not go looking for it.
+- `PROJECT_ANALYSIS_REPORT.md` (Jan 2026) has been deleted. It described a two-phase skeleton with
+  `expense-service` as a stub, which is no longer true.
+- `docs/project-analysis/ARCHITECTURE_ANALYSIS.md` is retained for its findings, but its status
+  metadata is from Jan 2026 and several findings have since been fixed. Verify against the code
+  before acting on any claim in it.
 
 ---
 
 ## Quick Links
 
-- [IMPLEMENTATION_ROADMAP.md](../docs/IMPLEMENTATION_ROADMAP.md) — Stories, tasks, and development workflow
-- [MVP_0.0.1.md](../docs/MVP_0.0.1.md) — MVP scope, API contracts, data models
-- [PROJECT_ANALYSIS_REPORT.md](../PROJECT_ANALYSIS_REPORT.md) — Architecture analysis
+| Document | Purpose |
+|----------|---------|
+| [CONTEXT.md](../CONTEXT.md) | Domain language and architecture — source of truth for terminology |
+| [README.md](../README.md) | Current features, API surface, stack, and how to run everything |
+| [docs/adr/](../docs/adr/) | Architecture Decision Records — why the design is what it is |
+| [conductor/](../conductor/) | Product definition, tech stack, and code style guides |
+
+### Architecture Decision Records
+
+Read the relevant ADR before touching these areas:
+
+| ADR | Governs |
+|-----|---------|
+| [0001](../docs/adr/0001-shared-security-authorizer.md) | Shared stateless authorization across services |
+| [0002](../docs/adr/0002-membership-lifecycle-module.md) | Group membership lifecycle and its invariants |
+| [0003](../docs/adr/0003-account-level-simplification-opt-out.md) | Account-level debt-simplification opt-out |
 
 ---
 
 ## Architecture Overview
 
-- **Structure**: Maven multi-module with parent [pom.xml](../pom.xml)
-- **Services**: `user-service` (Spring Boot 3.2, Java 21) and `expense-service` (stub only)
-- **Target**: Splitwise-like expense splitting for friends/roommates
+Maven multi-module, parent [pom.xml](../pom.xml).
+
+| Module | Port | Responsibility |
+|--------|------|----------------|
+| `user-service` | 8080 | Users, authentication, roles, friendships; owns `user_db` |
+| `expense-service` | 8081 | Groups, membership, expenses, payments, balances, debt simplification; owns `expense_db` |
+| `common-security` | — | Shared library: `SharedSecurityAuthorizer`, `JwtUtil`, `JwtRequestFilter`, domain event contracts |
+| `frontend-user` | 5173 | React SPA; Vite proxies `/api/user` and `/api/expense` |
+
+Each service owns its data exclusively. `user-service` publishes domain events through a
+**transactional outbox** to RabbitMQ; `expense-service` consumes them via
+`UserEventListener`/`FriendshipEventListener` to maintain replicated user and friendship tables. This
+keeps expense-service reads local without weakening the service boundary.
+
+### expense-service domain seams
+
+Business logic lives behind narrow interfaces, not in controllers or repositories. Before adding a
+rule, find whether a seam already owns it:
+
+| Seam | Owns |
+|------|------|
+| `governance.GroupGovernance` | Membership authority and the Settled Membership Invariant |
+| `calculator.ExpenseSplitEngine` | Split maths for all five split types, remainder distribution |
+| `balance.FinancialLedgerEngine` | Ledger aggregation, pushed down to the database |
+| `netting.DebtNettingEngine` | Greedy net-balance matching for the Suggested Settlement Plan |
+| `lifecycle.PaymentLifecycle` | `PENDING` → `MARKED_PAID` → `COMPLETED` transitions |
+| `activity.ExpenseActivityLogEngine` | Field-level diffs for collaborative editing |
+
+The Suggested Settlement Plan is **read-only**. It must never mutate expenses or splits — that is
+what keeps the audit trail intact.
 
 ---
 
-## User Service (Port 8080)
+## Security
 
-### What Works ✅
+### Authentication
 
-- JWT authentication via `/authenticate`
-- User CRUD: create, read, update, delete
-- User search with pagination (`/users/search?query=`)
-- Role-based access control (ROLE_USER, ROLE_ADMIN)
-- Password encoding (BCrypt)
-- Flyway migrations for schema management
-- Method-level security with `@PreAuthorize`
+1. `POST /authenticate` with `{ username, password }`
+2. Receive a JWT; send `Authorization: Bearer <token>` on subsequent requests
+3. `JwtRequestFilter` (in `common-security`) validates and populates the `SecurityContext`
 
-### Key Files
+Stateless only — no sessions, no server-side token store.
 
-| Component            | Location                                                                           |
-| -------------------- | ---------------------------------------------------------------------------------- |
-| Security Config      | `user-service/src/main/java/com/splitz/user/config/SecurityConfig.java`            |
-| JWT Utilities        | `user-service/src/main/java/com/splitz/user/security/JwtUtil.java`                 |
-| Auth Controller      | `user-service/src/main/java/com/splitz/user/security/AuthController.java`          |
-| User Controller      | `user-service/src/main/java/com/splitz/user/controller/UserController.java`        |
-| User Entity          | `user-service/src/main/java/com/splitz/user/model/User.java`                       |
-| User Mapper          | `user-service/src/main/java/com/splitz/user/mapper/UserMapper.java`                |
-| Exception Handler    | `user-service/src/main/java/com/splitz/user/exception/GlobalExceptionHandler.java` |
-| Security Expressions | `user-service/src/main/java/com/splitz/user/security/SecurityExpressions.java`     |
-| Flyway Migrations    | `user-service/src/main/resources/db/migration/`                                    |
+### Authorization
 
-### API Endpoints
+Identity and role checks go through `SharedSecurityAuthorizer` (`common-security`), exposed to SpEL
+via `@security`:
 
-| Method | Endpoint        | Auth          | Description    |
-| ------ | --------------- | ------------- | -------------- |
-| POST   | `/authenticate` | Public        | Login, get JWT |
-| POST   | `/users`        | Public        | Register       |
-| GET    | `/users`        | ADMIN         | List all users |
-| GET    | `/users/{id}`   | Authenticated | Get user by ID |
-| PUT    | `/users/{id}`   | Owner/Admin   | Update user    |
-| DELETE | `/users/{id}`   | Owner/Admin   | Delete user    |
-| GET    | `/users/search` | Authenticated | Search users   |
+- `@security.isSelfOrAdmin(#userId)` — identity-based ownership
+- `@security.isAdmin()` — role check
+- `@security.isGroupMember(#groupId)` / `@security.isGroupAdmin(#groupId)` — resource-based, backed
+  by `GroupGovernance`
 
-### Not Yet Implemented ⬜
+**`isOwnerOrAdmin()` no longer exists.** Do not reintroduce it, and do not copy security expressions
+between services — both services already depend on `common-security`.
 
-- Friendship API (send/accept/reject friend requests)
-- OpenAPI/Swagger documentation
+Prefer `@AuthenticationPrincipal` over casting `Principal`.
+
+### Passwords
+
+BCrypt everywhere. Never log, return or persist a plaintext password.
 
 ---
 
-## Expense Service (Port 8081)
+## Key Files
 
-### Current State
-
-- **Stub only** — contains placeholder `Main.java`
-- Needs full Spring Boot scaffold before adding features
-
-### When Building Expense Service
-
-1. Update `expense-service/pom.xml` with dependencies (web, security, jpa, flyway, h2, mapstruct, lombok)
-2. Create `ExpenseServiceApplication.java` main class
-3. Add `application.properties` (port 8081, H2 dev, Flyway enabled)
-4. Copy JWT classes from user-service (JwtUtil, JwtRequestFilter, SecurityConfig)
-5. Create Flyway baseline migration
-6. See [MVP_0.0.1.md](../docs/MVP_0.0.1.md) for entity designs and API contracts
-
-### Planned Entities
-
-- Group, GroupMember, Category, Expense, ExpenseSplit, Settlement
-- Store `userId` references only — call user-service for user details
+| Component | Location |
+|-----------|----------|
+| Shared authorizer | `common-security/src/main/java/com/splitz/security/authorization/SharedSecurityAuthorizer.java` |
+| JWT filter / util | `common-security/src/main/java/com/splitz/security/JwtRequestFilter.java` · `JwtUtil.java` |
+| Domain event contracts | `common-security/src/main/java/com/splitz/event/` |
+| Outbox publisher | `user-service/src/main/java/com/splitz/user/service/OutboxPublisher.java` |
+| Event listeners | `expense-service/src/main/java/com/splitz/expense/listener/` |
+| Security config (both) | `{service}/src/main/java/com/splitz/{service}/config/SecurityConfig.java` |
+| OpenAPI config (both) | `{service}/src/main/java/com/splitz/{service}/config/OpenApiConfig.java` |
+| Frontend features | `frontend-user/src/features/{activity,auth,balances,dashboard,expenses,groups,settings,users}` |
 
 ---
 
 ## Build & Run
 
 ```bash
+# Full gate: lint, compile, test
+make ready-for-ci
+
 # Build all modules
 mvn clean install
 
-# Run user service (dev mode with H2)
-mvn -pl user-service spring-boot:run
+# Run a service on H2
+mvn -pl user-service spring-boot:run -Dspring-boot.run.profiles=dev
+mvn -pl expense-service spring-boot:run -Dspring-boot.run.profiles=dev
 
-# Run tests
-mvn -pl user-service test
-
-# Run expense service (once scaffolded)
-mvn -pl expense-service spring-boot:run
+# Integrated stack (PostgreSQL + RabbitMQ + both services + frontend)
+docker compose up -d --build
 ```
+
+The **dev profile uses H2**, which cannot deliver cross-service events. Anything relying on
+replicated user or friendship data needs the integrated stack.
 
 ---
 
 ## Configuration
 
-### Profiles
+| Variable | Used by | Default |
+|----------|---------|---------|
+| `SPRING_PROFILES_ACTIVE` | Both services | `dev` |
+| `POSTGRES_URL` · `POSTGRES_USER` · `POSTGRES_PASSWORD` | Both services | — |
+| `SPRING_RABBITMQ_HOST` · `SPRING_RABBITMQ_PORT` | Both services | — |
+| `CORS_ALLOWED_ORIGINS` | Both services | `http://localhost` |
+| `VITE_USER_SERVICE_URL` · `VITE_EXPENSE_SERVICE_URL` | Frontend | `/api/user`, `/api/expense` |
 
-- `dev` — H2 in-memory, Flyway enabled, debug logging
-- `prod` — PostgreSQL, Flyway validate mode
-
-### Environment Variables
-
-| Variable                 | Description                | Default                 |
-| ------------------------ | -------------------------- | ----------------------- |
-| `JWT_SECRET`             | Base64-encoded signing key | (dev key in properties) |
-| `JWT_EXPIRATION`         | Token TTL in milliseconds  | 86400000 (24h)          |
-| `SPRING_PROFILES_ACTIVE` | Active profile             | dev                     |
-
-### Key Config Files
-
-- `user-service/src/main/resources/application.properties` — main config
-- `user-service/src/main/resources/application-dev.properties` — H2 settings
-- `user-service/src/main/resources/application-prod.properties` — PostgreSQL settings
+Each service has `application.properties`, `application-dev.properties` (H2) and
+`application-prod.properties` (PostgreSQL), plus a committed `application.properties.example`.
+Never hardcode environment-specific values in code.
 
 ---
 
 ## Database
 
-### Flyway Migrations
+Flyway migrations in `{service}/src/main/resources/db/migration/`:
 
-Migrations are in `src/main/resources/db/migration/`:
+- `user-service` — `V1`–`V6` (roles, users, users_roles, seed, friendship, outbox)
+- `expense-service` — `V1`–`V21` (categories, groups, expenses, splits, settlements, activity log,
+  payments unification, replicated tables, simplification, user simplification preferences)
 
-- `V1__create_roles_table.sql`
-- `V2__create_users_table.sql`
-- `V3__create_users_roles_table.sql`
-- `V4__seed_roles_and_admin.sql`
-
-### Schema Notes
-
-- Roles seeded on startup: `ROLE_USER`, `ROLE_ADMIN`
-- Test admin user seeded (check V4 migration for credentials)
-- H2 console available at `/h2-console` in dev mode
-
----
-
-## Security
-
-### Authentication Flow
-
-1. POST `/authenticate` with `{ username, password }`
-2. Receive JWT token in response
-3. Include `Authorization: Bearer <token>` header on subsequent requests
-4. JwtRequestFilter validates token and sets SecurityContext
-
-### Authorization
-
-- `@PreAuthorize("permitAll()")` — public endpoints
-- `@PreAuthorize("isAuthenticated()")` — any logged-in user
-- `@PreAuthorize("hasRole('ADMIN')")` — admin only
-- `@PreAuthorize("@security.isOwnerOrAdmin(#id)")` — owner or admin check
-
-### Security Expressions
-
-Custom expressions in `SecurityExpressions.java`:
-
-- `isOwnerOrAdmin(userId)` — checks if current user owns resource or is admin
+**Never modify an applied migration. Add a new one.** `expense-service` carries a `V1__baseline.sql`
+alongside its numbered migrations — leave it in place.
 
 ---
 
 ## Coding Conventions
 
-### General
+Full guidance in [`conductor/code_styleguides/`](../conductor/code_styleguides/) — read
+`general.md` before writing code. The short version:
 
-- Use **constructor injection** (avoid `@Autowired` on fields)
-- Use **Lombok** for boilerplate (`@Getter`, `@Setter`, `@AllArgsConstructor`)
-- Use **MapStruct** for DTO mapping (`componentModel = "spring"`)
-- Follow **test-first** approach when possible
+- **Constructor injection.** No `@Autowired` on fields.
+- **Lombok** for boilerplate, **MapStruct** for DTO mapping (`componentModel = "spring"`).
+- **Domain logic belongs in a seam**, not in a controller or repository.
+- **Document why**, not what. Keep docs in step with code.
+- **Commits** are imperative and area-scoped: `fix(expense): ...`, `refactor(frontend): ...`. The body
+  explains the reasoning and what was left out. Never add attribution trailers
+  (`Co-Authored-By`, `Generated with`) — this history is single-author.
 
 ### Package Structure
 
@@ -188,73 +194,95 @@ Custom expressions in `SecurityExpressions.java`:
 com.splitz.{service}/
 ├── config/         # Spring configuration
 ├── controller/     # REST controllers
-├── dto/            # Data transfer objects
+├── dto/            # DTOs
 ├── exception/      # Custom exceptions
 ├── mapper/         # MapStruct mappers
 ├── model/          # JPA entities
 ├── repository/     # Spring Data repositories
-├── security/       # JWT, filters, auth
 └── service/        # Business logic
+
+# expense-service only:
+├── balance/ balancesource/ calculator/ governance/ lifecycle/
+├── netting/ activity/ client/ listener/ security/
 ```
 
 ### Error Handling
 
-- Use RFC 7807 `ProblemDetail` for error responses
-- Add handlers to `GlobalExceptionHandler`
-- Create domain-specific exceptions (e.g., `UserAlreadyExistsException`)
+RFC 7807 `ProblemDetail` via `GlobalExceptionHandler`. Create domain-specific exceptions rather than
+throwing bare `RuntimeException`.
 
 ---
 
 ## Testing
 
-### Test Structure
+| Suite | Command | Count |
+|-------|---------|-------|
+| Backend (all modules) | `mvn verify` | 492 |
+| Frontend unit | `cd frontend-user && npx vitest run` | 232 |
+| End-to-end | `cd frontend-user && npx playwright test --workers=1` | 41 |
 
-- Unit tests: `src/test/java/.../service/`, `src/test/java/.../controller/`
-- Integration tests: `src/test/java/.../integration/`
-- Test config: `src/test/resources/application-test.properties`
-
-### Running Tests
-
-!!! IMPORTANT "Note"
-Run Tests one by one first to isolate issues, when running all tests together use `tail` or `grep` to filter logs.
-Example given below:
+When running backend tests, filter the output to keep it readable:
 
 ```bash
-# All tests
-mvn -pl user-service test | grep -E "Tests run: |Failures: |Errors: |Skipped: |BUILD SUCCESS|BUILD FAILURE"
-
-# Specific test class
-mvn -pl user-service test -Dtest=UserControllerTest | grep -E "Tests run: |Failures: |Errors: |Skipped: |BUILD SUCCESS|BUILD FAILURE"
-
-# With coverage (once JaCoCo configured)
-mvn -pl user-service test jacoco:report
+mvn -pl expense-service test | grep -E "Tests run: |Failures: |Errors: |BUILD SUCCESS|BUILD FAILURE"
+mvn -pl expense-service test -Dtest=SomeTest
 ```
 
-### Test Patterns
+Patterns: `@WebMvcTest` + `@MockBean` for controllers, `@SpringBootTest` + `TestRestTemplate` for
+integration, `@WithMockUser` for security.
 
-- Use `@WebMvcTest` + `@MockBean` for controller unit tests
-- Use `@SpringBootTest` + `TestRestTemplate` for integration tests
-- Use `@WithMockUser` for security testing
+> **End-to-end must run with `--workers=1`.** Parallel mode is harsher than CI and yields a shifting
+> set of failures that pass in isolation — resource contention, not product behaviour. CI pins
+> `workers: 1` with `retries: 2`.
+
+### Continuous Integration
+
+Four jobs in dependency order: `lint` (`mvn validate`, Checkstyle + Spotless) → `build`
+(`mvn package -DskipTests`) → `test` (`mvn verify`) → `e2e` (Playwright against the Docker stack).
+
+Workflows skip entirely for docs-only changes (`**/*.md`, `docs/**`). Anything else runs the full chain.
 
 ---
 
 ## What NOT to Break
 
-- **Parent POM** manages all dependency versions — don't hardcode versions in modules
-- **Spring Boot version** aligned via `${spring-boot.version}` property
-- **Stateless security** — no sessions, JWT only
-- **Flyway migrations** — never modify existing migrations, add new ones
-- **BCrypt encoding** — passwords must always be hashed before storage
+- **Parent POM** owns dependency versions — never hardcode versions in a module.
+- **Spring Boot version** is aligned via the `${spring-boot.version}` property.
+- **Stateless security.** JWT only, no sessions.
+- **Flyway migrations** are append-only.
+- **BCrypt** for every password, without exception.
+- **Ownership Invariant** — a group always has exactly one `OWNER`; transfer before leaving.
+- **Settled Membership Invariant** — no leaving or removal while holding a non-zero balance or a
+  pending settlement.
+- **Account-level opt-out is a hard override** — a group's configuration can never weaken consent a
+  user already gave (ADR 0003).
+- **Simplification is read-only** — never mutate expenses or splits while computing a plan.
 
 ---
 
-## Next Steps (from Roadmap)
+## Known Issues
 
-1. **S01**: GitHub Actions CI pipeline
-2. **S02**: JaCoCo test coverage
-3. **S03**: Docker setup for user-service
-4. **S04-S06**: Friendship API (entity, service, controller)
-5. **S07**: OpenAPI documentation
-6. **S09+**: Expense service scaffold and features
+- **Editing an expense loses its split type.** `GET /groups/{id}/expenses` does not return
+  `splitType`, so loading an existing expense into the form falls back to `EQUAL`. Per-member
+  *amounts* round-trip correctly via `splits[].shareAmount`. This is a read-path gap, not a storage
+  problem — the data is persisted. Tracked in
+  [#77](https://github.com/AbdulMoizSoomro/splitz/issues/77).
+- **JWTs live in browser storage.** The token is persisted to `localStorage`, so any script on the
+  page can read it. `HttpOnly` cookies are documented but not implemented —
+  [#78](https://github.com/AbdulMoizSoomro/splitz/issues/78).
 
-See [IMPLEMENTATION_ROADMAP.md](../docs/IMPLEMENTATION_ROADMAP.md) for full story breakdown.
+---
+
+## Before You Open a Pull Request
+
+1. Read `CONTEXT.md` and any relevant ADR
+2. Write tests for the behaviour you intend to add, backend and frontend
+3. Run the full gate:
+
+   ```bash
+   make ready-for-ci                                        # backend
+   cd frontend-user && npx vitest run                       # frontend unit
+   cd frontend-user && npx playwright test --workers=1      # end-to-end
+   ```
+
+4. Record any decision that changes the domain model or a service boundary as an ADR in `docs/adr/`
