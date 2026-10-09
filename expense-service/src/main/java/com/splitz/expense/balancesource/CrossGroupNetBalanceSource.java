@@ -76,6 +76,7 @@ public class CrossGroupNetBalanceSource implements NetBalanceSource {
       netBalances.put(memberId, total);
     }
     return NetBalanceResult.builder()
+        .groupIdsByUser(Map.copyOf(groupIdsByUser))
         .netBalances(Collections.unmodifiableMap(netBalances))
         .originalTransactionCount(0)
         .build();

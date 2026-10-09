@@ -13,7 +13,7 @@ import com.splitz.expense.model.DebtSimplificationPlan;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupSimplificationSettings;
 import com.splitz.expense.model.PlanStatus;
-import com.splitz.expense.netting.DebtNettingEngine;
+import com.splitz.expense.netting.DebtProjectionEngine;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
 import java.math.BigDecimal;
@@ -32,8 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Orchestrates the Smart Debt Reduction Engine (Wayfinder issue #63). Computes a read-only
  * Suggested Settlement Plan by resolving the group's simplification settings, selecting the net
- * balance source for the scope, and delegating netting to the deep {@link DebtNettingEngine}. Never
- * mutates balances.
+ * balance source for the scope, and delegating consent-aware netting to {@link
+ * DebtProjectionEngine}. Never mutates balances.
  */
 @Service
 @RequiredArgsConstructor
@@ -44,7 +44,7 @@ public class DebtSimplificationPlanService {
   private final GroupSimplificationSettingsService settingsService;
   private final UserSimplificationPreferenceService preferenceService;
   private final UserClient userClient;
-  private final DebtNettingEngine debtNettingEngine;
+  private final DebtProjectionEngine debtProjectionEngine;
   private final IntraGroupNetBalanceSource intraGroupNetBalanceSource;
   private final CrossGroupNetBalanceSource crossGroupNetBalanceSource;
 
@@ -62,11 +62,11 @@ public class DebtSimplificationPlanService {
 
     // The account-level opt-out is a hard override, so it must be resolved into the plan even when
     // the group has netting switched off: optedOutUserIds means the same thing on every plan.
-    Set<Long> effectiveOptOutUserIds =
-        preferenceService.effectiveOptOutUserIds(settings.getOptOutUserIds(), memberIds);
-
     if (!settings.isSimplificationEnabled()) {
-      return emptyPlan(groupId, settings, effectiveOptOutUserIds);
+      return emptyPlan(
+          groupId,
+          settings,
+          preferenceService.effectiveOptOutUserIds(settings.getOptOutUserIds(), memberIds));
     }
 
     NetBalanceSource source =
@@ -78,15 +78,11 @@ public class DebtSimplificationPlanService {
 
     Map<Long, String> usernames = resolveUsernames(memberIds);
 
-    DebtSimplificationPlan plan =
-        debtNettingEngine.simplifyDebts(
-            groupId,
-            balanceResult.getNetBalances(),
-            effectiveOptOutUserIds,
-            usernames,
-            balanceResult.getOriginalTransactionCount());
+    DebtProjectionEngine.Projection projection =
+        debtProjectionEngine.project(
+            groupId, memberIds, settings.getOptOutUserIds(), balanceResult, usernames);
 
-    return toDTO(plan, settings, effectiveOptOutUserIds);
+    return toDTO(projection.plan(), settings, projection.optedOutUserIds());
   }
 
   private Map<Long, String> resolveUsernames(List<Long> memberIds) {

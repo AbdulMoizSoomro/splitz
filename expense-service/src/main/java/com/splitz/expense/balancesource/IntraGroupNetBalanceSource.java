@@ -8,6 +8,8 @@ import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.PaymentRepository;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
@@ -40,6 +42,8 @@ public class IntraGroupNetBalanceSource implements NetBalanceSource {
     List<Expense> expenses = expenseRepository.findByGroupId(groupId);
     List<Payment> payments = paymentRepository.findByGroupId(groupId);
     return NetBalanceResult.builder()
+        .groupIdsByUser(
+            memberIds.stream().collect(Collectors.toMap(id -> id, id -> Set.of(groupId))))
         .netBalances(
             Collections.unmodifiableMap(
                 financialLedgerEngine.calculateGroupBalances(groupId, memberIds)))

@@ -27,8 +27,10 @@ import com.splitz.expense.model.SimplificationScope;
 import com.splitz.expense.model.SimplifiedDebtTransaction;
 import com.splitz.expense.model.TransactionStatus;
 import com.splitz.expense.netting.DebtNettingEngine;
+import com.splitz.expense.netting.DebtProjectionEngine;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
+import com.splitz.expense.repository.LedgerRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -52,6 +54,7 @@ class DebtSimplificationPlanServiceTest {
   @Mock private UserSimplificationPreferenceService preferenceService;
   @Mock private UserClient userClient;
   @Mock private DebtNettingEngine debtNettingEngine;
+  @Mock private LedgerRepository ledgerRepository;
   @Mock private IntraGroupNetBalanceSource intraGroupNetBalanceSource;
   @Mock private CrossGroupNetBalanceSource crossGroupNetBalanceSource;
 
@@ -69,7 +72,7 @@ class DebtSimplificationPlanServiceTest {
             settingsService,
             preferenceService,
             userClient,
-            debtNettingEngine,
+            new DebtProjectionEngine(preferenceService, ledgerRepository, debtNettingEngine),
             intraGroupNetBalanceSource,
             crossGroupNetBalanceSource);
     when(groupRepository.existsById(GROUP_ID)).thenReturn(true);

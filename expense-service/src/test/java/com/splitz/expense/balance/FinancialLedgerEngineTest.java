@@ -24,6 +24,7 @@ import com.splitz.expense.model.SettlementStatus;
 import com.splitz.expense.model.SimplifiedDebtTransaction;
 import com.splitz.expense.model.TransactionStatus;
 import com.splitz.expense.netting.DebtNettingEngine;
+import com.splitz.expense.netting.DebtProjectionEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
@@ -32,8 +33,10 @@ import com.splitz.expense.repository.PaymentRepository;
 import com.splitz.expense.repository.UserBalanceAggregate;
 import com.splitz.expense.repository.UserGroupAggregate;
 import com.splitz.expense.service.GroupSimplificationSettingsService;
+import com.splitz.expense.service.UserSimplificationPreferenceService;
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,6 +73,10 @@ class FinancialLedgerEngineTest {
     when(ledgerRepository.calculatePairwiseBalanceInGroup(anyLong(), anyLong(), anyLong()))
         .thenReturn(BigDecimal.ZERO);
 
+    UserSimplificationPreferenceService preferences =
+        mock(UserSimplificationPreferenceService.class);
+    when(preferences.effectiveOptOutUserIds(anySet(), any()))
+        .thenAnswer(inv -> new HashSet<>(inv.getArgument(0)));
     engine =
         new DefaultFinancialLedgerEngine(
             expenseRepository,
@@ -77,7 +84,7 @@ class FinancialLedgerEngineTest {
             groupRepository,
             paymentRepository,
             userClient,
-            debtNettingEngine,
+            new DebtProjectionEngine(preferences, ledgerRepository, debtNettingEngine),
             settingsService,
             ledgerRepository);
   }
