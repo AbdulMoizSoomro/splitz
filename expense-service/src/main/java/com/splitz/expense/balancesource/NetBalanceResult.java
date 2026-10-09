@@ -2,6 +2,7 @@ package com.splitz.expense.balancesource;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Set;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -17,4 +18,7 @@ public final class NetBalanceResult {
 
   private final Map<Long, BigDecimal> netBalances;
   private final int originalTransactionCount;
+
+  /** Each member's contributing groups, so protected debts respect the same membership scope. */
+  @Builder.Default private final Map<Long, Set<Long>> groupIdsByUser = Map.of();
 }

@@ -1,5 +1,6 @@
 package com.splitz.expense.balance;
 
+import com.splitz.expense.balancesource.NetBalanceResult;
 import com.splitz.expense.client.UserClient;
 import com.splitz.expense.dto.BalanceDTO;
 import com.splitz.expense.dto.CounterpartyResponseDTO;
@@ -10,14 +11,12 @@ import com.splitz.expense.dto.GroupBalanceResponseDTO;
 import com.splitz.expense.dto.UserBalanceResponseDTO;
 import com.splitz.expense.dto.UserResponse;
 import com.splitz.expense.exception.ResourceNotFoundException;
-import com.splitz.expense.model.DebtSimplificationPlan;
 import com.splitz.expense.model.Group;
 import com.splitz.expense.model.GroupMember;
 import com.splitz.expense.model.GroupSimplificationSettings;
 import com.splitz.expense.model.Payment;
 import com.splitz.expense.model.SettlementStatus;
-import com.splitz.expense.model.SimplifiedDebtTransaction;
-import com.splitz.expense.netting.DebtNettingEngine;
+import com.splitz.expense.netting.DebtProjectionEngine;
 import com.splitz.expense.repository.ExpenseRepository;
 import com.splitz.expense.repository.GroupMemberRepository;
 import com.splitz.expense.repository.GroupRepository;
@@ -64,7 +63,7 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
   private final GroupRepository groupRepository;
   private final PaymentRepository paymentRepository;
   private final UserClient userClient;
-  private final DebtNettingEngine debtNettingEngine;
+  private final DebtProjectionEngine debtProjectionEngine;
   private final GroupSimplificationSettingsService settingsService;
   private final LedgerRepository ledgerRepository;
 
@@ -184,46 +183,9 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
     if (!settings.isSimplificationEnabled()) {
       debtDTOs = calculateRawDebts(groupId, memberIds, userMap);
     } else {
-      int rawTransactionCount =
-          (int)
-              (expenseRepository.countByGroupId(groupId)
-                  + paymentRepository.countByGroupId(groupId));
-
-      DebtSimplificationPlan plan =
-          debtNettingEngine.simplifyDebts(
-              groupId,
-              netBalances,
-              settings.getOptOutUserIds(),
-              Collections.emptyMap(),
-              rawTransactionCount);
-
-      debtDTOs =
-          plan != null && plan.getTransactions() != null
-              ? plan.getTransactions().stream()
-                  .map(
-                      tx -> {
-                        UserResponse fromUser = userMap.get(tx.getFromUserId());
-                        UserResponse toUser = userMap.get(tx.getToUserId());
-                        return DebtDTO.builder()
-                            .from(tx.getFromUserId())
-                            .fromUsername(fromUser != null ? fromUser.getUsername() : null)
-                            .to(tx.getToUserId())
-                            .toUsername(toUser != null ? toUser.getUsername() : null)
-                            .amount(tx.getAmount())
-                            .build();
-                      })
-                  .collect(Collectors.toList())
-              : new ArrayList<>();
-
-      if (settings.getOptOutUserIds() != null && !settings.getOptOutUserIds().isEmpty()) {
-        List<DebtDTO> rawDebts = calculateRawDebts(groupId, memberIds, userMap);
-        for (DebtDTO rawDebt : rawDebts) {
-          if (settings.getOptOutUserIds().contains(rawDebt.getFrom())
-              || settings.getOptOutUserIds().contains(rawDebt.getTo())) {
-            debtDTOs.add(rawDebt);
-          }
-        }
-      }
+      Map<Long, String> usernames = new HashMap<>();
+      userMap.forEach((userId, user) -> usernames.put(userId, user.getUsername()));
+      debtDTOs = projectGroupDebts(groupId, memberIds, netBalances, settings, usernames).debts();
     }
 
     return GroupBalanceResponseDTO.builder()
@@ -305,67 +267,50 @@ public class DefaultFinancialLedgerEngine implements FinancialLedgerEngine {
           }
         }
       } else {
-        Map<Long, BigDecimal> groupNetBalances = calculateGroupBalances(groupId, memberIds);
-        int rawTxCount =
-            (int)
-                (expenseRepository.countByGroupId(groupId)
-                    + paymentRepository.countByGroupId(groupId));
-
-        DebtSimplificationPlan plan =
-            debtNettingEngine.simplifyDebts(
+        DebtProjectionEngine.Projection projection =
+            projectGroupDebts(
                 groupId,
-                groupNetBalances,
-                settings.getOptOutUserIds(),
-                Collections.emptyMap(),
-                rawTxCount);
-
-        if (plan != null && plan.getTransactions() != null) {
-          for (SimplifiedDebtTransaction tx : plan.getTransactions()) {
-            Long from = tx.getFromUserId();
-            Long to = tx.getToUserId();
-            BigDecimal amount = tx.getAmount() != null ? tx.getAmount() : BigDecimal.ZERO;
-
-            Long otherId = null;
-            BigDecimal delta = BigDecimal.ZERO;
-
-            if (from.equals(userId) && !to.equals(userId)) {
-              otherId = to;
-              delta = amount.negate();
-            } else if (to.equals(userId) && !from.equals(userId)) {
-              otherId = from;
-              delta = amount;
-            }
-
-            if (otherId != null) {
-              counterpartyBalances.put(
-                  otherId, counterpartyBalances.getOrDefault(otherId, BigDecimal.ZERO).add(delta));
-              counterpartyGroupIds.computeIfAbsent(otherId, k -> new HashSet<>()).add(groupId);
-            }
+                memberIds,
+                calculateGroupBalances(groupId, memberIds),
+                settings,
+                Collections.emptyMap());
+        for (DebtDTO debt : projection.debts()) {
+          Long otherId = null;
+          BigDecimal delta = BigDecimal.ZERO;
+          if (debt.getFrom().equals(userId)) {
+            otherId = debt.getTo();
+            delta = debt.getAmount().negate();
+          } else if (debt.getTo().equals(userId)) {
+            otherId = debt.getFrom();
+            delta = debt.getAmount();
           }
-        }
-
-        if (settings.getOptOutUserIds() != null && !settings.getOptOutUserIds().isEmpty()) {
-          for (Long memberId : memberIds) {
-            if (!memberId.equals(userId)) {
-              if (settings.getOptOutUserIds().contains(userId)
-                  || settings.getOptOutUserIds().contains(memberId)) {
-                BigDecimal pairwiseBalance =
-                    ledgerRepository.calculatePairwiseBalanceInGroup(userId, memberId, groupId);
-                if (pairwiseBalance != null
-                    && pairwiseBalance.abs().compareTo(BALANCE_TOLERANCE) >= 0) {
-                  counterpartyBalances.put(
-                      memberId,
-                      counterpartyBalances
-                          .getOrDefault(memberId, BigDecimal.ZERO)
-                          .add(pairwiseBalance));
-                  counterpartyGroupIds.computeIfAbsent(memberId, k -> new HashSet<>()).add(groupId);
-                }
-              }
-            }
+          if (otherId != null && !otherId.equals(userId)) {
+            counterpartyBalances.merge(otherId, delta, BigDecimal::add);
+            counterpartyGroupIds.computeIfAbsent(otherId, k -> new HashSet<>()).add(groupId);
           }
         }
       }
     }
+  }
+
+  private DebtProjectionEngine.Projection projectGroupDebts(
+      Long groupId,
+      List<Long> memberIds,
+      Map<Long, BigDecimal> netBalances,
+      GroupSimplificationSettings settings,
+      Map<Long, String> usernames) {
+    NetBalanceResult balances =
+        NetBalanceResult.builder()
+            .netBalances(netBalances)
+            .groupIdsByUser(
+                memberIds.stream().collect(Collectors.toMap(id -> id, id -> Set.of(groupId))))
+            .originalTransactionCount(
+                (int)
+                    (expenseRepository.countByGroupId(groupId)
+                        + paymentRepository.countByGroupId(groupId)))
+            .build();
+    return debtProjectionEngine.project(
+        groupId, memberIds, settings.getOptOutUserIds(), balances, usernames);
   }
 
   private void accumulateGlobalSettlements(
