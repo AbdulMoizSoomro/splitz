@@ -183,6 +183,112 @@ test.describe("[E2E] Account-Level Debt Simplification Opt-Out", () => {
     }
   });
 
+  test("a net-zero member's account opt-out preserves original debts and Temp Friends", async ({
+    page,
+    request,
+  }) => {
+    const nonce = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+    const members = [];
+    for (const name of ["Alice", "Bob", "Charlie"]) {
+      const username = `${name.toLowerCase()}_chain_${nonce}`;
+      const registration = await request.post("/api/user/users", {
+        data: {
+          username,
+          email: `${username}@example.com`,
+          password: PASSWORD,
+          firstName: name,
+          lastName: "User",
+        },
+      });
+      expect(registration.ok(), `register ${username}`).toBeTruthy();
+      const { id } = await registration.json();
+      const authentication = await request.post("/api/user/authenticate", {
+        data: { username, password: PASSWORD },
+      });
+      expect(authentication.ok(), `authenticate ${username}`).toBeTruthy();
+      const { token } = await authentication.json();
+      members.push({ id: id as number, username, token: token as string });
+    }
+    const [alice, bob, charlie] = members;
+    const groupName = `Net-zero Opt-out ${nonce}`;
+    const group = await request.post("/api/expense/groups", {
+      headers: { Authorization: `Bearer ${alice.token}` },
+      data: { name: groupName, memberUserIds: [bob.id, charlie.id] },
+    });
+    expect(group.ok(), "create the debt-chain group").toBeTruthy();
+    const { id: groupId } = await group.json();
+
+    // Bob owes Alice $100 and Charlie owes Bob $100. Bob's total is zero, but
+    // opting out must preserve both obligations instead of bypassing him.
+    for (const [payer, debtor] of [[alice, bob], [bob, charlie]]) {
+      const expense = await request.post(`/api/expense/groups/${groupId}/expenses`, {
+        headers: { Authorization: `Bearer ${payer.token}` },
+        data: {
+          description: `${payer.username} paid for ${debtor.username}`,
+          amount: 100,
+          paidBy: payer.id,
+          splitType: "EXACT",
+          splits: [{ userId: debtor.id, splitValue: 100 }],
+        },
+      });
+      expect(expense.ok(), "create an original $100 debt").toBeTruthy();
+    }
+
+    await loginUser(page, bob.username);
+    const openBalances = async () => {
+      // Reload the data when moving between Settings and each debt projection.
+      await page.goto("/groups");
+      await openGroupDetails(page, groupName);
+      await page.getByRole("tab", { name: /balances/i }).click();
+      await expect(page.getByTestId("simplification-plan-card")).toBeVisible();
+    };
+    const plan = page.getByTestId("simplification-plan-card");
+    await openBalances();
+    const simplifiedDebt = plan.getByText(new RegExp(`${charlie.username}\\s*${alice.username}`));
+    await expect(simplifiedDebt).toBeVisible();
+    await expect(simplifiedDebt.locator("../../..").getByText("$100.00", { exact: true })).toBeVisible();
+    await expect(plan.getByText(/opted out of debt netting/i)).toHaveCount(0);
+
+    await page.goto("/settings");
+    const accountSwitch = page.getByTestId("account-opt-out-switch");
+    await expect(accountSwitch).toHaveAttribute("aria-checked", "false");
+    await accountSwitch.click();
+    await expect(accountSwitch).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("account-opt-out-notice")).toBeVisible();
+
+    await openBalances();
+    await expect(plan.getByText(/opted out of debt netting/i)).toBeVisible();
+    await expect(plan.getByText(/all balances are settled/i)).toBeVisible();
+    await expect(plan.getByText(alice.username, { exact: true })).toHaveCount(0);
+    await expect(plan.getByText(charlie.username, { exact: true })).toHaveCount(0);
+    const rawDebts = page.locator('[data-slot="card"]').filter({ hasText: "All Raw Group Debts" });
+    await expect(rawDebts.getByText("owes", { exact: true })).toHaveCount(2);
+    for (const [from, to] of [[bob, alice], [charlie, bob]]) {
+      const debt = rawDebts.getByText(new RegExp(`${from.username}\\s*owes\\s*${to.username}`));
+      await expect(debt).toBeVisible();
+      await expect(debt.locator("..").getByText("$100.00", { exact: true })).toBeVisible();
+    }
+
+    await page.goto("/friends");
+    await expect(page.getByText("Temporary Friends", { exact: true })).toHaveCount(2);
+    await expect(page.getByText(`@${alice.username}`, { exact: true }).locator("..")
+      .getByText("You owe $100.00", { exact: true })).toBeVisible();
+    await expect(page.getByText(`@${charlie.username}`, { exact: true }).locator("..")
+      .getByText("Owes you $100.00", { exact: true })).toBeVisible();
+
+    await page.goto("/settings");
+    await accountSwitch.click();
+    await expect(accountSwitch).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByTestId("account-opt-out-notice")).not.toBeVisible();
+    await openBalances();
+    await expect(simplifiedDebt).toBeVisible();
+    await expect(simplifiedDebt.locator("../../..").getByText("$100.00", { exact: true })).toBeVisible();
+    await expect(plan.getByText(/opted out of debt netting/i)).toHaveCount(0);
+    await page.goto("/friends");
+    await expect(page.getByText("No friends added yet.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Temporary Friends", { exact: true })).toHaveCount(0);
+  });
+
   test("the Settings nav link resolves to a real page", async ({ browser }) => {
     const ts = Date.now();
     const carolName = `carol_nav_${ts}`;
